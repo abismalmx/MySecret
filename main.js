@@ -132,7 +132,7 @@ var PathFilter = class {
   }
 };
 
-// node_modules/hash-wasm/dist/index.esm.js
+// ../node_modules/hash-wasm/dist/index.esm.js
 function __awaiter(thisArg, _arguments, P, generator) {
   function adopt(value) {
     return value instanceof P ? value : new P(function(resolve) {
@@ -4404,7 +4404,7 @@ var MYSECRET_LOGO_DATA_URL = "data:image/webp;base64,UklGRlrtAQBXRUJQVlA4WAoAAAA
 // src/ui/export-modal.ts
 var import_obsidian3 = require("obsidian");
 
-// node_modules/fflate/esm/browser.js
+// ../node_modules/fflate/esm/browser.js
 var u8 = Uint8Array;
 var u16 = Uint16Array;
 var i32 = Int32Array;
