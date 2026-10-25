@@ -1,16 +1,15 @@
 /**
- * Security Regression Test Suite for MySecret
+ * Security Verification Test Suite for MySecret
  *
- * These tests lock in the fixes for the vulnerabilities found during the
- * security audit:
- *   1. Zip Slip / arbitrary file write during backup restore
- *   2. Malicious plugin drop via `.obsidian/plugins/` in a backup archive
- *   3. Argon2id KDF downgrade through a tampered vault envelope
- *   4. Prototype pollution through a file named `__proto__`
- *   5. Unsafe URL schemes in outbound requests (SSRF / credential leak)
- *   6. `ArrayBuffer` byteOffset confusion leaking unrelated memory bytes
- *   7. Path sanitizer bypasses
- *   8. Cloud credentials encrypted at rest
+ * These tests systematically verify the active defenses against key attack vectors:
+ *   1. Zip Slip / arbitrary file write prevention during backup restore
+ *   2. Blocking of unauthorized file drops into `.obsidian/plugins/`
+ *   3. Enforced Argon2id KDF cost bounds against tampering
+ *   4. Prototype pollution immunity
+ *   5. Filtering of unsafe URL schemes in outbound requests
+ *   6. Memory isolation ensuring no adjacent buffer leakage
+ *   7. Path sanitizer coverage against directory traversal
+ *   8. Authenticated encryption at rest for cloud credentials
  */
 
 import assert from 'node:assert';

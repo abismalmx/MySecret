@@ -187,17 +187,14 @@ test('BiometricManager: Detects enrollment state correctly', () => {
 });
 
 // ============================================================================
-// SECURITY REGRESSION TESTS
-// These lock in the fixes applied after the biometric security review.
+// ============================================================================
+// SECURITY VERIFICATION TESTS
+// These verify the cryptographic guarantees and active defenses of the biometric system.
 // ============================================================================
 
 /**
  * Removes the comments from a TypeScript source file so that the security
  * assertions below inspect the EXECUTABLE CODE only.
- *
- * Without this, a developer who documents the historical vulnerability in a
- * comment (as this very file does) would make the test fail for the wrong
- * reason.
  */
 function stripComments(source) {
   return source

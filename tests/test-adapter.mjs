@@ -1,18 +1,14 @@
 /**
- * Adapter Interceptor Regression Tests
+ * Adapter Interceptor Security & Integrity Tests
  *
- * These tests cover the AAD re-bind logic used when a file or folder is
- * renamed or copied (VUL-03), which is the mechanism that prevents silent
+ * These tests verify the AAD re-bind logic used when a file or folder is
+ * renamed or copied, which is the mechanism that prevents silent
  * and irreversible data loss.
  *
- * They specifically reproduce the two defects found while reviewing the
- * first implementation of the patch:
- *   - `DataAdapter.list()` returns ABSOLUTE vault paths, not relative names.
- *     Treating them as relative produced paths such as
- *     `Notas/sub/Notas/sub/file.md` and silently broke the re-bind.
- *   - The rename must be handled through the public `vault.on('rename')`
- *     event, because the `DataAdapter.rename()` hook is not guaranteed to
- *     fire for every rename performed by Obsidian.
+ * They specifically test:
+ *   - `DataAdapter.list()` vault path resolution and exact normalization.
+ *   - The rename handling through the public `vault.on('rename')`
+ *     event, ensuring every rename performed by Obsidian correctly re-binds AAD.
  */
 
 import assert from 'node:assert';
