@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MySecret - Desbloqueo Biométrico</title>
+  <!--
+    SECURITY: a strict Content Security Policy.
+    The bridge performs a cryptographic ceremony and redirects back to the
+    Obsidian app. Nothing may be loaded from a third party, and the page may
+    only navigate to the `obsidian:` custom scheme. `object-src 'none'` and
+    `base-uri 'none'` block the classic injection vectors, and
+    `form-action 'none'` prevents a hostile injected form from exfiltrating
+    the session data.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'">
+  <meta name="referrer" content="no-referrer">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0f1117">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="icon-wrapper">
+        <div id="pulse-ring" class="pulse-ring"></div>
+        <svg id="fingerprint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"></path>
+          <path d="M14 13.12c0 2.38 0 6.38-1 8.88"></path>
+          <path d="M2 12a10 10 0 0 1 18-6"></path>
+          <path d="M2 16a14 14 0 0 1 4-10"></path>
+          <path d="M8.65 22c.21-.66.45-1.32.57-2"></path>
+          <path d="M9 6.8a6 6 0 0 1 9 5.2v2"></path>
+          <path d="M5.5 19.5c.5-.5 1-1.2 1.5-2"></path>
+          <path d="M20 18c-.5.8-1 1.4-1.5 2"></path>
+          <path d="M18 10a6 6 0 0 0-6-6"></path>
+        </svg>
+      </div>
+
+      <div id="status-badge" class="status-badge">Conectando...</div>
+      <h1 id="title">MySecret</h1>
+      <p id="status-text" class="status-text">Iniciando verificación biométrica...</p>
+
+      <button id="action-btn" class="btn btn-primary hidden"></button>
+      <a id="manual-return-btn" class="btn btn-secondary hidden" href="#">Abrir Obsidian</a>
+
+      <div class="footer-info">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <span>Cifrado de extremo a extremo · Privacidad Absoluta</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="./auth.js"></script>
+</body>
+</html>

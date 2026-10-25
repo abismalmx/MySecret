@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySecret — Recuperador de Notas Offline</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1f2e;
+      --text: #f0f3f6;
+      --text-muted: #9aa4b2;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --border: rgba(255, 255, 255, 0.1);
+      --success: #10b981;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 760px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; color: #fff; }
+    p.desc { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5; }
+    .badge {
+      display: inline-block;
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--accent);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #fff;
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.8rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--accent-hover); }
+    .result-box {
+      margin-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+    }
+    #output {
+      min-height: 150px;
+      white-space: pre-wrap;
+      background: #000;
+      color: #10b981;
+    }
+    .error { color: var(--error); margin-top: 0.5rem; font-size: 0.9rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">100% Offline · Web Crypto API</span>
+    <h1>MySecret — Recuperador de Notas sin Obsidian</h1>
+    <p class="desc">
+      Esta herramienta ejecuta criptografía nativa (AES-256-GCM y PBKDF2) directamente en tu navegador.
+      No requiere internet ni enviar datos a ningún servidor.
+    </p>
+
+    <label for="mnemonic">1. Frase de Rescate BIP-39 (24 palabras):</label>
+    <textarea id="mnemonic" rows="2" placeholder="ejemplo: word1 word2 word3 ... word24"></textarea>
+
+    <label for="relPath">2. Ruta relativa de la nota en la bóveda (AAD):</label>
+    <input type="text" id="relPath" placeholder="ejemplo: Notas/Diario.md (o dejar en blanco para raíz)">
+
+    <label for="armoredText">3. Contenido cifrado de la nota (.md):</label>
+    <textarea id="armoredText" rows="6" placeholder="Pega el contenido que empieza con -----BEGIN MYSECRET ENCRYPTED FILE-----"></textarea>
+
+    <button onclick="decryptNote()">Descifrar Nota Ahora</button>
+    <div id="errorMsg" class="error"></div>
+
+    <div class="result-box">
+      <label for="output">Resultado en Texto Plano:</label>
+      <textarea id="output" readonly placeholder="Tu texto descifrado aparecerá aquí..."></textarea>
+    </div>
+  </div>
+
+  <script>
+    async function deriveKeyFromBip39(mnemonic) {
+      const cleanMnemonic = mnemonic.trim().toLowerCase().normalize('NFKD');
+      const enc = new TextEncoder();
+      const salt = enc.encode('mnemonic'.normalize('NFKD'));
+      
+      const baseKey = await window.crypto.subtle.importKey(
+        'raw',
+        enc.encode(cleanMnemonic),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+      );
+
+      const derivedBits = await window.crypto.subtle.deriveBits(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 2048,
+          hash: 'SHA-512'
+        },
+        baseKey,
+        256
+      );
+
+      return window.crypto.subtle.importKey(
+        'raw',
+        derivedBits,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+    }
+
+    function base64ToBytes(b64) {
+      const bin = atob(b64.trim());
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    async function decryptNote() {
+      const errorEl = document.getElementById('errorMsg');
+      const outputEl = document.getElementById('output');
+      errorEl.innerText = '';
+      outputEl.value = '';
+
+      try {
+        const mnemonic = document.getElementById('mnemonic').value.trim();
+        const relPath = (document.getElementById('relPath').value.trim() || 'note.md').normalize('NFC').replace(/\\/g, '/');
+        const text = document.getElementById('armoredText').value.trim();
+
+        if (!mnemonic) throw new Error('Debes ingresar tu frase mnemónica de 24 palabras.');
+        if (!text.includes('-----BEGIN MYSECRET ENCRYPTED FILE-----')) throw new Error('El texto no contiene el encabezado válido de MySecret.');
+
+        // Extraer IV, Tag y Ciphertext
+        const lines = text.split('\n');
+        let ivB64 = '', tagB64 = '', cipherB64 = '';
+        let inCipher = false;
+
+        for (const line of lines) {
+          const l = line.trim();
+          if (l.startsWith('IV:')) ivB64 = l.substring(3).trim();
+          else if (l.startsWith('Tag:')) tagB64 = l.substring(4).trim();
+          else if (l === '' && (ivB64 || tagB64)) inCipher = true;
+          else if (l.startsWith('-----END')) inCipher = false;
+          else if (inCipher && l) cipherB64 += l;
+        }
+
+        if (!ivB64 || !tagB64 || !cipherB64) throw new Error('No se pudieron extraer IV, Tag o Ciphertext de la nota.');
+
+        const iv = base64ToBytes(ivB64);
+        const tag = base64ToBytes(tagB64);
+        const cipher = base64ToBytes(cipherB64);
+
+        // Web Crypto AES-GCM espera [Ciphertext + Tag] concatenados
+        const combined = new Uint8Array(cipher.length + tag.length);
+        combined.set(cipher, 0);
+        combined.set(tag, cipher.length);
+
+        const key = await deriveKeyFromBip39(mnemonic);
+        const aad = new TextEncoder().encode(relPath);
+
+        const decrypted = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv, additionalData: aad, tagLength: 128 },
+          key,
+          combined
+        );
+
+        outputEl.value = new TextDecoder().decode(decrypted);
+      } catch (err) {
+        errorEl.innerText = '❌ Error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

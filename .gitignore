@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic / Test build bundles
+tests/bundle-*.mjs
+tests/bundle-*.js
+
+# Dependency directories
+node_modules/
+
+# Vault and Obsidian test runtime folders
+.obsidian/
+
+# Local Environment Variables and Secrets
+.env
+.env.test
+.env.production
+.env.local
+*.pem
+*.key
+*.cert
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary and Backup archives
+backup/
+*.zip
+*.tar.gz
+*.bak
+scratch/

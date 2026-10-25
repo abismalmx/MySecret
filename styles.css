@@ -1,0 +1,1870 @@
+/* ==========================================================================
+   MySecret - Obsidian Transparent Encryption Plugin
+   Premium Glassmorphism Design & Micro-animations
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Design tokens (adapted to the active Obsidian theme)
+   -------------------------------------------------------------------------- */
+.theme-light {
+  --mysecret-glass: rgba(255, 255, 255, 0.72);
+  --mysecret-glass-strong: rgba(255, 255, 255, 0.88);
+  --mysecret-border: rgba(15, 23, 42, 0.10);
+  --mysecret-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  --mysecret-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.theme-dark {
+  --mysecret-glass: rgba(30, 31, 38, 0.72);
+  --mysecret-glass-strong: rgba(38, 40, 50, 0.90);
+  --mysecret-border: rgba(255, 255, 255, 0.10);
+  --mysecret-shadow: 0 24px 60px rgba(0, 0, 0, 0.62);
+  --mysecret-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+/* --------------------------------------------------------------------------
+   Ribbon Icon State
+   -------------------------------------------------------------------------- */
+.workspace-ribbon .mysecret-locked svg {
+  color: var(--text-error, #ff5c5c) !important;
+}
+
+.workspace-ribbon .mysecret-unlocked svg {
+  color: var(--text-success, #4ade80) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Full Vault Lockout Cloak & Backdrop Shield
+   -------------------------------------------------------------------------- */
+body.is-mysecret-locked .workspace-split.mod-root,
+body.is-mysecret-locked .workspace-leaf-content,
+body.is-mysecret-locked .workspace-tabs,
+body.is-mysecret-locked .nav-files-container,
+body.is-mysecret-locked .workspace-tab-header-container {
+  filter: blur(28px) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  opacity: 0.04 !important;
+  transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.modal-container.mysecret-lock-container-active .modal-bg,
+.modal-container:has(.mysecret-lock-modal) .modal-bg {
+  background: rgba(10, 12, 18, 0.94) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  opacity: 1 !important;
+}
+
+.modal.mysecret-lock-modal .modal-close-button {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Modal Backdrops & Glassmorphism
+   -------------------------------------------------------------------------- */
+.modal-container {
+  --mysecret-radius: 18px;
+}
+
+.modal.mysecret-lock-modal,
+.modal.mysecret-wizard-modal,
+.modal.mysecret-migration-modal,
+.modal.mysecret-change-password-modal,
+.modal.mysecret-recovery-modal {
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.modal.mysecret-lock-modal .modal-content,
+.modal.mysecret-wizard-modal .modal-content,
+.modal.mysecret-migration-modal .modal-content,
+.modal.mysecret-change-password-modal .modal-content,
+.modal.mysecret-recovery-modal .modal-content {
+  background: var(--mysecret-glass);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid var(--mysecret-border);
+  border-radius: var(--mysecret-radius);
+  box-shadow: var(--mysecret-shadow);
+  padding: 32px;
+  max-width: 560px;
+  margin: 0 auto;
+  animation: mysecret-fade-in-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal.mysecret-lock-modal .modal-content {
+  max-width: 440px;
+}
+
+.modal.mysecret-wizard-modal .modal-content {
+  max-width: 680px;
+}
+
+.modal.mysecret-recovery-modal .modal-content {
+  max-width: 680px;
+}
+
+/* --------------------------------------------------------------------------
+   Shared containers
+   -------------------------------------------------------------------------- */
+.mysecret-lock-container,
+.mysecret-wizard-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Lock screen
+   -------------------------------------------------------------------------- */
+.mysecret-lock-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mysecret-lock-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.mysecret-lock-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mysecret-lock-icon-wrap:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.mysecret-lock-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: filter 0.28s ease;
+}
+
+.mysecret-lock-icon-wrap:hover .mysecret-lock-logo {
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 20px rgba(var(--interactive-accent-rgb), 0.35));
+}
+
+.mysecret-lock-title {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-normal);
+  letter-spacing: -0.01em;
+}
+
+.mysecret-lock-subtitle {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+  max-width: 34ch;
+}
+
+/* --- Lock status indicator --- */
+.mysecret-lock-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 22px;
+  border: 1px solid var(--mysecret-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  transition: color 0.25s ease, background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.mysecret-lock-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.mysecret-lock-status-text {
+  white-space: nowrap;
+}
+
+.mysecret-lock-status.is-locked {
+  color: var(--text-error, #f87171);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+}
+
+.mysecret-lock-status.is-locked .mysecret-lock-status-dot {
+  animation: mysecret-pulse 2.4s ease-in-out infinite;
+}
+
+.mysecret-lock-status.is-working {
+  color: var(--text-warning, #fbbf24);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.mysecret-lock-status.is-working .mysecret-lock-status-dot {
+  animation: mysecret-pulse 0.9s ease-in-out infinite;
+}
+
+.mysecret-lock-status.is-unlocked {
+  color: var(--text-success, #4ade80);
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.32);
+}
+
+/* --- Lock body / forms --- */
+.mysecret-lock-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mysecret-lock-form,
+.mysecret-wizard-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mysecret-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+
+.mysecret-input-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+
+.mysecret-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.mysecret-password-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 11px;
+  font-size: 1.02rem;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.mysecret-password-input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.25);
+  outline: none;
+}
+
+.mysecret-password-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mysecret-password-input.is-correct {
+  border-color: var(--text-success, #4ade80);
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.20);
+}
+
+.mysecret-password-input.is-wrong {
+  border-color: var(--text-error, #f87171);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.20);
+}
+
+/* --- Password visibility toggle --- */
+.mysecret-visibility-toggle {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.mysecret-visibility-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mysecret-visibility-toggle:hover:not(:disabled) {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.mysecret-visibility-toggle:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.mysecret-visibility-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mysecret-visibility-toggle.is-visible {
+  color: var(--interactive-accent);
+}
+
+/* --- Recovery phrase input --- */
+.mysecret-recovery-group {
+  width: 100%;
+}
+
+.mysecret-recovery-input {
+  width: 100%;
+  min-height: 118px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  font-family: var(--font-monospace);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mysecret-recovery-input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px rgba(var(--interactive-accent-rgb), 0.25);
+  outline: none;
+}
+
+.mysecret-recovery-counter {
+  font-size: 0.78rem;
+  font-family: var(--font-monospace);
+  color: var(--text-faint);
+  text-align: right;
+  transition: color 0.2s ease;
+}
+
+.mysecret-recovery-counter.is-complete {
+  color: var(--text-success, #4ade80);
+  font-weight: 600;
+}
+
+/* --- Error banner --- */
+.mysecret-error-banner {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  color: var(--text-error, #f87171);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: left;
+  animation: mysecret-fade-in 0.2s ease;
+}
+
+/* --- Biometric unlock in lock screen --- */
+.mysecret-bio-lock-section {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.mysecret-bio-unlock-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 11px;
+  background: rgba(var(--interactive-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--interactive-accent-rgb), 0.35);
+  color: var(--text-normal);
+  font-size: 0.96rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.mysecret-bio-unlock-btn svg {
+  color: var(--interactive-accent);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.mysecret-bio-unlock-btn:hover:not(:disabled) {
+  background: rgba(var(--interactive-accent-rgb), 0.20);
+  border-color: var(--interactive-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(var(--interactive-accent-rgb), 0.25);
+}
+
+.mysecret-bio-unlock-btn:hover:not(:disabled) svg {
+  transform: scale(1.1);
+}
+
+.mysecret-bio-unlock-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mysecret-lock-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  margin: 14px 0 16px 0;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+.mysecret-lock-divider::before,
+.mysecret-lock-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--mysecret-border);
+}
+
+.mysecret-lock-divider span {
+  padding: 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mysecret-bio-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: var(--interactive-accent);
+}
+
+/* --- Actions --- */
+.mysecret-actions-group {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mysecret-unlock-btn,
+.mysecret-wizard-btn {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.mysecret-unlock-btn:hover:not(:disabled),
+.mysecret-wizard-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--mysecret-shadow-soft);
+}
+
+.mysecret-unlock-btn:disabled,
+.mysecret-wizard-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mysecret-toggle-recovery-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.88;
+  transition: opacity 0.2s ease;
+}
+
+.mysecret-toggle-recovery-link:hover {
+  opacity: 1;
+}
+
+/* --- Lock footer --- */
+.mysecret-lock-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mysecret-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.74rem;
+  font-family: var(--font-monospace);
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+
+.mysecret-footer-sep {
+  opacity: 0.5;
+}
+
+/* --------------------------------------------------------------------------
+   Setup wizard
+   -------------------------------------------------------------------------- */
+.mysecret-wizard-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.mysecret-wizard-brand-logo {
+  width: 86px;
+  height: auto;
+  max-height: 96px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.35));
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.mysecret-wizard-brand-logo:hover {
+  transform: scale(1.04);
+  filter: drop-shadow(0 10px 26px rgba(var(--interactive-accent-rgb), 0.4));
+}
+
+.mysecret-wizard-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin: 18px 0 8px 0;
+  color: var(--text-normal);
+}
+
+.mysecret-wizard-desc {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  margin: 0 0 22px 0;
+  line-height: 1.55;
+  max-width: 52ch;
+}
+
+/* --- Stepper --- */
+.mysecret-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.mysecret-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mysecret-step-bullet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-faint);
+  transition: all 0.3s ease;
+}
+
+.mysecret-step-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.mysecret-step.is-current .mysecret-step-bullet {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 0 0 4px rgba(var(--interactive-accent-rgb), 0.18);
+  transform: scale(1.08);
+}
+
+.mysecret-step.is-current .mysecret-step-label {
+  color: var(--text-normal);
+}
+
+.mysecret-step.is-completed .mysecret-step-bullet {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.45);
+  color: var(--text-success, #4ade80);
+}
+
+.mysecret-step.is-completed .mysecret-step-label {
+  color: var(--text-muted);
+}
+
+.mysecret-step-line {
+  width: 34px;
+  height: 2px;
+  margin: 0 4px;
+  border-radius: 2px;
+  background: var(--background-modifier-border);
+}
+
+/* --- Entropy meter --- */
+.mysecret-entropy-meter {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mysecret-entropy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mysecret-entropy-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mysecret-entropy-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  transition: color 0.25s ease;
+}
+
+.mysecret-entropy-bars {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.mysecret-entropy-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.mysecret-entropy-bar.is-active {
+  transform: scaleY(1.15);
+}
+
+.mysecret-entropy-meter[data-tier="weak"] .mysecret-entropy-bar.is-active {
+  background: var(--text-error, #f87171);
+}
+
+.mysecret-entropy-meter[data-tier="weak"] .mysecret-entropy-value {
+  color: var(--text-error, #f87171);
+}
+
+.mysecret-entropy-meter[data-tier="fair"] .mysecret-entropy-bar.is-active {
+  background: var(--text-warning, #fbbf24);
+}
+
+.mysecret-entropy-meter[data-tier="fair"] .mysecret-entropy-value {
+  color: var(--text-warning, #fbbf24);
+}
+
+.mysecret-entropy-meter[data-tier="good"] .mysecret-entropy-bar.is-active {
+  background: var(--interactive-accent);
+}
+
+.mysecret-entropy-meter[data-tier="good"] .mysecret-entropy-value {
+  color: var(--interactive-accent);
+}
+
+.mysecret-entropy-meter[data-tier="strong"] .mysecret-entropy-bar.is-active {
+  background: var(--text-success, #4ade80);
+}
+
+.mysecret-entropy-meter[data-tier="strong"] .mysecret-entropy-value {
+  color: var(--text-success, #4ade80);
+}
+
+.mysecret-entropy-hints {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 14px;
+}
+
+.mysecret-entropy-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  transition: color 0.25s ease;
+}
+
+.mysecret-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mysecret-entropy-hint.is-met {
+  color: var(--text-success, #4ade80);
+}
+
+.mysecret-entropy-hint.is-met .mysecret-hint-icon::before {
+  content: '✓';
+}
+
+/* --- Wizard warning --- */
+.mysecret-wizard-warning {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.36);
+  color: var(--text-warning, #fbbf24);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* --- Loading state --- */
+.mysecret-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.mysecret-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  animation: mysecret-spin 0.85s linear infinite;
+  flex-shrink: 0;
+}
+
+/* --- BIP-39 mnemonic cards --- */
+.mysecret-mnemonic-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0 4px 0;
+  flex-wrap: wrap;
+}
+
+.mysecret-copy-btn {
+  padding: 8px 15px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  border-radius: 9px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.mysecret-copy-btn:hover {
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+  transform: translateY(-1px);
+}
+
+.mysecret-mnemonic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin: 14px 0 20px 0;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.mysecret-mnemonic-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  user-select: all;
+  transition: border-color 0.18s ease, transform 0.18s ease, background-color 0.18s ease;
+}
+
+.mysecret-mnemonic-card:hover {
+  border-color: rgba(var(--interactive-accent-rgb), 0.5);
+  transform: translateY(-1px);
+}
+
+.mysecret-mnemonic-num {
+  font-weight: 700;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  min-width: 18px;
+  font-family: var(--font-monospace);
+}
+
+.mysecret-mnemonic-word {
+  font-weight: 600;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  letter-spacing: 0.01em;
+}
+
+/* Concealed mode blurs the words */
+.mysecret-mnemonic-grid.is-concealed .mysecret-mnemonic-word {
+  filter: blur(6px);
+  user-select: none;
+  transition: filter 0.22s ease;
+}
+
+.mysecret-mnemonic-grid.is-concealed .mysecret-mnemonic-card:hover .mysecret-mnemonic-word {
+  filter: blur(4px);
+}
+
+/* --- Step 3 challenge --- */
+.mysecret-challenge {
+  width: 100%;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 4px 0 22px 0;
+  text-align: left;
+}
+
+.mysecret-challenge-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.mysecret-challenge-desc {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mysecret-challenge-feedback {
+  font-size: 0.84rem;
+  font-weight: 600;
+  min-height: 1.2em;
+  color: var(--text-faint);
+}
+
+.mysecret-challenge-feedback.is-success {
+  color: var(--text-success, #4ade80);
+}
+
+.mysecret-challenge-feedback.is-error {
+  color: var(--text-error, #f87171);
+}
+
+/* --------------------------------------------------------------------------
+   Migration modal
+   -------------------------------------------------------------------------- */
+.mysecret-migration-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.mysecret-migration-logo-wrap {
+  width: 52px;
+  min-width: 52px;
+  height: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mysecret-migration-logo {
+  width: 100%;
+  height: auto;
+  max-height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.32));
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mysecret-migration-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-normal);
+}
+
+.mysecret-migration-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+  line-height: 1.55;
+}
+
+.mysecret-migration-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  color: var(--text-warning, #fbbf24);
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.87rem;
+  line-height: 1.45;
+  margin: 0 0 14px 0;
+  text-align: left;
+}
+
+/* --- Preflight summary --- */
+.mysecret-preflight {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.mysecret-preflight-label {
+  color: var(--text-muted);
+}
+
+.mysecret-preflight-value {
+  font-weight: 700;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+}
+
+/* --- Progress --- */
+.mysecret-progress-section {
+  width: 100%;
+  margin: 0 0 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.mysecret-progress-bar-wrapper {
+  width: 100%;
+  height: 12px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 2px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.mysecret-progress-bar {
+  position: relative;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--interactive-accent) 0%, #38bdf8 100%);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: width 0.25s ease;
+}
+
+.mysecret-progress-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.35) 50%,
+      rgba(255, 255, 255, 0) 100%);
+  transform: translateX(-100%);
+  animation: mysecret-shimmer 1.5s ease-in-out infinite;
+}
+
+.mysecret-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mysecret-progress-counter {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+}
+
+.mysecret-progress-percent {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--interactive-accent);
+  font-family: var(--font-monospace);
+}
+
+.mysecret-progress-status {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.mysecret-progress-file {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+}
+
+.mysecret-progress-eta {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  text-align: left;
+  min-height: 1.1em;
+}
+
+/* --- Emergency stop button --- */
+.mysecret-stop-btn {
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.mysecret-stop-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+.mysecret-stop-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mysecret-stop-btn-active {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: var(--text-error, #f87171);
+  animation: mysecret-stop-pulse 1.8s ease-in-out infinite;
+}
+
+/* --- Error list --- */
+.mysecret-migration-errors {
+  width: 100%;
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 11px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  text-align: left;
+}
+
+.mysecret-migration-errors-count {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-error, #f87171);
+  margin-bottom: 8px;
+}
+
+.mysecret-migration-errors-body {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.mysecret-migration-errors-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mysecret-migration-errors-list li {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.mysecret-error-path {
+  font-family: var(--font-monospace);
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-right: 6px;
+}
+
+.mysecret-error-message {
+  opacity: 0.85;
+}
+
+.mysecret-error-more {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------------------------
+   Keyframe Animations
+   -------------------------------------------------------------------------- */
+@keyframes mysecret-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes mysecret-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes mysecret-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mysecret-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes mysecret-shake-anim {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(8px);
+  }
+}
+
+@keyframes mysecret-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mysecret-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mysecret-stop-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.16);
+  }
+}
+
+.mysecret-shake {
+  animation: mysecret-shake-anim 0.45s ease-in-out;
+}
+
+/* --------------------------------------------------------------------------
+   Settings Tab Hero Banner
+   -------------------------------------------------------------------------- */
+.mysecret-settings-hero {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at top left, rgba(var(--interactive-accent-rgb), 0.12), transparent 70%),
+              linear-gradient(135deg, rgba(var(--background-secondary-rgb), 0.75), rgba(var(--background-primary-rgb), 0.9));
+  border: 1px solid var(--mysecret-border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mysecret-settings-logo-wrap {
+  width: 88px;
+  min-width: 88px;
+  height: auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mysecret-settings-hero:hover .mysecret-settings-logo-wrap {
+  transform: scale(1.04);
+}
+
+.mysecret-settings-logo {
+  max-width: 100%;
+  height: auto;
+  max-height: 100px;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+  transition: filter 0.3s ease;
+}
+
+.mysecret-settings-hero:hover .mysecret-settings-logo {
+  filter: drop-shadow(0 6px 18px rgba(var(--interactive-accent-rgb), 0.35));
+}
+
+.mysecret-settings-hero-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.mysecret-settings-hero-title {
+  margin: 0 0 6px 0 !important;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-normal);
+  letter-spacing: -0.02em;
+}
+
+.mysecret-settings-hero-desc {
+  margin: 0 !important;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mysecret-hero-author {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-accent);
+  background: var(--background-modifier-form-field);
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive & Accessibility
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+
+  .modal.mysecret-lock-modal .modal-content,
+  .modal.mysecret-wizard-modal .modal-content,
+  .modal.mysecret-migration-modal .modal-content,
+  .modal.mysecret-change-password-modal .modal-content,
+  .modal.mysecret-recovery-modal .modal-content {
+    padding: 22px 18px;
+    border-radius: 14px;
+  }
+
+  .mysecret-step-label {
+    display: none;
+  }
+
+  .mysecret-step-line {
+    width: 24px;
+  }
+
+  .mysecret-mnemonic-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    max-height: 240px;
+  }
+
+  .mysecret-entropy-hints {
+    grid-template-columns: 1fr;
+  }
+
+  .mysecret-actions-group {
+    flex-direction: column;
+  }
+
+  .mysecret-unlock-btn,
+  .mysecret-wizard-btn,
+  .mysecret-stop-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .mysecret-lock-icon,
+  .mysecret-lock-status-dot,
+  .mysecret-progress-shimmer,
+  .mysecret-spinner,
+  .mysecret-stop-btn-active,
+  .modal.mysecret-lock-modal .modal-content,
+  .modal.mysecret-wizard-modal .modal-content,
+  .modal.mysecret-migration-modal .modal-content {
+    animation: none !important;
+  }
+
+  .mysecret-shake {
+    animation: none !important;
+  }
+
+  .mysecret-entropy-bar,
+  .mysecret-progress-bar,
+  .mysecret-unlock-btn,
+  .mysecret-wizard-btn {
+    transition: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Export & Cloud Backup Modals
+   -------------------------------------------------------------------------- */
+.modal.mysecret-export-modal .modal-content,
+.modal.mysecret-cloud-modal .modal-content,
+.modal.mysecret-restore-modal .modal-content {
+  max-width: 620px;
+  width: 92%;
+  padding: 30px 28px;
+  border-radius: 18px;
+  background: var(--mysecret-glass);
+  border: 1px solid var(--mysecret-border);
+  box-shadow: var(--mysecret-shadow-deep);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: mysecret-fade-in-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Export Cards */
+.mysecret-export-format-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 16px 0 20px 0;
+}
+
+.mysecret-export-card {
+  padding: 18px 16px;
+  border-radius: 14px;
+  background: var(--background-secondary);
+  border: 2px solid var(--background-modifier-border);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.mysecret-export-card:hover {
+  border-color: rgba(var(--interactive-accent-rgb), 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.mysecret-export-card.is-selected {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.08);
+  box-shadow: 0 0 0 1px var(--interactive-accent), 0 6px 18px rgba(var(--interactive-accent-rgb), 0.18);
+}
+
+.mysecret-export-card-icon {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+
+.mysecret-export-card-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.mysecret-export-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.mysecret-export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  background: var(--background-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.mysecret-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.86rem;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.mysecret-checkbox-row input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* Cloud Provider Card */
+.mysecret-cloud-provider-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  margin: 16px 0 20px 0;
+}
+
+.mysecret-cloud-provider-card.is-unconfigured {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.mysecret-cloud-provider-icon {
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mysecret-cloud-provider-info {
+  flex: 1;
+  text-align: left;
+}
+
+.mysecret-cloud-provider-name {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-normal);
+  margin-bottom: 3px;
+}
+
+.mysecret-cloud-provider-detail {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* Restore Dropzone */
+.mysecret-restore-dropzone {
+  border: 2px dashed var(--background-modifier-border);
+  border-radius: 14px;
+  padding: 34px 20px;
+  text-align: center;
+  background: var(--background-secondary);
+  cursor: pointer;
+  transition: all 0.22s ease;
+  margin: 16px 0 18px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.mysecret-restore-dropzone:hover,
+.mysecret-restore-dropzone.is-dragover {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.08);
+  transform: scale(1.01);
+}
+
+.mysecret-restore-dropzone-icon {
+  font-size: 2.2rem;
+}
+
+.mysecret-restore-dropzone-text {
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.mysecret-restore-info {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.mysecret-restore-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: var(--text-normal);
+}
+
+.mysecret-restore-info ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* Provider Settings Indented Box */
+.mysecret-provider-settings-wrap {
+  border-left: 3px solid var(--interactive-accent);
+  padding-left: 14px;
+  margin: 8px 0 16px 8px;
+  background: rgba(var(--interactive-accent-rgb), 0.03);
+  border-radius: 0 8px 8px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Settings: Excluded Folders Interactive Manager
+   -------------------------------------------------------------------------- */
+.mysecret-excluded-folders-wrap {
+  margin-top: 8px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mysecret-manual-folder-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mysecret-manual-input {
+  flex: 1;
+  border-radius: 6px;
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--mysecret-border);
+  padding: 6px 12px;
+  font-size: 0.88rem;
+  transition: all 0.18s ease;
+}
+
+.mysecret-manual-input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+}
+
+.mysecret-manual-add-btn {
+  padding: 6px 16px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.mysecret-excluded-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--mysecret-border);
+  border-radius: 10px;
+  min-height: 48px;
+  align-items: center;
+}
+
+.mysecret-excluded-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  padding: 2px 4px;
+  user-select: none;
+}
+
+.mysecret-excluded-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-success, #4ade80);
+}
+
+.mysecret-excluded-empty-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mysecret-folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  background: var(--background-primary);
+  border: 1px solid var(--mysecret-border);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.mysecret-folder-chip:hover {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+.mysecret-folder-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--interactive-accent);
+}
+
+.mysecret-folder-chip-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.mysecret-folder-chip-path {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.mysecret-folder-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px;
+  transition: all 0.15s ease;
+}
+
+.mysecret-folder-chip-remove:hover {
+  color: var(--text-error, #ff5c5c);
+  background: rgba(255, 92, 92, 0.14);
+}
+
+.mysecret-folder-chip-remove svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Suggestion items in folder modal */
+.mysecret-folder-suggestion-item {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.mysecret-folder-suggestion-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--interactive-accent);
+}
+
+.mysecret-folder-suggestion-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Recovery choice cards in wizard */
+.mysecret-recovery-choice-wrap {
+  width: 100%;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.mysecret-recovery-choice-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+}
+
+.mysecret-choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--background-secondary);
+  border: 1px solid var(--mysecret-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mysecret-choice-card:hover {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary-alt);
+}
+
+.mysecret-choice-card.is-selected {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb), 0.08);
+}
+
+.mysecret-choice-radio {
+  font-size: 1.1rem;
+  color: var(--interactive-accent);
+  line-height: 1.2;
+}
+
+.mysecret-choice-info strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+}
+
+.mysecret-choice-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Lock screen hint when no recovery phrase is set */
+.mysecret-lock-no-recovery-hint {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+}

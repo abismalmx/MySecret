@@ -1,0 +1,41 @@
+{
+  "name": "obsidian-mysecret",
+  "version": "1.0.0",
+  "description": "Transparent on-the-fly default encryption for Obsidian with AES-256-GCM and Argon2id",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "test": "esbuild tests/test-crypto.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-test.mjs && esbuild tests/test-security.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-security.mjs && esbuild tests/test-adapter.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-adapter.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-biometrics.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-biometrics.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-i18n.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-i18n.mjs && node --test tests/bundle-test.mjs tests/bundle-security.mjs tests/bundle-adapter.mjs tests/bundle-biometrics.mjs tests/bundle-i18n.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "encryption",
+    "privacy",
+    "aes-gcm",
+    "argon2id",
+    "bip39"
+  ],
+  "author": "Anthony Rios Licea (Abismalmx)",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abismalmx/MySecret.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Abismalmx/MySecret/issues"
+  },
+  "homepage": "https://github.com/Abismalmx/MySecret#readme",
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "hash-wasm": "^4.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "^1.5.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.0.0"
+  }
+}

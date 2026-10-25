@@ -1,0 +1,49 @@
+MYSECRET NON-COMMERCIAL SOFTWARE LICENSE
+
+Copyright (c) 2026 Anthony Rios Licea (@Abismalmx). All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to use,
+copy, modify, merge, publish, and distribute copies of the Software for non-commercial
+purposes, subject to the following terms and conditions:
+
+1. NON-COMMERCIAL USE GRANT:
+   You are permitted to inspect, run, modify, test, and distribute the Software
+   free of charge exclusively for personal, educational, academic, non-profit,
+   or security research purposes.
+
+2. STRICT PROHIBITION OF COMMERCIAL USE:
+   Commercial use, commercial redistribution, or monetization of the Software
+   (in whole, in part, or as part of any derivative work) is STRICTLY PROHIBITED
+   without the prior express written authorization and commercial licensing agreement
+   negotiated directly with the author (Anthony Rios Licea).
+
+   Prohibited commercial activities include, but are not limited to:
+   a) Selling, reselling, sublicensing, leasing, or renting the Software or any
+      modified version thereof.
+   b) Incorporating the Software, its source code, or its cryptographic architecture
+      into commercial, closed-source, or paid software products, extensions, or applications.
+   c) Offering the Software as a paid hosted service, Software-as-a-Service (SaaS),
+      or managed service.
+   d) Bundling the Software with paid products, services, or paid enterprise consulting.
+   e) Use of the Software within for-profit corporate entities for commercial gain
+      without an executed enterprise license.
+
+3. RETENTION OF NOTICES:
+   The above copyright notice, this permission notice, and the disclaimer below
+   must be retained in all copies, distributions, or substantial portions of the Software.
+
+4. COMMERCIAL INQUIRIES & LICENSING:
+   For enterprise deployment, commercial distribution rights, or custom licensing
+   agreements, please contact the author:
+   - Author: Anthony Rios Licea
+   - GitHub: https://github.com/Abismalmx
+
+DISCLAIMER OF WARRANTY & LIMITATION OF LIABILITY:
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
