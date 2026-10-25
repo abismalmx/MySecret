@@ -13,7 +13,7 @@
 **Zero-Knowledge, on-the-fly encryption for your Obsidian notes and media files.**  
 *AES-256-GCM • Argon2id (WASM) • BIP-39 Mnemonic Recovery • WebAuthn & Biometrics • Multi-Cloud Backups*
 
-[English](README.md) • [Español](#características-principales-en-español)
+[English](README.md) • [Español](README.es.md)
 
 </div>
 
