@@ -22,25 +22,17 @@ Once opened for the first time, the Web app is locally cached via its Service Wo
 
 ---
 
-## ⚠️ Protocol v2 Notice
+## 🔒 Cryptographic Architecture & Security Guarantees
 
-The bridge uses **Protocol v2** with enhanced cryptographic guarantees. If you had a previous version deployed, **re-upload this folder** to Cloudflare Pages; the plugin requires matching protocol versions.
+The biometric bridge implements a hardened authentication architecture engineered to defeat replay, tampering, and impersonation attacks:
 
-### Cryptographic Guarantees (Protocol v2)
-
-| Security Feature | Cryptographic Mechanism |
-|---|---|
-| **Full WebAuthn Assertion Verification** | Obsidian verifies the signature against the credential's public key using hardware-backed authenticators. |
-| **Obsidian-Generated Single-Use Challenge** | Mitigates replay attacks by validating timestamps and nonces generated inside Obsidian. |
-| **Pinned RP ID & Registrable Domain** | A credential enrolled on `my-vault.pages.dev` cannot be reused from any other origin. |
-| **HKDF-SHA256 Key Derivation** | ECDH P-256 raw shared secrets pass through HKDF before deriving AES-GCM session keys. |
+| Security Feature | Cryptographic Mechanism & Guarantee |
+| :--- | :--- |
+| **Full WebAuthn Assertion Verification** | Obsidian cryptographically verifies the signature against the registered credential public key using hardware-backed authenticators. |
+| **Obsidian-Generated Single-Use Challenge** | Mitigates replay attacks by validating nonces and timestamps generated inside Obsidian per ceremony. |
+| **Pinned RP ID & Registrable Domain** | A credential enrolled on your `pages.dev` project domain cannot be reused from any other origin. |
+| **HKDF-SHA256 Key Derivation** | Raw **ECDH P-256** shared secrets pass through HKDF (NIST SP 800-56A) before deriving symmetric session keys. |
 | **Strict AAD Binding** | Authenticated data binds the protocol version, action, session ID, and vault token. |
-| **One-Way Vault Binding** | The actual vault ID never leaves the plugin; only a one-way SHA-256 binding (`vb`) is passed in the URL fragment. |
-| **Strict CSP & Referrer Policy** | `Content-Security-Policy: default-src 'self'` and `no-referrer` prevent injection or data exfiltration. |
-| **Cache Versioning** | The Service Worker enforces versioned cache invalidation. |
-
----
-
-### Note on `pages.dev`
-
-`pages.dev` is listed on the **Public Suffix List**, meaning each `your-project.pages.dev` domain is its own independent registrable domain with an isolated WebAuthn RP ID credential boundary.
+| **One-Way Vault Binding** | The actual vault ID never leaves Obsidian; only a one-way SHA-256 binding (`vb`) is passed in the URL fragment. |
+| **Strict CSP & Referrer Policy** | `Content-Security-Policy: default-src 'self'` and `Referrer-Policy: no-referrer` block script injections and data exfiltration. |
+| **Subdomain Isolation (`pages.dev`)** | Because `pages.dev` is listed on the *Public Suffix List*, each project operates in an isolated WebAuthn RP ID credential boundary. |
