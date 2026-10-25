@@ -4,6 +4,11 @@
 
 Welcome to the **MySecret User Manual**. This guide provides an exhaustive, step-by-step walkthrough of installing, configuring, using, backing up, and recovering an encrypted Obsidian vault with MySecret.
 
+> [!IMPORTANT]
+> ### ⚠️ Mandatory Pre-Installation Step: Backup Your Vault First
+> **Before installing, enabling, or migrating an existing vault with MySecret, it is strongly recommended that you make a complete backup copy of your Obsidian vault folder.**
+> Simply copy your entire vault folder to an external drive, USB stick, or another folder on your computer. Because MySecret performs real, hardware-accelerated at-rest disk encryption, keeping an unencrypted backup ensures total peace of mind and guarantees you can always restore your original files if you ever forget your master password or misplace your 24-word recovery phrase.
+
 ---
 
 ## Table of Contents

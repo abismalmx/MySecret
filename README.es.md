@@ -27,6 +27,19 @@ En disco, todos tus archivos permanecen fuertemente cifrados en reposo. Al desbl
 
 ---
 
+## 🎬 Demostración en Video y Explicación del Sistema
+
+Mira la demostración completa en video de MySecret explicando cómo el cifrado transparente en reposo protege tu bóveda de Obsidian:
+
+| 🇬🇧 Demostración en Inglés | 🇪🇸 Explicación en Español |
+| :---: | :---: |
+| [▶️ **Ver Demostración en Inglés (MP4)**](media/MySecret_en.mp4) | [▶️ **Ver Explicación en Español (MP4)**](media/MySecret_es.mp4) |
+
+> [!TIP]
+> **Infografía Interactiva**: Explora la arquitectura de seguridad interactiva con animaciones del pipeline paso a paso en [docs/interactive-infographic.html](docs/interactive-infographic.html).
+
+---
+
 ## 🔒 Arquitectura de Seguridad y Criptografía
 
 - **Arquitectura de Cero Conocimiento (Zero-Knowledge):** Las claves criptográficas se derivan exclusivamente en la memoria RAM de tu dispositivo. Ninguna clave ni texto plano abandona jamás tu equipo.

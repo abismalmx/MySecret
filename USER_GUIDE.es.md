@@ -4,6 +4,11 @@
 
 Bienvenido al **Manual de Usuario de MySecret**. Esta guía proporciona un recorrido completo y detallado paso a paso para instalar, configurar, usar, respaldar y recuperar una bóveda de Obsidian protegida con MySecret.
 
+> [!IMPORTANT]
+> ### ⚠️ Paso Obligatorio Previo: Realiza una Copia de Seguridad de tus Notas
+> **Antes de siquiera instalar, habilitar o cifrar tu bóveda con MySecret, se recomienda encarecidamente hacer una copia de seguridad completa de la carpeta de tus notas.**
+> Simplemente copia la carpeta de tu bóveda de Obsidian a una memoria USB, a otra carpeta de tu computadora o a tu nube preferida. Como MySecret realiza cifrado real en reposo a nivel de disco, tener una copia previa sin cifrar te garantiza tranquilidad absoluta y protección total en caso de que olvides tu contraseña maestra o extravíes tu frase mnemónica de rescate de 24 palabras.
+
 ---
 
 ## Tabla de Contenidos

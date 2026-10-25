@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySecret — Interactive Security Architecture & Infographic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-border: rgba(99, 102, 241, 0.2);
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0b0f19 75%);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem 1rem;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    .lang-switcher {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.25rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+      color: white;
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      background: linear-gradient(135deg, #fff 30%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.75rem;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      padding: 0.6rem 1.2rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: white;
+    }
+
+    .tab-btn.active {
+      background: rgba(139, 92, 246, 0.2);
+      border-color: var(--accent-purple);
+      color: white;
+      box-shadow: 0 0 16px rgba(139, 92, 246, 0.3);
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card Panels */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Interactive Pipeline Flow */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+      position: relative;
+    }
+
+    .pipe-step {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .pipe-step:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent-purple);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .pipe-step.selected {
+      border-color: var(--accent-emerald);
+      background: rgba(16, 185, 129, 0.1);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .pipe-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      color: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.75rem;
+    }
+
+    .pipe-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .pipe-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .interactive-detail {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .detail-icon {
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    .detail-body h4 {
+      font-size: 1rem;
+      color: #e5e7eb;
+      margin-bottom: 0.35rem;
+    }
+
+    .detail-body p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .crypto-chip {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      background: rgba(139, 92, 246, 0.15);
+      color: #d8b4fe;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    /* Comparison Table */
+    .comp-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th, td {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    th {
+      font-weight: 700;
+      color: #d1d5db;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .highlight-col {
+      background: rgba(139, 92, 246, 0.06);
+      font-weight: 600;
+      color: #f3f4f6;
+      border-left: 1px solid rgba(139, 92, 246, 0.2);
+      border-right: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .check { color: var(--accent-emerald); font-weight: bold; }
+    .cross { color: var(--accent-rose); font-weight: bold; }
+    .warn { color: var(--accent-amber); font-weight: bold; }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('en')">English</button>
+      <button class="lang-btn" onclick="setLang('es')">Español</button>
+    </div>
+
+    <div class="badge-pill">
+      <span>🛡️ Zero-Knowledge Cryptography</span>
+    </div>
+
+    <h1 id="hero-title">MySecret Architecture & Defenses</h1>
+    <p class="subtitle" id="hero-sub">
+      Transparent, on-the-fly at-rest disk encryption for your entire Obsidian vault, notes, canvases, and media attachments.
+    </p>
+  </header>
+
+  <nav class="tabs-nav">
+    <button class="tab-btn active" onclick="switchTab('flow')">
+      <span>🔄</span> <span id="tab-flow-title">Encryption Pipeline</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('biometrics')">
+      <span>👆</span> <span id="tab-bio-title">Biometric Bridge</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('recovery')">
+      <span>🔑</span> <span id="tab-rec-title">BIP-39 Recovery</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('comparison')">
+      <span>📊</span> <span id="tab-comp-title">Competitor Matrix</span>
+    </button>
+  </nav>
+
+  <!-- TAB 1: PIPELINE -->
+  <section id="tab-flow" class="tab-content active">
+    <div class="card">
+      <h3 style="margin-bottom: 0.5rem;" id="flow-head">How Transparent Encryption Operates</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem;" id="flow-sub">
+        Click on any stage of the pipeline below to inspect the cryptographic primitives and guarantees enforced at that step:
+      </p>
+
+      <div class="pipeline">
+        <div class="pipe-step selected" onclick="showStep(1)">
+          <div class="pipe-num">1</div>
+          <div class="pipe-title" id="p1-t">Write in Obsidian</div>
+          <div class="pipe-desc" id="p1-d">User creates note or drags image</div>
+        </div>
+        <div class="pipe-step" onclick="showStep(2)">
+          <div class="pipe-num">2</div>
+          <div class="pipe-title" id="p2-t">Adapter Interceptor</div>
+          <div class="pipe-desc" id="p2-d">Intercepts writeBinary / write in RAM</div>
+        </div>
+        <div class="pipe-step" onclick="showStep(3)">
+          <div class="pipe-num">3</div>
+          <div class="pipe-title" id="p3-t">AES-GCM + AAD</div>
+          <div class="pipe-desc" id="p3-d">Binds vault relative path as AAD</div>
+        </div>
+        <div class="pipe-step" onclick="showStep(4)">
+          <div class="pipe-num">4</div>
+          <div class="pipe-title" id="p4-t">Disk Sealed</div>
+          <div class="pipe-desc" id="p4-d">Ciphertext written with zero leaks</div>
+        </div>
+      </div>
+
+      <div class="interactive-detail" id="step-detail">
+        <div class="detail-icon" id="detail-ico">✍️</div>
+        <div class="detail-body">
+          <h4 id="detail-t">Stage 1: Transparent User Experience</h4>
+          <p id="detail-d">
+            The user types freely in Obsidian. Global search, internal links, graph view, and Canvas continue functioning at full speed in RAM without interruption.
+          </p>
+          <div class="crypto-chip" id="detail-chip">Context: Volatile Memory (RAM)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: BIOMETRICS -->
+  <section id="tab-biometrics" class="tab-content">
+    <div class="card">
+      <h3 style="margin-bottom: 0.5rem;" id="bio-head">Hardware Biometric Authentication</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;" id="bio-sub">
+        Unlocks your encrypted vault in seconds using your fingerprint, face, or security key across Windows, macOS, Linux, and Android.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 1.25rem; border-radius: 12px;">
+          <h4 style="color: #c4b5fd; margin-bottom: 0.5rem;">🪟 Desktop Platforms</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            <strong>Windows:</strong> Native Windows Hello (DPAPI / WebAuthn).<br>
+            <strong>macOS:</strong> Touch ID via native platform authenticator.<br>
+            <strong>Linux:</strong> Pluggable Authentication Module via <code>fprintd</code>.
+          </p>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 1.25rem; border-radius: 12px;">
+          <h4 style="color: #6ee7b7; margin-bottom: 0.5rem;">📱 Android Isolated Bridge</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Because Android WebView blocks biometrics inside Obsidian, MySecret routes to a companion PWA on Cloudflare Pages using <strong>ephemeral ECDH P-256</strong> key exchange. Your vault ID never leaves the app.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: BIP-39 -->
+  <section id="tab-recovery" class="tab-content">
+    <div class="card">
+      <h3 style="margin-bottom: 0.5rem;" id="rec-head">BIP-39 Deterministic Mnemonic Recovery</h3>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;" id="rec-sub">
+        Like a Bitcoin hardware wallet: 24 English words generated from 256 bits of cryptographic entropy guarantee you can recover your vault even if you forget your master password.
+      </p>
+
+      <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+          <span class="crypto-chip">1. abandon</span>
+          <span class="crypto-chip">2. ability</span>
+          <span class="crypto-chip">3. abstract</span>
+          <span class="crypto-chip">...</span>
+          <span class="crypto-chip">24. zebra</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Derived using <strong>HKDF-SHA256</strong> and validated against the official 2048-word BIP-39 English dictionary with SHA-256 checksum verification. 100% offline, zero third-party dependencies.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: COMPARISON -->
+  <section id="tab-comparison" class="tab-content">
+    <div class="card">
+      <h3 style="margin-bottom: 0.5rem;" id="comp-head">Head-to-Head Architecture Comparison</h3>
+      <div class="comp-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th class="highlight-col">MySecret</th>
+              <th>Meld Encrypt</th>
+              <th>Obsidian Sync</th>
+              <th>Cryptomator</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>At-Rest Disk Encryption</td>
+              <td class="highlight-col check">✓ Automatic</td>
+              <td class="cross">✗ Manual</td>
+              <td class="cross">✗ Plaintext on Disk</td>
+              <td class="check">✓ Container</td>
+            </tr>
+            <tr>
+              <td>Media Attachments (PDFs, Images)</td>
+              <td class="highlight-col check">✓ Encrypted</td>
+              <td class="cross">✗ Plaintext</td>
+              <td class="cross">✗ Plaintext on Disk</td>
+              <td class="check">✓ Encrypted</td>
+            </tr>
+            <tr>
+              <td>Search & Graph View Intact</td>
+              <td class="highlight-col check">✓ 100% Working</td>
+              <td class="cross">✗ Broken</td>
+              <td class="check">✓ Working</td>
+              <td class="warn">⚠️ Slow on Mobile</td>
+            </tr>
+            <tr>
+              <td>KDF Engine</td>
+              <td class="highlight-col check">Argon2id (64MB)</td>
+              <td class="warn">PBKDF2</td>
+              <td class="check">Scrypt</td>
+              <td class="check">Scrypt</td>
+            </tr>
+            <tr>
+              <td>24-Word Disaster Recovery</td>
+              <td class="highlight-col check">✓ BIP-39</td>
+              <td class="cross">✗ None</td>
+              <td class="cross">✗ None</td>
+              <td class="warn">⚠️ Alphanumeric</td>
+            </tr>
+            <tr>
+              <td>Android Biometrics</td>
+              <td class="highlight-col check">✓ WebAuthn Bridge</td>
+              <td class="cross">✗ No</td>
+              <td class="cross">✗ No</td>
+              <td class="cross">✗ Clunky</td>
+            </tr>
+            <tr>
+              <td>Standalone Decryptor (No Lock-in)</td>
+              <td class="highlight-col check">✓ Python & HTML</td>
+              <td class="cross">✗ No</td>
+              <td class="cross">✗ No</td>
+              <td class="check">✓ CLI</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>MySecret Plugin — Open Source & Zero-Knowledge Vault Encryption for Obsidian</p>
+    <p style="margin-top: 0.25rem;">Author: Anthony Rios Licea (@abismalmx) • Verified with 83 Automated Tests</p>
+  </footer>
+</div>
+
+<script>
+  let currentLang = 'en';
+
+  const strings = {
+    en: {
+      heroTitle: "MySecret Architecture & Defenses",
+      heroSub: "Transparent, on-the-fly at-rest disk encryption for your entire Obsidian vault, notes, canvases, and media attachments.",
+      tabFlow: "Encryption Pipeline",
+      tabBio: "Biometric Bridge",
+      tabRec: "BIP-39 Recovery",
+      tabComp: "Competitor Matrix",
+      flowHead: "How Transparent Encryption Operates",
+      flowSub: "Click on any stage of the pipeline below to inspect the cryptographic primitives and guarantees enforced at that step:",
+      steps: [
+        {
+          ico: "✍️",
+          t: "Stage 1: Transparent User Experience",
+          d: "The user types freely in Obsidian. Global search, internal links, graph view, and Canvas continue functioning at full speed in RAM without interruption.",
+          chip: "Context: Volatile Memory (RAM)"
+        },
+        {
+          ico: "🛡️",
+          t: "Stage 2: Adapter Interception Hook",
+          d: "MySecret intercepts Obsidian's internal filesystem methods (write, writeBinary, append, copy, rename) before data touches disk. No plaintext write ever bypasses this layer.",
+          chip: "Hook: app.vault.adapter"
+        },
+        {
+          ico: "🔐",
+          t: "Stage 3: AES-256-GCM with AAD Path Binding",
+          d: "Hardware-accelerated encryption via Web Crypto API. The normalized vault-relative path is bound as Additional Authenticated Data (AAD), neutralizing ciphertext swap or relocation attacks.",
+          chip: "AEAD: 96-bit IV, 128-bit Tag, Argon2id KDF"
+        },
+        {
+          ico: "💾",
+          t: "Stage 4: Sealed At-Rest Storage",
+          d: "Encrypted payload is flushed to disk with an ASCII-armored envelope (notes) or compact 32-byte MYSE binary header (media). Stolen laptops or synced cloud drives reveal only opaque ciphertext.",
+          chip: "Storage: Zero Plaintext on Disk"
+        }
+      ]
+    },
+    es: {
+      heroTitle: "Arquitectura y Defensas de MySecret",
+      heroSub: "Cifrado transparente en reposo a nivel de disco para toda tu bóveda de Obsidian: notas, lienzos y adjuntos multimedia.",
+      tabFlow: "Tubería de Cifrado",
+      tabBio: "Puente Biométrico",
+      tabRec: "Rescate BIP-39",
+      tabComp: "Matriz Comparativa",
+      flowHead: "Cómo Funciona el Cifrado Transparente",
+      flowSub: "Haz clic en cualquier fase del flujo para ver los algoritmos y garantías de seguridad que se aplican en ese paso:",
+      steps: [
+        {
+          ico: "✍️",
+          t: "Fase 1: Experiencia de Usuario Transparente",
+          d: "Escribes normalmente en Obsidian. La búsqueda global, los enlaces, el gráfico de notas y los lienzos Canvas funcionan a máxima velocidad en memoria RAM sin interrupciones.",
+          chip: "Contexto: Memoria RAM Volátil"
+        },
+        {
+          ico: "🛡️",
+          t: "Fase 2: Intercepción en el Adaptador",
+          d: "MySecret intercepta las llamadas de almacenamiento de Obsidian (write, writeBinary, append, copy, rename) antes de tocar el disco. Ninguna nota ni foto elude el motor.",
+          chip: "Intercepción: app.vault.adapter"
+        },
+        {
+          ico: "🔐",
+          t: "Fase 3: Cifrado AES-256-GCM con Enlace AAD",
+          d: "Cifrado autenticado por hardware (Web Crypto). La ruta relativa del archivo se vincula criptográficamente como AAD, impidiendo que alguien mueva o suplante archivos cifrados en disco.",
+          chip: "AEAD: IV 96 bits, Tag 128 bits, KDF Argon2id"
+        },
+        {
+          ico: "💾",
+          t: "Fase 4: Almacenamiento Hermético en Disco",
+          d: "El archivo cifrado se guarda en el disco con sobre protegido o cabecera binaria MYSE. Si te roban la computadora o acceden a tu nube, solo verán bloques cifrados ilegibles.",
+          chip: "Disco: Cero Texto en Claro en Reposo"
+        }
+      ]
+    }
+  };
+
+  let activeStep = 1;
+
+  function setLang(lang) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const s = strings[lang];
+    document.getElementById('hero-title').innerText = s.heroTitle;
+    document.getElementById('hero-sub').innerText = s.heroSub;
+    document.getElementById('tab-flow-title').innerText = s.tabFlow;
+    document.getElementById('tab-bio-title').innerText = s.tabBio;
+    document.getElementById('tab-rec-title').innerText = s.tabRec;
+    document.getElementById('tab-comp-title').innerText = s.tabComp;
+    document.getElementById('flow-head').innerText = s.flowHead;
+    document.getElementById('flow-sub').innerText = s.flowSub;
+
+    showStep(activeStep);
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+    document.getElementById('tab-' + tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+
+  function showStep(num) {
+    activeStep = num;
+    const steps = document.querySelectorAll('.pipe-step');
+    steps.forEach((el, idx) => {
+      if (idx === num - 1) el.classList.add('selected');
+      else el.classList.remove('selected');
+    });
+
+    const info = strings[currentLang].steps[num - 1];
+    document.getElementById('detail-ico').innerText = info.ico;
+    document.getElementById('detail-t').innerText = info.t;
+    document.getElementById('detail-d').innerText = info.d;
+    document.getElementById('detail-chip').innerText = info.chip;
+  }
+</script>
+</body>
+</html>

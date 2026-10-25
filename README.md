@@ -27,6 +27,19 @@ On disk, your files remain fully encrypted at rest. When unlocked, you interact 
 
 ---
 
+## 🎬 Video Overview & Architecture Walkthrough
+
+Watch the complete video overview of MySecret explaining how transparent at-rest encryption protects your Obsidian vault:
+
+| 🇬🇧 English Walkthrough | 🇪🇸 Explicación en Español |
+| :---: | :---: |
+| [▶️ **Watch English Overview (MP4)**](media/MySecret_en.mp4) | [▶️ **Ver Explicación en Español (MP4)**](media/MySecret_es.mp4) |
+
+> [!TIP]
+> **Interactive Infographic**: Explore the interactive security architecture with step-by-step pipeline animations in [docs/interactive-infographic.html](docs/interactive-infographic.html).
+
+---
+
 ## 🔒 Security & Cryptographic Architecture
 
 - **Zero-Knowledge Architecture:** Decryption keys are derived exclusively in memory using your master password. Neither unencrypted keys nor plaintext files ever leave your device.
