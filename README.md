@@ -19,6 +19,14 @@
 
 ---
 
+### 📽️ Slide Presentation / Presentación
+
+> 📊 **Explore the Architecture & Feature Slides:**
+> - 🇬🇧 **[English Presentation (Default)](media/MySecret_for_Obsidian.pptx)**
+> - 🇪🇸 **[Presentación en Español](media/MySecret_presentación.pptx)**
+
+---
+
 ## 🌟 Overview
 
 **MySecret** is an advanced security and privacy plugin for [Obsidian](https://obsidian.md). It transparently intercepts Obsidian's file adapter (`app.vault.adapter`) to encrypt and decrypt notes (`.md`), canvases (`.canvas`), and binary attachments (images, PDFs, audio, video) in real-time.
