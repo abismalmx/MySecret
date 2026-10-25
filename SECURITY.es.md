@@ -105,15 +105,34 @@ La integridad de todas estas protecciones se valida continuamente mediante una s
 
 ---
 
-## 4. Auditoría Integral de Seguridad, SAST y Fuga de Secretos (Calificación A+)
+## 4. Auditoría Integral de Seguridad, Cadena de Suministro y Endurecimiento de Código (Calificación A+)
 
-El proyecto fue sometido a una auditoría técnica profunda y rigurosa, documentada en el [Informe de Auditoría y Parches de Seguridad](SECURITY_AUDIT_AND_PATCHES.md):
+El código fuente de MySecret fue sometido a una auditoría técnica profunda, inspección manual y revisión de cadena de suministro, detallada exhaustivamente en el [Informe de Auditoría y Parches de Seguridad](SECURITY_AUDIT_AND_PATCHES.md).
 
-- **Análisis Estático SAST (Semgrep):** Se ejecutaron **503 reglas de seguridad** sobre la totalidad del código fuente. Se blindó la resolución de traducciones (`src/i18n/index.ts`) contra ataques de *Prototype Pollution* mediante validación estricta con `hasOwnProperty` y filtrado explícito de segmentos peligrosos (`__proto__`, `constructor`, `prototype`). Resultado: **0 vulnerabilidades**.
-- **Auditoría de Fuga de Secretos (Gitleaks):** Escaneo automatizado del historial completo de Git (todos los commits) y del árbol de archivos. Resultado: **0 secretos expuestos** (sin credenciales, tokens OAuth ni claves privadas filtradas).
-- **Tipado Estático Estricto (TypeScript `tsc`):** El código compila al 100% sin advertencias ni errores (`0 errores`).
-- **Linter de Calidad y Directrices Obsidian (ESLint):** Cumplimiento estricto con las políticas de interfaz, botones destructivos y APIs oficiales (`0 errores`).
-- **Seguridad en Cadena de Suministro:** Se auditó y actualizó la dependencia `esbuild` a `^0.25.0` mitigando de raíz cualquier vector conocido (CWE-346 / GHSA-67mh-4wv8-2f99).
+### 🔍 Vulnerabilidad en Cadena de Suministro Mitigada (`GHSA-67mh-4wv8-2f99` / CWE-346)
+- **Detalle de la Vulnerabilidad**: `esbuild@0.20.2` (afectaba versiones `<= 0.24.2`) presentaba un advisory de severidad Moderada (CVSS 5.3) en el cual `esbuild.serve()` configuraba por defecto la cabecera `Access-Control-Allow-Origin: *`, permitiendo a sitios web externos no autorizados enviar peticiones y leer respuestas del servidor local de desarrollo.
+- **Corrección**: Se actualizó `esbuild` de `^0.20.0` a `^0.25.0` (resuelto a `0.25.12`) en `package.json` y `package-lock.json`.
+- **Explotabilidad Real**: **Nula en producción** — `esbuild` es exclusivamente un empaquetador de compilación offline, no forma parte del bundle en tiempo de ejecución (`main.js` contiene 0 referencias a esbuild) y el plugin jamás invoca `esbuild.serve()`. El parche se aplicó para garantizar la integridad de la cadena de suministro y proteger el entorno local de desarrollo.
+
+### 🛡️ Hallazgos de Revisión Manual y Endurecimiento en `src/i18n/index.ts`
+Durante la revisión manual del motor de internacionalización, se identificaron y subsanaron dos vulnerabilidades en la interpolación de cadenas:
+1. **Fuga y Corrupción por Patrones de Reemplazo Regex**: Anteriormente, `text.replace(new RegExp(...), String(val))` evaluaba el valor con la semántica de reemplazo de JavaScript (`$&`, `` $` ``, `$'`, `$1`, `$2`). Cuando mensajes de error generados por servidores remotos o entradas no confiables (ej. `notices.exportFailed` o `notices.backupFailed` interpolando `err.message`) contenían signos de dólar, el mensaje se corrompía o filtraba fragmentos de la plantilla. **Parche**: Se sustituyó por una función de reemplazo `() => String(val)`, que neutraliza cualquier interpretación de secuencias especiales.
+2. **Inyección de Metacaracteres Regex en Claves**: Si una clave de sustitución contenía metacaracteres (`.`, `{`, etc.), podía lanzar errores de sintaxis o fallar en el reemplazo. **Parche**: Sanitización estricta de nombres de claves mediante `escapeRegExp()`.
+3. **Inmunidad contra Prototype Pollution**: La resolución de propiedades filtra explícitamente `__proto__`, `constructor` y `prototype`, junto con verificación `hasOwnProperty`.
+4. **Pruebas de Regresión**: Se añadieron 2 tests específicos en `tests/test-i18n.mjs` que validan la seguridad ante patrones `$1` / `$&` y el escape de claves regex.
+
+### 🤖 Guardias Automatizadas Continuas en CI/CD
+- **Google OSV-Scanner (`.github/workflows/osv-scanner.yml`)**: Escaneo continuo de la cadena de suministro con los workflows oficiales de Google (`osv-scanner-reusable.yml@v2.7.0` para análisis completo y `osv-scanner-reusable-pr.yml@v2.7.0` para Pull Requests) con `fail-on-vuln: true`. Se ejecuta en `push`, `pull_request`, `tags`, ejecución programada semanal y despacho manual.
+- **GitHub CodeQL SAST (`.github/workflows/codeql.yml`)**: Análisis SAST automatizado de flujo de datos y seguridad en cada push y PR sobre todo el código TypeScript/JavaScript.
+- **Semgrep SAST**: Más de **503 reglas de seguridad** analizadas sobre la totalidad del código, con 0 vulnerabilidades.
+- **Detección de Fugas Gitleaks**: Escaneo profundo de todo el historial de commits y del árbol de trabajo confirmando **0 secretos expuestos** (sin credenciales, tokens ni claves privadas).
+
+### 🔬 Verificaciones de Superficie de Ataque y Defensa en Profundidad
+- **Seguridad en Acciones de CI**: Todas las GitHub Actions utilizadas (`actions/checkout@v4`, `actions/setup-node@v4`, `github/codeql-action@v3`, `softprops/action-gh-release@v2`) auditadas en la base de datos OSV — **0 vulnerabilidades**.
+- **Cero Dependencias Externas en Python**: `tools/standalone-decryptor.py` utiliza exclusivamente la biblioteca estándar de Python 3 (`hashlib`, `hmac`, `struct`, `os`, `sys`, `json`).
+- **Cero CDNs o Scripts Remotos de Terceros**: Sin scripts externos ni llamadas remotas en el HTML/JS del plugin ni en el puente PWA WebAuthn.
+- **Cero uso de `eval`, `innerHTML` o `insertAdjacentHTML`**: El código utiliza rigurosamente las APIs seguras de Obsidian (`createEl`, `setIcon`, `setText`, `setCssStyles`), eliminando cualquier vector de Cross-Site Scripting (XSS).
+- **Rigor Criptográfico**: AES-256-GCM (IV 96 bits, tag 128 bits), Argon2id (64 MiB / 3 iteraciones / sal 16 bytes), HKDF-SHA256, AAD vinculado a la ruta de la bóveda, comparaciones en tiempo constante, rescate determinista BIP-39 y zeroización inmediata de memoria en RAM.
 
 ---
 

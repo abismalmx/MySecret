@@ -105,15 +105,34 @@ Every security defense is continuously validated through automated unit, cryptog
 
 ---
 
-## 4. Comprehensive Security Audit, SAST & Secret Leak Verification (Grade A+)
+## 4. Comprehensive Security Audit, Supply Chain & Code Hardening (Grade A+)
 
-The codebase underwent an end-to-end technical security audit, fully detailed in the [Security Audit & Hardening Report](SECURITY_AUDIT_AND_PATCHES.md):
+The MySecret codebase underwent an exhaustive technical security audit, code inspection, and supply-chain review, fully documented in the [Security Audit & Hardening Report](SECURITY_AUDIT_AND_PATCHES.md).
 
-- **Static Application Security Testing (Semgrep SAST):** Over **503 security rules** were executed across the entire repository. The i18n lookup engine (`src/i18n/index.ts`) was hardened against *Prototype Pollution* attacks using explicit `hasOwnProperty` validation and active blocking of prototype properties (`__proto__`, `constructor`, `prototype`). Result: **0 vulnerabilities**.
-- **Secret Leak Detection (Gitleaks):** Deep scan across all Git commits in repository history and all local working tree files. Result: **0 exposed secrets** (no tokens, credentials, or private keys leaked).
-- **Strict Static Typing (TypeScript `tsc`):** Zero compilation errors or unhandled type mismatches (`0 errors`).
-- **Code Quality & Obsidian Guidelines (ESLint):** Full compliance with official Obsidian developer policies, destructive action conventions, and API requirements (`0 errors`).
-- **Supply Chain Security:** Audited and upgraded build tooling (`esbuild` to `^0.25.0`), eliminating known local development vulnerabilities (CWE-346 / GHSA-67mh-4wv8-2f99).
+### 🔍 Supply Chain Vulnerability Remediated (`GHSA-67mh-4wv8-2f99` / CWE-346)
+- **Vulnerability Details**: `esbuild@0.20.2` (affected `<= 0.24.2`) had a Moderate severity advisory (CVSS 5.3) where `esbuild.serve()` configured `Access-Control-Allow-Origin: *`, allowing arbitrary external websites to query a local development server and read responses.
+- **Remediation**: Upgraded `esbuild` from `^0.20.0` to `^0.25.0` (resolved to `0.25.12`) in `package.json` and `package-lock.json`.
+- **Real-World Exploitability**: **Zero in production** — `esbuild` is strictly an offline build tool, not bundled into runtime code (`main.js` contains 0 esbuild references), and MySecret never invokes `esbuild.serve()`. The patch was implemented to guarantee supply chain integrity and secure the local development environment.
+
+### 🛡️ Code Review Findings & Hardening in `src/i18n/index.ts`
+During manual source-code audit of the internationalization engine, two critical edge-case bugs in template string interpolation were discovered and patched:
+1. **Replacement String Pattern Leak / Corruption**: Previously, `text.replace(new RegExp(...), String(val))` was vulnerable to JavaScript replacement patterns (`$&`, `` $` ``, `$'`, `$1`, `$2`). When error messages containing user-controlled or remote-server text (such as `notices.exportFailed` or `notices.backupFailed` interpolating `err.message`) contained dollar signs, the message corrupted or leaked neighboring template text. **Patch**: Replaced with functional replacer `() => String(val)` which never interprets special regex replacement symbols.
+2. **Key Metacharacter Regex Injection**: Interpolation placeholder keys containing regex metacharacters (`.`, `{`, etc.) could cause syntax errors or fail matching. **Patch**: Key names are strictly escaped using `escapeRegExp()`.
+3. **Prototype Pollution Guard**: Lookup paths explicitly filter `__proto__`, `constructor`, and `prototype`, paired with `hasOwnProperty` validation.
+4. **Regression Testing**: 2 dedicated regression test cases added to `tests/test-i18n.mjs` verifying both `$1` / `$&` safety and regex key escaping.
+
+### 🤖 Continuous Automated CI/CD Guardrails
+- **Google OSV-Scanner (`.github/workflows/osv-scanner.yml`)**: Continuous automated supply chain monitoring using official Google workflows (`osv-scanner-reusable.yml@v2.7.0` for full repo scans and `osv-scanner-reusable-pr.yml@v2.7.0` for pull requests) with `fail-on-vuln: true`. Runs on `push`, `pull_request`, `tags`, weekly schedule, and manual dispatch.
+- **GitHub CodeQL SAST (`.github/workflows/codeql.yml`)**: Automated security and taint-flow analysis scanning every commit and PR across JavaScript/TypeScript code.
+- **Semgrep SAST**: Over **503 rules** executed across the entire repository with zero security findings.
+- **Gitleaks Secret Detection**: Deep scanning across all Git history commits and working tree files confirmed **0 exposed secrets** (no tokens, credentials, or private keys).
+
+### 🔬 Attack Surface & Defense-in-Depth Verification
+- **GitHub Actions Security**: All CI dependencies (`actions/checkout@v4`, `actions/setup-node@v4`, `github/codeql-action@v3`, `softprops/action-gh-release@v2`) audited via OSV database — **0 vulnerabilities**.
+- **Zero External Python Dependencies**: `tools/standalone-decryptor.py` relies exclusively on the Python 3 standard library (`hashlib`, `hmac`, `struct`, `os`, `sys`, `json`).
+- **Zero External CDNs or Runtime Scripts**: No third-party CDN scripts or remote resources in the HTML/JS layers of either the plugin or the companion WebAuthn PWA bridge.
+- **Zero `eval`, `innerHTML`, or `insertAdjacentHTML`**: The codebase strictly uses Obsidian's native DOM methods (`createEl`, `setIcon`, `setText`, `setCssStyles`), preventing DOM-based XSS.
+- **Full Cryptographic Assurance**: AES-256-GCM (96-bit IV, 128-bit tag), Argon2id (64 MiB / 3 iterations / 16-byte salt), HKDF-SHA256, vault-bound AAD, constant-time comparisons, deterministic BIP-39 recovery, and proactive RAM zeroization.
 
 ---
 
