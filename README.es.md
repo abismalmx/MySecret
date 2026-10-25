@@ -6,7 +6,7 @@
 
 [![Obsidian](https://img.shields.io/badge/Obsidian-v1.0.0+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
 [![Licencia](https://img.shields.io/badge/Licencia-No--Comercial-blue.svg)](LICENSE)
-[![Pruebas](https://img.shields.io/badge/Pruebas-82%20pasando-success)](tests/)
+[![Pruebas](https://img.shields.io/badge/Pruebas-83%20pasando-success)](tests/)
 [![Seguridad](https://img.shields.io/badge/Seguridad-Blindada%20y%20Auditada-brightgreen)](SECURITY.es.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
