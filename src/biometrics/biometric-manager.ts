@@ -7,7 +7,7 @@
  */
 
 import { Platform } from 'obsidian';
-import { BiometricCapabilities, BiometricProvider, DeviceBiometricEnvelope } from './types';
+import { BiometricCapabilities, BiometricProvider } from './types';
 import { DeviceBiometricStorage } from './device-storage';
 import { WindowsHelloProvider } from './windows-provider';
 import { LinuxBiometricProvider } from './linux-provider';

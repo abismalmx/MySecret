@@ -215,7 +215,7 @@ export class BackupEngine {
     anchor.download = filename;
     document.body.appendChild(anchor);
     anchor.click();
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
     }, 1500);

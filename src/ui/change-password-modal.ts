@@ -120,7 +120,7 @@ export class ChangePasswordModal extends Modal {
       }
     });
 
-    setTimeout(() => this.passwordInput.focus(), 60);
+    window.setTimeout(() => this.passwordInput.focus(), 60);
   }
 
   private showError(message: string): void {

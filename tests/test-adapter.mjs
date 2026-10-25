@@ -18,12 +18,18 @@ import { webcrypto } from 'node:crypto';
 if (!globalThis.window) {
   globalThis.window = {
     crypto: webcrypto,
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
     addEventListener: () => {},
     removeEventListener: () => {}
   };
 } else {
   if (!globalThis.window.addEventListener) globalThis.window.addEventListener = () => {};
   if (!globalThis.window.removeEventListener) globalThis.window.removeEventListener = () => {};
+  if (!globalThis.window.setTimeout) globalThis.window.setTimeout = globalThis.setTimeout.bind(globalThis);
+  if (!globalThis.window.clearTimeout) globalThis.window.clearTimeout = globalThis.clearTimeout.bind(globalThis);
 }
 
 if (!globalThis.document) {

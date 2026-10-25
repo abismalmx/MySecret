@@ -11,6 +11,10 @@ const mockStorage = new Map();
 if (!globalThis.window) {
   globalThis.window = {
     crypto: webcrypto,
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
     localStorage: {
       getItem: (k) => (mockStorage.has(k) ? mockStorage.get(k) : null),
       setItem: (k, v) => mockStorage.set(k, String(v)),

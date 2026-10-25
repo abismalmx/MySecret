@@ -5,7 +5,6 @@
 
 import { VaultEnvelopeConfig, InitializeVaultResult } from '../types';
 import {
-  ARGON2_HASH_LENGTH,
   ARGON2_ITERATIONS,
   ARGON2_MEMORY_KIB,
   ARGON2_PARALLELISM,

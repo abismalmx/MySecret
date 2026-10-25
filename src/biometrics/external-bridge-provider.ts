@@ -77,15 +77,6 @@ import { sha256HexSync } from '../utils/sha256';
  */
 export const BRIDGE_PROTOCOL_VERSION = 2;
 
-/** Expected length (hex characters) of the session token: 32 bytes. */
-const SESSION_TOKEN_HEX_LENGTH = 64;
-
-/** Expected length (hex characters) of an ECDH P-256 public key: 65 bytes. */
-const ECDH_PUBLIC_KEY_HEX_LENGTH = 130;
-
-/** Expected length (hex characters) of the PRF salt: 32 bytes. */
-const PRF_SALT_HEX_LENGTH = 64;
-
 /** Timeout of a pending ceremony. */
 const BRIDGE_TIMEOUT_MS = 75000;
 
@@ -224,7 +215,7 @@ export class ExternalBridgeProvider implements BiometricProvider {
    */
   public cancelPendingSession(): void {
     if (this.pendingSession) {
-      clearTimeout(this.pendingSession.timeoutTimer);
+      window.clearTimeout(this.pendingSession.timeoutTimer);
       if (this.pendingSession.rawVaultKey) {
         zeroize(this.pendingSession.rawVaultKey);
       }
@@ -274,7 +265,7 @@ export class ExternalBridgeProvider implements BiometricProvider {
     }
 
     this.pendingSession = null;
-    clearTimeout(currentSession.timeoutTimer);
+    window.clearTimeout(currentSession.timeoutTimer);
 
     if (error) {
       if (currentSession.rawVaultKey) zeroize(currentSession.rawVaultKey);
@@ -560,7 +551,7 @@ export class ExternalBridgeProvider implements BiometricProvider {
     window.crypto.getRandomValues(challenge);
 
     return new Promise<DeviceBiometricEnvelope>((resolve, reject) => {
-      const timeoutTimer = setTimeout(() => {
+      const timeoutTimer = window.setTimeout(() => {
         if (this.pendingSession?.session === sessionToken) {
           this.cancelPendingSession();
         }
@@ -635,7 +626,7 @@ export class ExternalBridgeProvider implements BiometricProvider {
     window.crypto.getRandomValues(challenge);
 
     return new Promise<Uint8Array | null>((resolve, reject) => {
-      const timeoutTimer = setTimeout(() => {
+      const timeoutTimer = window.setTimeout(() => {
         if (this.pendingSession?.session === sessionToken) {
           this.cancelPendingSession();
         }

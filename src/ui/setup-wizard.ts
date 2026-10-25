@@ -439,7 +439,7 @@ export class SetupWizardModal extends Modal {
       this.renderStep();
     });
 
-    setTimeout(() => p1.focus(), 100);
+    window.setTimeout(() => p1.focus(), 100);
   }
 
   /**

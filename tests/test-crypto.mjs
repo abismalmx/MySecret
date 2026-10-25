@@ -9,7 +9,13 @@ import { argon2id } from 'hash-wasm';
 
 // Polyfill window.crypto for Node test environment if needed
 if (!globalThis.window) {
-  globalThis.window = { crypto: webcrypto };
+  globalThis.window = {
+    crypto: webcrypto,
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis)
+  };
 }
 
 // 1. BIP-39 Tests

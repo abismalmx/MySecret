@@ -39,7 +39,13 @@ import {
 } from '../src/constants.ts';
 
 if (!globalThis.window) {
-  globalThis.window = { crypto: webcrypto };
+  globalThis.window = {
+    crypto: webcrypto,
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis)
+  };
 }
 
 // --- 1. Path sanitizer (Zip Slip protection) ---

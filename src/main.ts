@@ -28,7 +28,7 @@ import {
 } from './utils/credential-store';
 import { BiometricManager } from './biometrics/biometric-manager';
 import { sha256HexSync } from './utils/sha256';
-import { initI18n, t, setI18nLanguage } from './i18n';
+import { initI18n, t } from './i18n';
 
 const DEFAULT_SETTINGS: PluginSettings = {
   autoLockMinutes: 5,
@@ -270,10 +270,10 @@ export default class MySecretPlugin extends Plugin {
   public onunload(): void {
     console.log('[MySecret] Unloading transparent encryption plugin...');
     if (this.inactivityTimer) {
-      clearTimeout(this.inactivityTimer);
+      window.clearTimeout(this.inactivityTimer);
     }
     if (this.autoBackupIntervalTimer) {
-      clearInterval(this.autoBackupIntervalTimer);
+      window.clearInterval(this.autoBackupIntervalTimer);
       this.autoBackupIntervalTimer = null;
     }
     if (this.mediaManager) {
@@ -567,12 +567,12 @@ export default class MySecretPlugin extends Plugin {
 
   public initAutoBackupTimer(): void {
     if (this.autoBackupIntervalTimer) {
-      clearInterval(this.autoBackupIntervalTimer);
+      window.clearInterval(this.autoBackupIntervalTimer);
       this.autoBackupIntervalTimer = null;
     }
 
     // Check periodically (every 15 minutes) if an interval auto-backup is due
-    this.autoBackupIntervalTimer = setInterval(() => {
+    this.autoBackupIntervalTimer = window.setInterval(() => {
       if (
         this.settings.backup.autoBackup &&
         (this.settings.backup.autoBackupTrigger === 'interval' || this.settings.backup.autoBackupTrigger === 'both')
@@ -761,7 +761,7 @@ export default class MySecretPlugin extends Plugin {
 
   public resetInactivityTimer(): void {
     if (this.inactivityTimer) {
-      clearTimeout(this.inactivityTimer);
+      window.clearTimeout(this.inactivityTimer);
       this.inactivityTimer = null;
     }
 
@@ -770,7 +770,7 @@ export default class MySecretPlugin extends Plugin {
     }
 
     const timeoutMs = this.settings.autoLockMinutes * 60 * 1000;
-    this.inactivityTimer = setTimeout(() => {
+    this.inactivityTimer = window.setTimeout(() => {
       console.log(`[MySecret] Auto-lock fired after ${this.settings.autoLockMinutes} minutes of inactivity.`);
       this.lockVault();
     }, timeoutMs);

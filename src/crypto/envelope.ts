@@ -10,8 +10,7 @@ import {
   BINARY_MAGIC,
   BINARY_HEADER_LENGTH,
   CURRENT_ENVELOPE_VERSION,
-  AES_GCM_IV_LENGTH,
-  AES_GCM_TAG_LENGTH
+  AES_GCM_IV_LENGTH
 } from '../constants';
 import { bytesToBase64, base64ToBytes } from '../utils/buffer';
 

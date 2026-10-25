@@ -255,11 +255,11 @@ export function runProcess(options: RunProcessOptions): Promise<ProcessResult> {
     const finish = (code: number | null): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      window.clearTimeout(timer);
       resolve({ code, stdout, stderr, timedOut });
     };
 
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       timedOut = true;
       try { child.kill('SIGKILL'); } catch { /* already gone */ }
       finish(null);

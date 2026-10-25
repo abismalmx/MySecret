@@ -12,13 +12,6 @@ for (let i = 0; i < BIP39_WORDLIST.length; i++) {
   WORD_MAP.set(BIP39_WORDLIST[i], i);
 }
 
-/**
- * Computes SHA-256 hash using Web Crypto API synchronously or asynchronously
- */
-async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data as BufferSource);
-  return new Uint8Array(hashBuffer);
-}
 
 /**
  * Generates a 24-word BIP-39 mnemonic phrase from 256 bits of entropy

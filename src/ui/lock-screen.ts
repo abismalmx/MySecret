@@ -75,7 +75,7 @@ export class LockScreenModal extends Modal {
     this.renderBody();
     this.renderFooter();
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.passwordInput.focus();
       if (this.isBiometricsEnabled() && this.plugin.settings.biometrics?.autoPrompt !== false) {
         void this.handleBiometricUnlock();
@@ -344,13 +344,13 @@ export class LockScreenModal extends Modal {
       this.recoveryGroup.show();
       this.toggleRecoveryLink.setText(t('lockScreen.backToPasswordLink'));
       this.unlockBtn.setText(t('lockScreen.recoverWithPhraseButton'));
-      setTimeout(() => this.recoveryInput.focus(), 60);
+      window.setTimeout(() => this.recoveryInput.focus(), 60);
     } else {
       this.recoveryGroup.hide();
       this.passwordGroup.show();
       this.toggleRecoveryLink.setText(t('lockScreen.resetVaultWarning'));
       this.unlockBtn.setText(t('lockScreen.unlockButton'));
-      setTimeout(() => this.passwordInput.focus(), 60);
+      window.setTimeout(() => this.passwordInput.focus(), 60);
     }
   }
 
@@ -396,7 +396,7 @@ export class LockScreenModal extends Modal {
     void this.cardEl.offsetWidth;
     this.cardEl.addClass('mysecret-shake');
 
-    setTimeout(() => this.cardEl.removeClass('mysecret-shake'), 520);
+    window.setTimeout(() => this.cardEl.removeClass('mysecret-shake'), 520);
   }
 
   /**
@@ -641,7 +641,7 @@ export class LockScreenModal extends Modal {
 
     // If modal was dismissed unexpectedly while vault is still locked, reopen immediately
     if (this.plugin.keyManager.isLocked && !this.allowClose) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (this.plugin.keyManager.isLocked) {
           this.plugin.openLockScreen();
         }

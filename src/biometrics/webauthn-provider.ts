@@ -9,7 +9,6 @@
 import { BiometricProvider, DeviceBiometricEnvelope } from './types';
 import {
   bytesToBase64,
-  base64ToBytes,
   bytesToBase64Url,
   base64UrlToBytes,
   bytesToHex,

@@ -11,7 +11,6 @@ import { bytesToBase64, base64ToBytes, bytesToHex, hexToBytes } from '../utils/b
 import { zeroize } from '../utils/zeroize';
 import {
   BIOMETRIC_ENVELOPE_VERSION,
-  biometricAad,
   sha256Hex,
   constantTimeHexEqual
 } from './kdf';

@@ -427,7 +427,7 @@ export class MySecretSettingTab extends PluginSettingTab {
         .addButton(button => {
           button
             .setButtonText(t('settings.deletePhraseBtn'))
-            .setWarning()
+            .setDestructive()
             .onClick(async () => {
               const confirmed = window.confirm(t('settings.deletePhraseConfirm'));
               if (confirmed) {
@@ -762,7 +762,7 @@ export class MySecretSettingTab extends PluginSettingTab {
       .addButton(button => {
         button
           .setButtonText(t('settings.bulkDecryptBtn'))
-          .setWarning()
+          .setDestructive()
           .onClick(() => {
             this.plugin.openMigrationModal('decrypt');
           });

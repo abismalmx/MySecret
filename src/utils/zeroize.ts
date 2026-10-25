@@ -11,7 +11,7 @@ export function zeroize(buffer: Uint8Array | null | undefined): void {
   if (!buffer) return;
   try {
     buffer.fill(0);
-  } catch (err) {
+  } catch {
     // Fallback if fill is not available or frozen
     for (let i = 0; i < buffer.length; i++) {
       buffer[i] = 0;

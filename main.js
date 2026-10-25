@@ -3197,7 +3197,7 @@ function zeroize(buffer) {
     return;
   try {
     buffer.fill(0);
-  } catch (err2) {
+  } catch {
     for (let i = 0; i < buffer.length; i++) {
       buffer[i] = 0;
     }
@@ -4363,7 +4363,7 @@ var MediaManager = class {
    * Called whenever the vault is locked.
    */
   revokeAll() {
-    for (const [path, url] of this.blobUrls.entries()) {
+    for (const url of this.blobUrls.values()) {
       try {
         URL.revokeObjectURL(url);
       } catch {
@@ -5596,7 +5596,7 @@ var BackupEngine = class _BackupEngine {
     anchor.download = filename;
     document.body.appendChild(anchor);
     anchor.click();
-    setTimeout(() => {
+    window.setTimeout(() => {
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
     }, 1500);
@@ -8738,7 +8738,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         });
       });
       new import_obsidian7.Setting(containerEl).setName(t("settings.deleteRecoveryTitle")).setDesc(t("settings.deleteRecoveryDesc")).addButton((button) => {
-        button.setButtonText(t("settings.deletePhraseBtn")).setWarning().onClick(async () => {
+        button.setButtonText(t("settings.deletePhraseBtn")).setDestructive().onClick(async () => {
           const confirmed = window.confirm(t("settings.deletePhraseConfirm"));
           if (confirmed) {
             await this.plugin.disableRecoveryPhrase();
@@ -8912,7 +8912,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
       });
     });
     new import_obsidian7.Setting(containerEl).setName(t("settings.bulkDecryptTitle")).setDesc(t("settings.bulkDecryptDesc")).addButton((button) => {
-      button.setButtonText(t("settings.bulkDecryptBtn")).setWarning().onClick(() => {
+      button.setButtonText(t("settings.bulkDecryptBtn")).setDestructive().onClick(() => {
         this.plugin.openMigrationModal("decrypt");
       });
     });
@@ -8966,7 +8966,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     this.renderHeader();
     this.renderBody();
     this.renderFooter();
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.passwordInput.focus();
       if (this.isBiometricsEnabled() && this.plugin.settings.biometrics?.autoPrompt !== false) {
         void this.handleBiometricUnlock();
@@ -9196,13 +9196,13 @@ var LockScreenModal = class extends import_obsidian8.Modal {
       this.recoveryGroup.show();
       this.toggleRecoveryLink.setText(t("lockScreen.backToPasswordLink"));
       this.unlockBtn.setText(t("lockScreen.recoverWithPhraseButton"));
-      setTimeout(() => this.recoveryInput.focus(), 60);
+      window.setTimeout(() => this.recoveryInput.focus(), 60);
     } else {
       this.recoveryGroup.hide();
       this.passwordGroup.show();
       this.toggleRecoveryLink.setText(t("lockScreen.resetVaultWarning"));
       this.unlockBtn.setText(t("lockScreen.unlockButton"));
-      setTimeout(() => this.passwordInput.focus(), 60);
+      window.setTimeout(() => this.passwordInput.focus(), 60);
     }
   }
   /**
@@ -9241,7 +9241,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     this.cardEl.removeClass("mysecret-shake");
     void this.cardEl.offsetWidth;
     this.cardEl.addClass("mysecret-shake");
-    setTimeout(() => this.cardEl.removeClass("mysecret-shake"), 520);
+    window.setTimeout(() => this.cardEl.removeClass("mysecret-shake"), 520);
   }
   /**
    * Enables / disables the UI while a cryptographic operation is running
@@ -9451,7 +9451,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     const { contentEl } = this;
     contentEl.empty();
     if (this.plugin.keyManager.isLocked && !this.allowClose) {
-      setTimeout(() => {
+      window.setTimeout(() => {
         if (this.plugin.keyManager.isLocked) {
           this.plugin.openLockScreen();
         }
@@ -9794,7 +9794,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
       this.currentStep = 2;
       this.renderStep();
     });
-    setTimeout(() => p1.focus(), 100);
+    window.setTimeout(() => p1.focus(), 100);
   }
   /**
    * STEP 2: Show the 24 BIP-39 recovery words as styled cards
@@ -10627,7 +10627,7 @@ var ChangePasswordModal = class extends import_obsidian11.Modal {
           this.handleSubmit();
       }
     });
-    setTimeout(() => this.passwordInput.focus(), 60);
+    window.setTimeout(() => this.passwordInput.focus(), 60);
   }
   showError(message) {
     this.errorEl.setText(message);
@@ -11140,10 +11140,10 @@ function runProcess(options) {
       if (settled)
         return;
       settled = true;
-      clearTimeout(timer);
+      window.clearTimeout(timer);
       resolve({ code, stdout, stderr, timedOut });
     };
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       timedOut = true;
       try {
         child.kill("SIGKILL");
@@ -12542,7 +12542,7 @@ var ExternalBridgeProvider = class {
    */
   cancelPendingSession() {
     if (this.pendingSession) {
-      clearTimeout(this.pendingSession.timeoutTimer);
+      window.clearTimeout(this.pendingSession.timeoutTimer);
       if (this.pendingSession.rawVaultKey) {
         zeroize(this.pendingSession.rawVaultKey);
       }
@@ -12579,7 +12579,7 @@ var ExternalBridgeProvider = class {
       return false;
     }
     this.pendingSession = null;
-    clearTimeout(currentSession.timeoutTimer);
+    window.clearTimeout(currentSession.timeoutTimer);
     if (error) {
       if (currentSession.rawVaultKey)
         zeroize(currentSession.rawVaultKey);
@@ -12789,7 +12789,7 @@ var ExternalBridgeProvider = class {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
     return new Promise((resolve, reject) => {
-      const timeoutTimer = setTimeout(() => {
+      const timeoutTimer = window.setTimeout(() => {
         if (this.pendingSession?.session === sessionToken) {
           this.cancelPendingSession();
         }
@@ -12837,7 +12837,7 @@ var ExternalBridgeProvider = class {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
     return new Promise((resolve, reject) => {
-      const timeoutTimer = setTimeout(() => {
+      const timeoutTimer = window.setTimeout(() => {
         if (this.pendingSession?.session === sessionToken) {
           this.cancelPendingSession();
         }
@@ -13187,10 +13187,10 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
   onunload() {
     console.log("[MySecret] Unloading transparent encryption plugin...");
     if (this.inactivityTimer) {
-      clearTimeout(this.inactivityTimer);
+      window.clearTimeout(this.inactivityTimer);
     }
     if (this.autoBackupIntervalTimer) {
-      clearInterval(this.autoBackupIntervalTimer);
+      window.clearInterval(this.autoBackupIntervalTimer);
       this.autoBackupIntervalTimer = null;
     }
     if (this.mediaManager) {
@@ -13463,10 +13463,10 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
   // --- Auto-Backup Engine & Timers ---
   initAutoBackupTimer() {
     if (this.autoBackupIntervalTimer) {
-      clearInterval(this.autoBackupIntervalTimer);
+      window.clearInterval(this.autoBackupIntervalTimer);
       this.autoBackupIntervalTimer = null;
     }
-    this.autoBackupIntervalTimer = setInterval(() => {
+    this.autoBackupIntervalTimer = window.setInterval(() => {
       if (this.settings.backup.autoBackup && (this.settings.backup.autoBackupTrigger === "interval" || this.settings.backup.autoBackupTrigger === "both")) {
         this.runBackgroundAutoBackup("interval");
       }
@@ -13615,14 +13615,14 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
   }
   resetInactivityTimer() {
     if (this.inactivityTimer) {
-      clearTimeout(this.inactivityTimer);
+      window.clearTimeout(this.inactivityTimer);
       this.inactivityTimer = null;
     }
     if (this.keyManager.isLocked || this.settings.autoLockMinutes <= 0) {
       return;
     }
     const timeoutMs = this.settings.autoLockMinutes * 60 * 1e3;
-    this.inactivityTimer = setTimeout(() => {
+    this.inactivityTimer = window.setTimeout(() => {
       console.log(`[MySecret] Auto-lock fired after ${this.settings.autoLockMinutes} minutes of inactivity.`);
       this.lockVault();
     }, timeoutMs);

@@ -338,7 +338,7 @@ export class MediaManager {
    * Called whenever the vault is locked.
    */
   public revokeAll(): void {
-    for (const [path, url] of this.blobUrls.entries()) {
+    for (const url of this.blobUrls.values()) {
       try {
         URL.revokeObjectURL(url);
       } catch {
