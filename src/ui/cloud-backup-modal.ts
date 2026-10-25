@@ -3,12 +3,16 @@
  * CloudBackupModal: Immediate Encrypted Cloud Backup Upload
  */
 
-import { App, Modal, Notice, setCssStyles } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
 import { createCloudProvider } from '../backup/cloud';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
 import { t } from '../i18n';
+
+function setCssStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+  Object.assign(el.style, styles);
+}
 
 export class CloudBackupModal extends Modal {
   private plugin: MySecretPlugin;
@@ -239,7 +243,7 @@ export class CloudBackupModal extends Modal {
       const uploadResult = await provider.uploadBackup(
         zipResult.filename,
         zipResult.zipBytes,
-        (uploaded, total) => {
+        (uploaded: number, total: number) => {
           const ratio = total > 0 ? uploaded / total : 0;
           const percent = 50 + Math.round(ratio * 50);
           setCssStyles(this.progressBar, { width: `${percent}%` });

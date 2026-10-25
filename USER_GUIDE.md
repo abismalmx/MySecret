@@ -48,12 +48,12 @@ Traditional file encryption usually requires manually locking or unlocking indiv
 3. Click **Add Beta plugin**.
 4. Enter the GitHub repository URL:
    ```
-   https://github.com/Abismalmx/obsidian-mysecret
+   https://github.com/abismalmx/MySecret
    ```
 5. Click **Add Plugin**, wait for the download to complete, and enable **MySecret** under **Settings** → **Community plugins**.
 
 ### Method B: Manual Installation
-1. Navigate to the [Releases](https://github.com/Abismalmx/obsidian-mysecret/releases) page on GitHub.
+1. Navigate to the [Releases](https://github.com/abismalmx/MySecret/releases) page on GitHub.
 2. Download the three release files:
    - `main.js`
    - `manifest.json`

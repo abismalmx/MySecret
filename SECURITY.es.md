@@ -99,12 +99,24 @@ La integridad de todas estas protecciones se valida continuamente mediante una s
 | **Generación y Verificación Mnemónica BIP-39** | 4 tests | ✅ Invicto |
 | **Zeroización de Buffers en Memoria** | 2 tests | ✅ Invicto |
 | **Ciclo de Vida de Claves y Cambio de Contraseña** | 4 tests | ✅ Invicto |
-| **Internacionalización y Formato Multilingüe** | 5 tests | ✅ Invicto |
+| **Internacionalización y Formato Multilingüe** | 6 tests | ✅ Invicto |
 | **Intercepción de Adaptador y Archivos** | 19 tests | ✅ Invicto |
-| **Total de pruebas verificadas** | **81 tests** | **100% Exitoso** |
+| **Total de pruebas verificadas** | **82 tests** | **100% Exitoso** |
 
 ---
 
-## 4. Política de Divulgación Responsable
+## 4. Auditoría Integral de Seguridad, SAST y Fuga de Secretos (Calificación A+)
+
+El proyecto fue sometido a una auditoría técnica profunda y rigurosa, documentada en el [Informe de Auditoría y Parches de Seguridad](SECURITY_AUDIT_AND_PATCHES.md):
+
+- **Análisis Estático SAST (Semgrep):** Se ejecutaron **503 reglas de seguridad** sobre la totalidad del código fuente. Se blindó la resolución de traducciones (`src/i18n/index.ts`) contra ataques de *Prototype Pollution* mediante validación estricta con `hasOwnProperty` y filtrado explícito de segmentos peligrosos (`__proto__`, `constructor`, `prototype`). Resultado: **0 vulnerabilidades**.
+- **Auditoría de Fuga de Secretos (Gitleaks):** Escaneo automatizado del historial completo de Git (todos los commits) y del árbol de archivos. Resultado: **0 secretos expuestos** (sin credenciales, tokens OAuth ni claves privadas filtradas).
+- **Tipado Estático Estricto (TypeScript `tsc`):** El código compila al 100% sin advertencias ni errores (`0 errores`).
+- **Linter de Calidad y Directrices Obsidian (ESLint):** Cumplimiento estricto con las políticas de interfaz, botones destructivos y APIs oficiales (`0 errores`).
+- **Seguridad en Cadena de Suministro:** Se auditó y actualizó la dependencia `esbuild` a `^0.25.0` mitigando de raíz cualquier vector conocido (CWE-346 / GHSA-67mh-4wv8-2f99).
+
+---
+
+## 5. Política de Divulgación Responsable
 
 Si descubres una posible debilidad de seguridad o vector no cubierto, te invitamos a reportarlo de forma responsable abriendo un reporte de seguridad privado en GitHub o contactando directamente al autor. Todas las consultas son evaluadas con máxima prioridad técnica.

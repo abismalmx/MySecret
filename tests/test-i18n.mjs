@@ -79,3 +79,37 @@ test('i18n: Auto detection falls back to English when no environment language is
   assert.equal(getUserLanguageSetting(), 'auto');
   assert.ok(['en', 'es', 'ru', 'zh'].includes(getCurrentLocale()));
 });
+
+test('i18n: Interpolation treats replacement patterns in values literally', () => {
+  setI18nLanguage('en');
+
+  // SECURITY: `$&`, `$'` and `$` are special in `String.replace`. If the value
+  // were passed as a plain replacement string, they would be expanded and the
+  // message would be corrupted (and part of the template leaked into it).
+  const withAmp = t('notices.exportFailed', { error: 'boom $& oops' });
+  assert.ok(withAmp.includes('boom $& oops'), `Expected literal $&, got: ${withAmp}`);
+
+  const withPrefix = t('notices.exportFailed', { error: 'x $`y' });
+  assert.ok(withPrefix.includes('x $`y'), `Expected literal $\`, got: ${withPrefix}`);
+
+  const withSuffix = t('notices.exportFailed', { error: "x $'y" });
+  assert.ok(withSuffix.includes("x $'y"), `Expected literal $', got: ${withSuffix}`);
+
+  // A dollar sign followed by a digit is also a replacement pattern.
+  const withDollar = t('notices.exportFailed', { error: 'cost $1' });
+  assert.ok(withDollar.includes('cost $1'), `Expected literal $1, got: ${withDollar}`);
+});
+
+test('i18n: Interpolation escapes regex metacharacters in parameter names', () => {
+  setI18nLanguage('en');
+
+  // A parameter name containing regex metacharacters must be matched
+  // literally, and must never make the lookup throw a SyntaxError.
+  assert.doesNotThrow(() => t('notices.exportFailed', { 'a{1,2}': 'value' }));
+
+  const result = t('notices.exportFailed', { 'a{1,2}': 'value' });
+  assert.ok(
+    !result.includes('{a{1,2}}'),
+    `Unresolved placeholder must not remain in: ${result}`
+  );
+});

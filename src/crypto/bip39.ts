@@ -135,9 +135,9 @@ export async function mnemonicToKey(mnemonic: string, salt: Uint8Array): Promise
  * (BIP-39 checksum is just the first ENT/32 bits of SHA-256(entropy)).
  */
 function computeSha256FirstByte(data: Uint8Array): number {
-  // Pre-computed initial hash values (first 32 bits of fractional parts of square roots of first 8 primes)
-  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+  let h0 = 0x6a09e667;
+  const h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+  const h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
 
   const K = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,

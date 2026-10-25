@@ -3,11 +3,15 @@
  * ExportModal: Local Vault Export (Encrypted / Decrypted ZIP)
  */
 
-import { App, Modal, Notice, setCssStyles } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
 import { t } from '../i18n';
+
+function setCssStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+  Object.assign(el.style, styles);
+}
 
 export class ExportModal extends Modal {
   private plugin: MySecretPlugin;

@@ -83,7 +83,11 @@ export function t(path: string, params?: Record<string, string | number>): strin
   
   let target: any = dictionaries[currentActiveLocale];
   for (const seg of segments) {
-    if (target && typeof target === 'object' && seg in target) {
+    if (seg === '__proto__' || seg === 'constructor' || seg === 'prototype') {
+      target = undefined;
+      break;
+    }
+    if (target && typeof target === 'object' && Object.prototype.hasOwnProperty.call(target, seg)) {
       target = target[seg];
     } else {
       target = undefined;
@@ -95,7 +99,11 @@ export function t(path: string, params?: Record<string, string | number>): strin
   if (typeof target !== 'string') {
     let fallback: any = dictionaries.en;
     for (const seg of segments) {
-      if (fallback && typeof fallback === 'object' && seg in fallback) {
+      if (seg === '__proto__' || seg === 'constructor' || seg === 'prototype') {
+        fallback = undefined;
+        break;
+      }
+      if (fallback && typeof fallback === 'object' && Object.prototype.hasOwnProperty.call(fallback, seg)) {
         fallback = fallback[seg];
       } else {
         fallback = undefined;
@@ -113,9 +121,31 @@ export function t(path: string, params?: Record<string, string | number>): strin
   let text = target as string;
   if (params) {
     for (const [key, val] of Object.entries(params)) {
-      text = text.replace(new RegExp(`\\{${key}\\}`, 'g'), String(val));
+      // SECURITY: the placeholder is matched literally and the replacement is
+      // applied through a FUNCTION.
+      //
+      // 1. Escaping the key prevents a param name containing regex
+      //    metacharacters (e.g. `a.b` or `a{1,2}`) from turning the lookup
+      //    into an unintended pattern that either matches the wrong placeholder
+      //    or throws a SyntaxError.
+      // 2. Using a replacer function prevents the *value* from being parsed
+      //    as a replacement pattern. `$&`, `$'` and `` $` `` are special in
+      //    `String.replace` and would otherwise be expanded, corrupting the
+      //    message (and leaking the surrounding text into it).
+      text = text.replace(
+        new RegExp(`\\{${escapeRegExp(key)}\\}`, 'g'),
+        () => String(val)
+      );
     }
   }
 
   return text;
+}
+
+/**
+ * Escapes every character that has a special meaning inside a regular
+ * expression, so the result can be embedded literally in a pattern.
+ */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -48,12 +48,12 @@ Los sistemas tradicionales de cifrado suelen obligar al usuario a bloquear o des
 3. Pulsa **Add Beta plugin**.
 4. Pega la URL del repositorio:
    ```
-   https://github.com/Abismalmx/obsidian-mysecret
+   https://github.com/abismalmx/MySecret
    ```
 5. Pulsa **Add Plugin**, espera a que termine la descarga y activa **MySecret** en **Ajustes** → **Plugins de la comunidad**.
 
 ### Método B: Instalación Manual
-1. Ve a la sección de [Releases](https://github.com/Abismalmx/obsidian-mysecret/releases) en GitHub.
+1. Ve a la sección de [Releases](https://github.com/abismalmx/MySecret/releases) en GitHub.
 2. Descarga los tres archivos principales:
    - `main.js`
    - `manifest.json`

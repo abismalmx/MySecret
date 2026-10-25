@@ -70,6 +70,7 @@ export class AdapterInterceptor {
     if (a.stat) this.origStat = a.stat.bind(this.adapter);
     if (a.getResourcePath) this.origGetResourcePath = a.getResourcePath.bind(this.adapter);
 
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
 
     // 0. Hook getResourcePath

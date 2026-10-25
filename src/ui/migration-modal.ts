@@ -3,12 +3,16 @@
  * MigrationModal: Interactive Batch Encryption & Clean Full Decryption (Rollback)
  */
 
-import { App, Modal, Notice, setCssStyles } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import MySecretPlugin from '../main';
 import { isArmoredEncrypted, isBinaryEncrypted } from '../crypto/envelope';
 import { MigrationProgress } from '../types';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
 import { t } from '../i18n';
+
+function setCssStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+  Object.assign(el.style, styles);
+}
 
 /**
  * How often the elapsed-time based ETA is refreshed (ms)

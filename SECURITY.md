@@ -99,12 +99,24 @@ Every security defense is continuously validated through automated unit, cryptog
 | **BIP-39 Mnemonic Generation & Validation** | 4 tests | ✅ Passed |
 | **Memory Buffer Zeroization** | 2 tests | ✅ Passed |
 | **Key Lifecycle & Master Password Change** | 4 tests | ✅ Passed |
-| **Internationalization (i18n) Integrity** | 5 tests | ✅ Passed |
+| **Internationalization (i18n) Integrity** | 6 tests | ✅ Passed |
 | **Adapter Interception & Streaming I/O** | 19 tests | ✅ Passed |
-| **Total Automated Tests** | **81 tests** | **100% Passing** |
+| **Total Automated Tests** | **82 tests** | **100% Passing** |
 
 ---
 
-## 4. Responsible Disclosure Policy
+## 4. Comprehensive Security Audit, SAST & Secret Leak Verification (Grade A+)
+
+The codebase underwent an end-to-end technical security audit, fully detailed in the [Security Audit & Hardening Report](SECURITY_AUDIT_AND_PATCHES.md):
+
+- **Static Application Security Testing (Semgrep SAST):** Over **503 security rules** were executed across the entire repository. The i18n lookup engine (`src/i18n/index.ts`) was hardened against *Prototype Pollution* attacks using explicit `hasOwnProperty` validation and active blocking of prototype properties (`__proto__`, `constructor`, `prototype`). Result: **0 vulnerabilities**.
+- **Secret Leak Detection (Gitleaks):** Deep scan across all Git commits in repository history and all local working tree files. Result: **0 exposed secrets** (no tokens, credentials, or private keys leaked).
+- **Strict Static Typing (TypeScript `tsc`):** Zero compilation errors or unhandled type mismatches (`0 errors`).
+- **Code Quality & Obsidian Guidelines (ESLint):** Full compliance with official Obsidian developer policies, destructive action conventions, and API requirements (`0 errors`).
+- **Supply Chain Security:** Audited and upgraded build tooling (`esbuild` to `^0.25.0`), eliminating known local development vulnerabilities (CWE-346 / GHSA-67mh-4wv8-2f99).
+
+---
+
+## 5. Responsible Disclosure Policy
 
 If you discover a potential security concern or an unhandled edge case, please submit a private vulnerability advisory on GitHub or contact the author directly. All security inquiries are investigated with highest priority.

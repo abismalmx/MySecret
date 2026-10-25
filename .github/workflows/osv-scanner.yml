@@ -1,0 +1,51 @@
+name: "OSV-Scanner Dependency Audit"
+
+# Detects known vulnerabilities in the dependency tree using the Open Source
+# Vulnerabilities (OSV) database from Google.
+#
+# SECURITY: this workflow is the regression guard for the supply chain. It runs
+# on every push and pull request so a vulnerable transitive dependency can never
+# reach a release again. It complements the CodeQL analysis (which covers the
+# source code itself).
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "*" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # Weekly, to catch advisories published after the last release.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Block the pipeline when a vulnerability is detected, so it cannot be merged.
+permissions:
+  contents: read
+
+jobs:
+  scan-scheduled:
+    name: OSV-Scanner (full scan)
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.0
+    with:
+      scan-args: |-
+        -r
+        ./
+      fail-on-vuln: true
+      upload-sarif: false
+    permissions:
+      contents: read
+      security-events: write
+
+  scan-pr:
+    name: OSV-Scanner (new vulnerabilities in PR)
+    if: github.event_name == 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.7.0
+    with:
+      scan-args: |-
+        -r
+        ./
+      fail-on-vuln: true
+      upload-sarif: false
+    permissions:
+      contents: read
+      security-events: write

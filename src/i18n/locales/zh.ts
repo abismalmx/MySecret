@@ -89,7 +89,7 @@ export const zh: TranslationDictionary = {
   settings: {
     heroTitle: 'MySecret',
     heroDesc: '使用高强度密码学技术 (AES-256-GCM + Argon2id) 加密您的 Obsidian 笔记。绝对隐私：除您之外，任何人都无法查看笔记内容。',
-    heroAuthor: '由 Abismalmx 开发',
+    heroAuthor: '由 abismalmx 开发',
     // Section 1: Auto-lock
     autoLockSectionTitle: '安全保护与自动锁定',
     autoLockSectionDesc: '配置离开设备或切换应用时如何及何时保护您的数据。',

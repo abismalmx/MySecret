@@ -89,7 +89,7 @@ export const en: TranslationDictionary = {
   settings: {
     heroTitle: 'MySecret',
     heroDesc: 'Encrypt your Obsidian notes with military-grade cryptography (AES-256-GCM + Argon2id). Absolute privacy: nobody but you can read your notes.',
-    heroAuthor: 'Created by Abismalmx',
+    heroAuthor: 'Created by abismalmx',
     // Section 1: Auto-lock
     autoLockSectionTitle: 'Protection & Auto-Lock',
     autoLockSectionDesc: 'Configure how and when your vault is locked if you leave your device unattended or switch windows.',

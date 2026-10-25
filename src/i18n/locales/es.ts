@@ -89,7 +89,7 @@ export const es: TranslationDictionary = {
   settings: {
     heroTitle: 'MySecret',
     heroDesc: 'Cifra tus notas de Obsidian con criptografía avanzada (AES-256-GCM + Argon2id). Privacidad absoluta: nadie, más que tú, podrá ver el contenido de tus notas.',
-    heroAuthor: 'Creado por Abismalmx',
+    heroAuthor: 'Creado por abismalmx',
     // Section 1: Auto-lock
     autoLockSectionTitle: 'Protección y Bloqueo Automático',
     autoLockSectionDesc: 'Define cómo y cuándo se protege tu información si dejas el equipo desatendido o cambias de aplicación.',

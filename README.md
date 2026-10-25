@@ -6,7 +6,7 @@
 
 [![Obsidian](https://img.shields.io/badge/Obsidian-v1.0.0+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
 [![License](https://img.shields.io/badge/License-Non--Commercial-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-81%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-82%20passing-success)](tests/)
 [![Security](https://img.shields.io/badge/Security-Hardened%20%26%20Verified-brightgreen)](SECURITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
@@ -72,11 +72,11 @@ On disk, your files remain fully encrypted at rest. When unlocked, you interact 
 ### Option 2: Via BRAT (Beta Reviewer's Auto-update Tester)
 1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin in Obsidian.
 2. Go to **Options** → **BRAT** → **Add Beta plugin**.
-3. Enter: `https://github.com/Abismalmx/obsidian-mysecret`
+3. Enter: `https://github.com/abismalmx/MySecret`
 4. Enable the plugin under **Community plugins**.
 
 ### Option 3: Manual Installation
-1. Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases](https://github.com/Abismalmx/obsidian-mysecret/releases) page.
+1. Download the latest release (`main.js`, `manifest.json`, `styles.css`) from the [Releases](https://github.com/abismalmx/MySecret/releases) page.
 2. Navigate to your Obsidian vault directory: `<vault>/.obsidian/plugins/`
 3. Create a folder named `mysecret` and place the three downloaded files inside:
    ```
@@ -97,7 +97,7 @@ On disk, your files remain fully encrypted at rest. When unlocked, you interact 
 
 ### Clone & Install
 ```bash
-git clone https://github.com/Abismalmx/obsidian-mysecret.git
+git clone https://github.com/abismalmx/MySecret.git
 cd obsidian-mysecret
 npm install
 ```
@@ -151,5 +151,5 @@ Puedes consultar la versión completa en español de este documento en [README.e
 
 ## 📄 License
 
-Copyright (c) 2026 Anthony Rios Licea (@Abismalmx).  
+Copyright (c) 2026 Anthony Rios Licea (@abismalmx).  
 Licensed under the **MySecret Non-Commercial Software License**. Free for personal, academic, and non-commercial use. Commercial use or redistribution is strictly prohibited without prior written authorization from the author. See [LICENSE](LICENSE) for full legal terms.

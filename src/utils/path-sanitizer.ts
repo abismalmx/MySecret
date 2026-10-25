@@ -36,6 +36,7 @@ const WINDOWS_DRIVE_RE = /^[a-zA-Z]:/;
  * `<`, `>`, `"`, `|`, `?`, `*` are rejected because they are special on
  * Windows and are a common vector for shell/glob injection.
  */
+// eslint-disable-next-line no-control-regex
 const ILLEGAL_SEGMENT_RE = /[\x00-\x1f<>:"|?*]/;
 
 export interface PathSanitizeResult {

@@ -101,6 +101,7 @@ export interface PluginSettings {
   excludedFolders: string[]; // List of user-excluded relative paths, e.g. ["Public", "Shared"]
   encryptAttachments: boolean;
   isInitialized: boolean;
+  language?: 'auto' | 'en' | 'es' | 'ru' | 'zh';
   backup: CloudBackupSettings;
   biometrics?: {
     enabled: boolean;

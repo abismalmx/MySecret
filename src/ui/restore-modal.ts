@@ -3,7 +3,7 @@
  * RestoreModal: Restore Vault from Backup ZIP Archive
  */
 
-import { App, Modal, Notice, setCssStyles } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import { unzipSync, strFromU8 } from 'fflate';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
@@ -14,6 +14,10 @@ import {
   MAX_RESTORE_TOTAL_BYTES,
   MAX_RESTORE_ARCHIVE_BYTES
 } from '../constants';
+
+function setCssStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+  Object.assign(el.style, styles);
+}
 import { t } from '../i18n';
 
 export class RestoreModal extends Modal {

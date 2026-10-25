@@ -132,7 +132,7 @@ var PathFilter = class {
   }
 };
 
-// ../node_modules/hash-wasm/dist/index.esm.js
+// node_modules/hash-wasm/dist/index.esm.js
 function __awaiter(thisArg, _arguments, P, generator) {
   function adopt(value) {
     return value instanceof P ? value : new P(function(resolve) {
@@ -457,6 +457,7 @@ function WASMInterface(binary, hashLength) {
         canSimplify = (data, initParam) => initParam === 0 && isDataShort(data);
         break;
       case "xxhash64":
+      // cannot simplify
       case "xxhash3":
       case "xxhash128":
       case "crc64":
@@ -3032,16 +3033,13 @@ function entropyToMnemonicSync(entropy) {
   return words.join(" ");
 }
 function validateMnemonic(mnemonic) {
-  if (!mnemonic)
-    return false;
+  if (!mnemonic) return false;
   const words = mnemonic.trim().toLowerCase().split(/\s+/);
-  if (words.length !== 24)
-    return false;
+  if (words.length !== 24) return false;
   const bits2 = [];
   for (const word of words) {
     const index = WORD_MAP.get(word);
-    if (index === void 0)
-      return false;
+    if (index === void 0) return false;
     for (let j = 10; j >= 0; j--) {
       bits2.push(index >> j & 1);
     }
@@ -3085,8 +3083,9 @@ async function mnemonicToKey(mnemonic, salt) {
   return new Uint8Array(derivedBits);
 }
 function computeSha256FirstByte(data) {
-  let h0 = 1779033703, h1 = 3144134277, h2 = 1013904242, h3 = 2773480762;
-  let h4 = 1359893119, h5 = 2600822924, h6 = 528734635, h7 = 1541459225;
+  let h0 = 1779033703;
+  const h1 = 3144134277, h2 = 1013904242, h3 = 2773480762;
+  const h4 = 1359893119, h5 = 2600822924, h6 = 528734635, h7 = 1541459225;
   const K2 = [
     1116352408,
     1899447441,
@@ -3193,8 +3192,7 @@ function rotr(x, n) {
 
 // src/utils/zeroize.ts
 function zeroize(buffer) {
-  if (!buffer)
-    return;
+  if (!buffer) return;
   try {
     buffer.fill(0);
   } catch {
@@ -3235,8 +3233,7 @@ var KeyManager = class {
     return this.recoveryMnemonic;
   }
   getVaultKey() {
-    if (this._isLocked)
-      return null;
+    if (this._isLocked) return null;
     return this.vaultKey;
   }
   /**
@@ -3244,8 +3241,7 @@ var KeyManager = class {
    * Only accessible when the vault is currently unlocked.
    */
   getRawVaultKey() {
-    if (this._isLocked || !this.rawVaultKey)
-      return null;
+    if (this._isLocked || !this.rawVaultKey) return null;
     return new Uint8Array(this.rawVaultKey);
   }
   getEnvelope() {
@@ -3519,8 +3515,7 @@ var import_obsidian = require("obsidian");
 
 // src/crypto/envelope.ts
 function isArmoredEncrypted(text) {
-  if (!text)
-    return false;
+  if (!text) return false;
   return text.trimStart().startsWith(ARMORED_HEADER_START);
 }
 function serializeArmored(payload) {
@@ -3565,12 +3560,9 @@ function deserializeArmored(text) {
     if (colonIdx !== -1) {
       const key = line.substring(0, colonIdx).trim().toLowerCase();
       const val = line.substring(colonIdx + 1).trim();
-      if (key === "version")
-        version = parseInt(val, 10);
-      else if (key === "iv")
-        ivStr = val;
-      else if (key === "tag")
-        tagStr = val;
+      if (key === "version") version = parseInt(val, 10);
+      else if (key === "iv") ivStr = val;
+      else if (key === "tag") tagStr = val;
     }
   }
   if (ivStr && tagStr && bodyStartIndex === -1) {
@@ -3591,8 +3583,7 @@ function deserializeArmored(text) {
   };
 }
 function isBinaryEncrypted(data) {
-  if (!data || data.length < BINARY_HEADER_LENGTH)
-    return false;
+  if (!data || data.length < BINARY_HEADER_LENGTH) return false;
   return data[0] === BINARY_MAGIC[0] && data[1] === BINARY_MAGIC[1] && data[2] === BINARY_MAGIC[2] && data[3] === BINARY_MAGIC[3] && data[4] === CURRENT_ENVELOPE_VERSION;
 }
 function serializeBinary(payload) {
@@ -3636,27 +3627,19 @@ var AdapterInterceptor = class {
    * Installs the transparent interception hooks onto the Obsidian Vault DataAdapter
    */
   install() {
-    if (this.isHooked)
-      return;
+    if (this.isHooked) return;
     const a = this.adapter;
     this.origRead = a.read.bind(this.adapter);
     this.origWrite = a.write.bind(this.adapter);
     this.origReadBinary = a.readBinary.bind(this.adapter);
     this.origWriteBinary = a.writeBinary.bind(this.adapter);
-    if (a.append)
-      this.origAppend = a.append.bind(this.adapter);
-    if (a.appendBinary)
-      this.origAppendBinary = a.appendBinary.bind(this.adapter);
-    if (a.process)
-      this.origProcess = a.process.bind(this.adapter);
-    if (a.copy)
-      this.origCopy = a.copy.bind(this.adapter);
-    if (a.list)
-      this.origList = a.list.bind(this.adapter);
-    if (a.stat)
-      this.origStat = a.stat.bind(this.adapter);
-    if (a.getResourcePath)
-      this.origGetResourcePath = a.getResourcePath.bind(this.adapter);
+    if (a.append) this.origAppend = a.append.bind(this.adapter);
+    if (a.appendBinary) this.origAppendBinary = a.appendBinary.bind(this.adapter);
+    if (a.process) this.origProcess = a.process.bind(this.adapter);
+    if (a.copy) this.origCopy = a.copy.bind(this.adapter);
+    if (a.list) this.origList = a.list.bind(this.adapter);
+    if (a.stat) this.origStat = a.stat.bind(this.adapter);
+    if (a.getResourcePath) this.origGetResourcePath = a.getResourcePath.bind(this.adapter);
     const self2 = this;
     if (a.getResourcePath) {
       a.getResourcePath = function(path) {
@@ -3952,8 +3935,7 @@ var AdapterInterceptor = class {
     const results = [];
     const visited = /* @__PURE__ */ new Set();
     const walk = async (current) => {
-      if (visited.has(current))
-        return;
+      if (visited.has(current)) return;
       visited.add(current);
       let listing;
       try {
@@ -4054,23 +4036,17 @@ var AdapterInterceptor = class {
    * Restores original DataAdapter methods (for uninstallation or rollback)
    */
   uninstall() {
-    if (!this.isHooked)
-      return;
+    if (!this.isHooked) return;
     const a = this.adapter;
     a.read = this.origRead;
     a.write = this.origWrite;
     a.readBinary = this.origReadBinary;
     a.writeBinary = this.origWriteBinary;
-    if (this.origAppend)
-      a.append = this.origAppend;
-    if (this.origAppendBinary)
-      a.appendBinary = this.origAppendBinary;
-    if (this.origProcess)
-      a.process = this.origProcess;
-    if (this.origCopy)
-      a.copy = this.origCopy;
-    if (this.origGetResourcePath)
-      a.getResourcePath = this.origGetResourcePath;
+    if (this.origAppend) a.append = this.origAppend;
+    if (this.origAppendBinary) a.appendBinary = this.origAppendBinary;
+    if (this.origProcess) a.process = this.origProcess;
+    if (this.origCopy) a.copy = this.origCopy;
+    if (this.origGetResourcePath) a.getResourcePath = this.origGetResourcePath;
     this.isHooked = false;
   }
   /**
@@ -4212,8 +4188,7 @@ var MediaManager = class {
    * Applies the Blob URL to an img element, clearing broken indicators and fixing display
    */
   applyBlobToImage(img, blobUrl, normPath) {
-    if (img.src === blobUrl)
-      return;
+    if (img.src === blobUrl) return;
     img.dataset.mysecretOriginalSrc = img.src;
     img.dataset.mysecretPath = normPath;
     img.dataset.mysecretPatched = "true";
@@ -4228,15 +4203,13 @@ var MediaManager = class {
    * Inspects an img element and determines if it points to an encrypted vault attachment
    */
   async patchImageElement(img) {
-    if (this.keyManager.isLocked)
-      return;
+    if (this.keyManager.isLocked) return;
     const currentSrc = img.getAttribute("src") || "";
     if (currentSrc.startsWith("blob:")) {
       return;
     }
     const matchedFile = this.resolveFileForImg(img);
-    if (!matchedFile)
-      return;
+    if (!matchedFile) return;
     if (!this.pathFilter.shouldEncrypt(matchedFile.path)) {
       return;
     }
@@ -4260,16 +4233,13 @@ var MediaManager = class {
     const src = img.getAttribute("src") || "";
     if (parentSrc) {
       const file = this.app.metadataCache.getFirstLinkpathDest(parentSrc, "");
-      if (file instanceof import_obsidian2.TFile)
-        return file;
+      if (file instanceof import_obsidian2.TFile) return file;
       const direct = this.app.vault.getAbstractFileByPath(this.pathFilter.normalizePath(parentSrc));
-      if (direct instanceof import_obsidian2.TFile)
-        return direct;
+      if (direct instanceof import_obsidian2.TFile) return direct;
     }
     if (alt) {
       const file = this.app.metadataCache.getFirstLinkpathDest(alt, "");
-      if (file instanceof import_obsidian2.TFile)
-        return file;
+      if (file instanceof import_obsidian2.TFile) return file;
     }
     if (src) {
       try {
@@ -4279,12 +4249,10 @@ var MediaManager = class {
         if (rawFilename) {
           const decoded = decodeURIComponent(rawFilename);
           const file = this.app.metadataCache.getFirstLinkpathDest(decoded, "");
-          if (file instanceof import_obsidian2.TFile)
-            return file;
+          if (file instanceof import_obsidian2.TFile) return file;
           const allFiles = this.app.vault.getFiles();
           const match = allFiles.find((f) => f.name === decoded);
-          if (match)
-            return match;
+          if (match) return match;
         }
       } catch {
       }
@@ -4295,8 +4263,7 @@ var MediaManager = class {
    * Scans a DOM container and patches all encrypted image embeds
    */
   scanAndPatch(container) {
-    if (this.keyManager.isLocked)
-      return;
+    if (this.keyManager.isLocked) return;
     const images = container.querySelectorAll("img");
     images.forEach((img) => {
       void this.patchImageElement(img);
@@ -4314,8 +4281,7 @@ var MediaManager = class {
     };
     window.addEventListener("error", this.globalErrorHandler, true);
     this.observer = new MutationObserver((mutations) => {
-      if (this.keyManager.isLocked)
-        return;
+      if (this.keyManager.isLocked) return;
       for (const mut of mutations) {
         if (mut.type === "childList") {
           for (let i = 0; i < mut.addedNodes.length; i++) {
@@ -4404,7 +4370,7 @@ var MYSECRET_LOGO_DATA_URL = "data:image/webp;base64,UklGRlrtAQBXRUJQVlA4WAoAAAA
 // src/ui/export-modal.ts
 var import_obsidian3 = require("obsidian");
 
-// ../node_modules/fflate/esm/browser.js
+// node_modules/fflate/esm/browser.js
 var u8 = Uint8Array;
 var u16 = Uint16Array;
 var i32 = Int32Array;
@@ -4509,7 +4475,7 @@ for (i = 0; i < 32768; ++i) {
 }
 var x;
 var i;
-var hMap = function(cd, mb, r) {
+var hMap = (function(cd, mb, r) {
   var s = cd.length;
   var i = 0;
   var l = new u16(mb);
@@ -4544,7 +4510,7 @@ var hMap = function(cd, mb, r) {
     }
   }
   return co;
-};
+});
 var flt = new u8(288);
 for (i = 0; i < 144; ++i)
   flt[i] = 8;
@@ -5061,7 +5027,7 @@ var dflt = function(dat, lvl, plvl, pre, post, st) {
   }
   return slc(o, 0, pre + shft(pos) + post);
 };
-var crct = /* @__PURE__ */ function() {
+var crct = /* @__PURE__ */ (function() {
   var t2 = new Int32Array(256);
   for (var i = 0; i < 256; ++i) {
     var c = i, k = 9;
@@ -5070,7 +5036,7 @@ var crct = /* @__PURE__ */ function() {
     t2[i] = c;
   }
   return t2;
-}();
+})();
 var crc = function() {
   var c = -1;
   return {
@@ -5411,8 +5377,7 @@ function sanitizeVaultRelativePath(rawPath) {
   const segments = [];
   for (const rawSegment of unified.split("/")) {
     const segment = rawSegment.trim();
-    if (segment.length === 0 || segment === ".")
-      continue;
+    if (segment.length === 0 || segment === ".") continue;
     if (segment === "..") {
       return reject('Path traversal ("..") is not allowed.');
     }
@@ -5855,7 +5820,7 @@ var en = {
   settings: {
     heroTitle: "MySecret",
     heroDesc: "Encrypt your Obsidian notes with military-grade cryptography (AES-256-GCM + Argon2id). Absolute privacy: nobody but you can read your notes.",
-    heroAuthor: "Created by Abismalmx",
+    heroAuthor: "Created by abismalmx",
     // Section 1: Auto-lock
     autoLockSectionTitle: "Protection & Auto-Lock",
     autoLockSectionDesc: "Configure how and when your vault is locked if you leave your device unattended or switch windows.",
@@ -6188,7 +6153,7 @@ var es = {
   settings: {
     heroTitle: "MySecret",
     heroDesc: "Cifra tus notas de Obsidian con criptograf\xEDa avanzada (AES-256-GCM + Argon2id). Privacidad absoluta: nadie, m\xE1s que t\xFA, podr\xE1 ver el contenido de tus notas.",
-    heroAuthor: "Creado por Abismalmx",
+    heroAuthor: "Creado por abismalmx",
     // Section 1: Auto-lock
     autoLockSectionTitle: "Protecci\xF3n y Bloqueo Autom\xE1tico",
     autoLockSectionDesc: "Define c\xF3mo y cu\xE1ndo se protege tu informaci\xF3n si dejas el equipo desatendido o cambias de aplicaci\xF3n.",
@@ -6521,7 +6486,7 @@ var ru = {
   settings: {
     heroTitle: "MySecret",
     heroDesc: "\u0428\u0438\u0444\u0440\u0443\u0439\u0442\u0435 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 Obsidian \u0441 \u043F\u043E\u043C\u043E\u0449\u044C\u044E \u043F\u0435\u0440\u0435\u0434\u043E\u0432\u043E\u0439 \u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0438 (AES-256-GCM + Argon2id). \u041F\u043E\u043B\u043D\u0430\u044F \u043A\u043E\u043D\u0444\u0438\u0434\u0435\u043D\u0446\u0438\u0430\u043B\u044C\u043D\u043E\u0441\u0442\u044C: \u043D\u0438\u043A\u0442\u043E, \u043A\u0440\u043E\u043C\u0435 \u0432\u0430\u0441, \u043D\u0435 \u0441\u043C\u043E\u0436\u0435\u0442 \u043F\u0440\u043E\u0447\u0435\u0441\u0442\u044C \u0432\u0430\u0448\u0438 \u0437\u0430\u043C\u0435\u0442\u043A\u0438.",
-    heroAuthor: "\u0421\u043E\u0437\u0434\u0430\u043D\u043E Abismalmx",
+    heroAuthor: "\u0421\u043E\u0437\u0434\u0430\u043D\u043E abismalmx",
     // Section 1: Auto-lock
     autoLockSectionTitle: "\u0417\u0430\u0449\u0438\u0442\u0430 \u0438 \u0430\u0432\u0442\u043E\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0430",
     autoLockSectionDesc: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u0442\u0435, \u043A\u0430\u043A \u0438 \u043A\u043E\u0433\u0434\u0430 \u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u043F\u0440\u0438 \u0431\u0435\u0437\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0438 \u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0438 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0439.",
@@ -6854,7 +6819,7 @@ var zh2 = {
   settings: {
     heroTitle: "MySecret",
     heroDesc: "\u4F7F\u7528\u9AD8\u5F3A\u5EA6\u5BC6\u7801\u5B66\u6280\u672F (AES-256-GCM + Argon2id) \u52A0\u5BC6\u60A8\u7684 Obsidian \u7B14\u8BB0\u3002\u7EDD\u5BF9\u9690\u79C1\uFF1A\u9664\u60A8\u4E4B\u5916\uFF0C\u4EFB\u4F55\u4EBA\u90FD\u65E0\u6CD5\u67E5\u770B\u7B14\u8BB0\u5185\u5BB9\u3002",
-    heroAuthor: "\u7531 Abismalmx \u5F00\u53D1",
+    heroAuthor: "\u7531 abismalmx \u5F00\u53D1",
     // Section 1: Auto-lock
     autoLockSectionTitle: "\u5B89\u5168\u4FDD\u62A4\u4E0E\u81EA\u52A8\u9501\u5B9A",
     autoLockSectionDesc: "\u914D\u7F6E\u79BB\u5F00\u8BBE\u5907\u6216\u5207\u6362\u5E94\u7528\u65F6\u5982\u4F55\u53CA\u4F55\u65F6\u4FDD\u62A4\u60A8\u7684\u6570\u636E\u3002",
@@ -7111,37 +7076,25 @@ function detectObsidianLocale() {
     const storedLang = window?.localStorage?.getItem("language");
     if (storedLang) {
       const lower = storedLang.toLowerCase();
-      if (lower.startsWith("es"))
-        return "es";
-      if (lower.startsWith("ru"))
-        return "ru";
-      if (lower.startsWith("zh"))
-        return "zh";
-      if (lower.startsWith("en"))
-        return "en";
+      if (lower.startsWith("es")) return "es";
+      if (lower.startsWith("ru")) return "ru";
+      if (lower.startsWith("zh")) return "zh";
+      if (lower.startsWith("en")) return "en";
     }
     const momentLang = window?.moment?.locale?.();
     if (typeof momentLang === "string") {
       const lower = momentLang.toLowerCase();
-      if (lower.startsWith("es"))
-        return "es";
-      if (lower.startsWith("ru"))
-        return "ru";
-      if (lower.startsWith("zh"))
-        return "zh";
-      if (lower.startsWith("en"))
-        return "en";
+      if (lower.startsWith("es")) return "es";
+      if (lower.startsWith("ru")) return "ru";
+      if (lower.startsWith("zh")) return "zh";
+      if (lower.startsWith("en")) return "en";
     }
     if (typeof navigator !== "undefined" && navigator.language) {
       const lower = navigator.language.toLowerCase();
-      if (lower.startsWith("es"))
-        return "es";
-      if (lower.startsWith("ru"))
-        return "ru";
-      if (lower.startsWith("zh"))
-        return "zh";
-      if (lower.startsWith("en"))
-        return "en";
+      if (lower.startsWith("es")) return "es";
+      if (lower.startsWith("ru")) return "ru";
+      if (lower.startsWith("zh")) return "zh";
+      if (lower.startsWith("en")) return "en";
     }
   } catch {
   }
@@ -7164,7 +7117,11 @@ function t(path, params) {
   const segments = path.split(".");
   let target = dictionaries[currentActiveLocale];
   for (const seg of segments) {
-    if (target && typeof target === "object" && seg in target) {
+    if (seg === "__proto__" || seg === "constructor" || seg === "prototype") {
+      target = void 0;
+      break;
+    }
+    if (target && typeof target === "object" && Object.prototype.hasOwnProperty.call(target, seg)) {
       target = target[seg];
     } else {
       target = void 0;
@@ -7174,7 +7131,11 @@ function t(path, params) {
   if (typeof target !== "string") {
     let fallback = dictionaries.en;
     for (const seg of segments) {
-      if (fallback && typeof fallback === "object" && seg in fallback) {
+      if (seg === "__proto__" || seg === "constructor" || seg === "prototype") {
+        fallback = void 0;
+        break;
+      }
+      if (fallback && typeof fallback === "object" && Object.prototype.hasOwnProperty.call(fallback, seg)) {
         fallback = fallback[seg];
       } else {
         fallback = void 0;
@@ -7190,13 +7151,22 @@ function t(path, params) {
   let text = target;
   if (params) {
     for (const [key, val] of Object.entries(params)) {
-      text = text.replace(new RegExp(`\\{${key}\\}`, "g"), String(val));
+      text = text.replace(
+        new RegExp(`\\{${escapeRegExp(key)}\\}`, "g"),
+        () => String(val)
+      );
     }
   }
   return text;
 }
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // src/ui/export-modal.ts
+function setCssStyles(el, styles) {
+  Object.assign(el.style, styles);
+}
 var ExportModal = class extends import_obsidian3.Modal {
   constructor(app, plugin) {
     super(app);
@@ -7251,7 +7221,7 @@ var ExportModal = class extends import_obsidian3.Modal {
       this.mode = "encrypted";
       encCard.addClass("is-selected");
       decCard.removeClass("is-selected");
-      (0, import_obsidian3.setCssStyles)(envelopeSetting, { display: "flex" });
+      setCssStyles(envelopeSetting, { display: "flex" });
     });
     decCard.addEventListener("click", () => {
       if (this.plugin.keyManager.isLocked) {
@@ -7262,7 +7232,7 @@ var ExportModal = class extends import_obsidian3.Modal {
       this.mode = "decrypted";
       decCard.addClass("is-selected");
       encCard.removeClass("is-selected");
-      (0, import_obsidian3.setCssStyles)(envelopeSetting, { display: "none" });
+      setCssStyles(envelopeSetting, { display: "none" });
     });
     const optionsSection = contentEl.createDiv({ cls: "mysecret-export-options" });
     const attachSetting = optionsSection.createDiv({ cls: "mysecret-checkbox-row" });
@@ -7348,13 +7318,13 @@ var ExportModal = class extends import_obsidian3.Modal {
         },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 100) : 0;
-          (0, import_obsidian3.setCssStyles)(this.progressBar, { width: `${percent}%` });
+          setCssStyles(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("exportModal.exporting", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4C4} ${currentFile}`);
         }
       );
-      (0, import_obsidian3.setCssStyles)(this.progressBar, { width: "100%" });
+      setCssStyles(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(
         `${t("common.success")} ${(result.stats.totalBytes / (1024 * 1024)).toFixed(2)} MB (${result.stats.totalFiles})`
@@ -7406,12 +7376,9 @@ function toExactArrayBuffer(data) {
   return data.slice().buffer;
 }
 function normalizeBody(body) {
-  if (body === void 0 || body === null)
-    return void 0;
-  if (typeof body === "string")
-    return body;
-  if (body instanceof Uint8Array)
-    return toExactArrayBuffer(body);
+  if (body === void 0 || body === null) return void 0;
+  if (typeof body === "string") return body;
+  if (body instanceof Uint8Array) return toExactArrayBuffer(body);
   return body;
 }
 async function requestHttp(options) {
@@ -7687,8 +7654,7 @@ var WebDAVProvider = class {
     assertSafeUrl(this.serverUrl, true);
   }
   getAuthHeader() {
-    if (!this.username)
-      return "";
+    if (!this.username) return "";
     try {
       const creds = `${this.username}:${this.password}`;
       if (typeof window !== "undefined" && window.btoa) {
@@ -7717,8 +7683,7 @@ var WebDAVProvider = class {
     try {
       const headers = {};
       const auth = this.getAuthHeader();
-      if (auth)
-        headers["Authorization"] = auth;
+      if (auth) headers["Authorization"] = auth;
       let response;
       try {
         response = await requestHttp({
@@ -7774,8 +7739,7 @@ var WebDAVProvider = class {
         "Content-Type": "application/zip"
       };
       const auth = this.getAuthHeader();
-      if (auth)
-        headers["Authorization"] = auth;
+      if (auth) headers["Authorization"] = auth;
       const targetDirUrl = `${this.serverUrl}/${encodeURIComponent(this.remotePath)}`;
       try {
         await requestHttp({
@@ -7942,6 +7906,9 @@ function createCloudProvider(settings) {
 }
 
 // src/ui/cloud-backup-modal.ts
+function setCssStyles2(el, styles) {
+  Object.assign(el.style, styles);
+}
 var CloudBackupModal = class extends import_obsidian4.Modal {
   constructor(app, plugin) {
     super(app);
@@ -8116,7 +8083,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
         { mode: "encrypted", includeAttachments: true, includeEnvelope: true },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 50) : 0;
-          (0, import_obsidian4.setCssStyles)(this.progressBar, { width: `${percent}%` });
+          setCssStyles2(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("exportModal.exporting", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4E6} ${currentFile}`);
@@ -8130,7 +8097,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
         (uploaded, total) => {
           const ratio = total > 0 ? uploaded / total : 0;
           const percent = 50 + Math.round(ratio * 50);
-          (0, import_obsidian4.setCssStyles)(this.progressBar, { width: `${percent}%` });
+          setCssStyles2(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(`${(uploaded / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} MB`);
         }
@@ -8138,7 +8105,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || "Upload failed");
       }
-      (0, import_obsidian4.setCssStyles)(this.progressBar, { width: "100%" });
+      setCssStyles2(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(`\u2705 ${t("notices.backupSuccess")}`);
       this.currentFileEl.setText(zipResult.filename);
@@ -8171,6 +8138,9 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
 
 // src/ui/restore-modal.ts
 var import_obsidian5 = require("obsidian");
+function setCssStyles3(el, styles) {
+  Object.assign(el.style, styles);
+}
 var RestoreModal = class extends import_obsidian5.Modal {
   constructor(app, plugin) {
     super(app);
@@ -8329,12 +8299,11 @@ var RestoreModal = class extends import_obsidian5.Modal {
     }
   }
   async runRestore(progressContainer) {
-    if (!this.selectedZipBytes)
-      return;
+    if (!this.selectedZipBytes) return;
     this.isProcessing = true;
     this.restoreBtn.disabled = true;
     this.cancelBtn.disabled = true;
-    (0, import_obsidian5.setCssStyles)(this.dropZone, { pointerEvents: "none" });
+    setCssStyles3(this.dropZone, { pointerEvents: "none" });
     progressContainer.show();
     try {
       this.progressStatusEl.setText(t("common.loading"));
@@ -8343,13 +8312,13 @@ var RestoreModal = class extends import_obsidian5.Modal {
         this.selectedZipBytes,
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 100) : 0;
-          (0, import_obsidian5.setCssStyles)(this.progressBar, { width: `${percent}%` });
+          setCssStyles3(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("restoreModal.restoring", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4C4} ${currentFile}`);
         }
       );
-      (0, import_obsidian5.setCssStyles)(this.progressBar, { width: "100%" });
+      setCssStyles3(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(t("notices.restoreSuccess", { count: result.restoredFiles }));
       this.currentFileEl.setText("");
@@ -8383,10 +8352,8 @@ var FolderPickerModal = class extends import_obsidian6.FuzzySuggestModal {
     const currentExcludedSet = new Set(excludedFolders.map((f) => normalize(f)));
     const allFiles = this.app.vault.getAllLoadedFiles();
     this.folders = allFiles.filter((file) => {
-      if (!(file instanceof import_obsidian6.TFolder))
-        return false;
-      if (typeof file.isRoot === "function" && file.isRoot())
-        return false;
+      if (!(file instanceof import_obsidian6.TFolder)) return false;
+      if (typeof file.isRoot === "function" && file.isRoot()) return false;
       const norm = normalize(file.path);
       return norm.length > 0 && norm !== "/";
     }).filter((folder) => !currentExcludedSet.has(normalize(folder.path))).sort((a, b) => a.path.localeCompare(b.path));
@@ -8632,8 +8599,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
           } catch (err2) {
             new import_obsidian7.Notice(`${t("common.error")}: ${err2?.message || String(err2)}`);
           } finally {
-            if (decryptedKey)
-              zeroize(decryptedKey);
+            if (decryptedKey) zeroize(decryptedKey);
             btn.setDisabled(false);
             btn.setButtonText(t("settings.testBiometricsBtn"));
           }
@@ -8951,8 +8917,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     containerEl.addClass("mysecret-lock-container-active");
     this.scope.register([], "Escape", () => false);
     const closeBtn = modalEl.querySelector(".modal-close-button");
-    if (closeBtn)
-      closeBtn.remove();
+    if (closeBtn) closeBtn.remove();
     containerEl.addEventListener("click", (e) => {
       if (this.plugin.keyManager.isLocked) {
         if (!modalEl.contains(e.target)) {
@@ -9151,8 +9116,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Updates the lock indicator badge
    */
   setStatus(status, message) {
-    if (!this.statusEl)
-      return;
+    if (!this.statusEl) return;
     this.statusEl.removeClass("is-locked");
     this.statusEl.removeClass("is-working");
     this.statusEl.removeClass("is-unlocked");
@@ -9218,8 +9182,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Shows an error message and triggers the shake animation
    */
   showError(message) {
-    if (!this.errorMessageEl)
-      return;
+    if (!this.errorMessageEl) return;
     this.errorMessageEl.setText(message);
     this.errorMessageEl.show();
     this.shakeCard();
@@ -9236,8 +9199,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Animated shake feedback for invalid attempts
    */
   shakeCard() {
-    if (!this.cardEl)
-      return;
+    if (!this.cardEl) return;
     this.cardEl.removeClass("mysecret-shake");
     void this.cardEl.offsetWidth;
     this.cardEl.addClass("mysecret-shake");
@@ -9247,8 +9209,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Enables / disables the UI while a cryptographic operation is running
    */
   setBusy(busy) {
-    if (this.isClosed)
-      return;
+    if (this.isClosed) return;
     this.isBusy = busy;
     this.unlockBtn.disabled = busy;
     this.passwordInput.disabled = busy;
@@ -9275,8 +9236,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * bridge was supposed to fix).
    */
   setBiometricWaiting(waiting) {
-    if (this.isClosed)
-      return;
+    if (this.isClosed) return;
     this.isBusy = waiting;
     this.passwordInput.disabled = false;
     this.recoveryInput.disabled = false;
@@ -9287,8 +9247,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     }
   }
   async handleBiometricUnlock() {
-    if (this.isBusy || this.isClosed)
-      return;
+    if (this.isBusy || this.isClosed) return;
     this.clearError();
     this.setBiometricWaiting(true);
     this.setStatus("working", t("lockScreen.bioWaiting"));
@@ -9319,8 +9278,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
       this.passwordInput.focus();
     } finally {
       this.statusEl.removeEventListener("click", cancelBio);
-      if (rawKey)
-        zeroize(rawKey);
+      if (rawKey) zeroize(rawKey);
       this.setBiometricWaiting(false);
     }
   }
@@ -9343,8 +9301,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Unlocks the vault using the master password
    */
   async handlePasswordUnlock() {
-    if (this.isBusy)
-      return;
+    if (this.isBusy) return;
     const password = this.passwordInput.value;
     if (!password) {
       this.showError(t("lockScreen.emptyPasswordError"));
@@ -9374,8 +9331,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
    * Unlocks the vault using the 24-word BIP-39 recovery phrase
    */
   async handleRecoveryUnlock() {
-    if (this.isBusy)
-      return;
+    if (this.isBusy) return;
     const phrase = this.recoveryInput.value.trim();
     if (!phrase) {
       this.showError(t("lockScreen.emptyPhraseError"));
@@ -9425,8 +9381,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
     super.close();
   }
   focusPasswordInput() {
-    if (this.isClosed)
-      return;
+    if (this.isClosed) return;
     if (this.isRecoveryMode && this.recoveryInput) {
       this.recoveryInput.focus();
     } else if (this.passwordInput) {
@@ -9468,14 +9423,10 @@ function estimatePasswordEntropy(password) {
     return { bits: 0, tier: "empty", label: "Sin contrase\xF1a" };
   }
   let poolSize = 0;
-  if (/[a-z]/.test(password))
-    poolSize += 26;
-  if (/[A-Z]/.test(password))
-    poolSize += 26;
-  if (/[0-9]/.test(password))
-    poolSize += 10;
-  if (/[^A-Za-z0-9]/.test(password))
-    poolSize += 33;
+  if (/[a-z]/.test(password)) poolSize += 26;
+  if (/[A-Z]/.test(password)) poolSize += 26;
+  if (/[0-9]/.test(password)) poolSize += 10;
+  if (/[^A-Za-z0-9]/.test(password)) poolSize += 33;
   let bits2 = password.length * Math.log2(Math.max(poolSize, 2));
   const seen = /* @__PURE__ */ new Map();
   for (const ch of password) {
@@ -9567,8 +9518,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
     });
   }
   renderStep() {
-    if (this.isClosed)
-      return;
+    if (this.isClosed) return;
     const { contentEl } = this;
     contentEl.empty();
     const container = contentEl.createDiv({ cls: "mysecret-wizard-container" });
@@ -9815,8 +9765,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
       await commit();
       const safeMnemonic = mnemonic || "";
       this.generatedMnemonic = safeMnemonic;
-      if (this.isClosed)
-        return;
+      if (this.isClosed) return;
       loadingEl.remove();
       const warning = container.createDiv({ cls: "mysecret-wizard-warning" });
       warning.createSpan({ text: "\u26A0\uFE0F " });
@@ -9845,8 +9794,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
           await navigator.clipboard.writeText(safeMnemonic);
           copyBtn.setText("\u2705 Copiada");
           new import_obsidian9.Notice("Frase de rescate copiada al portapapeles.");
-          if (clearTimer !== null)
-            window.clearTimeout(clearTimer);
+          if (clearTimer !== null) window.clearTimeout(clearTimer);
           clearTimer = window.setTimeout(async () => {
             try {
               const current = await navigator.clipboard.readText();
@@ -9880,8 +9828,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
         this.renderStep();
       });
     }).catch((err2) => {
-      if (this.isClosed)
-        return;
+      if (this.isClosed) return;
       loadingEl.remove();
       errorEl.setText("Error al inicializar la b\xF3veda: " + (err2?.message || "error desconocido"));
       errorEl.show();
@@ -9940,8 +9887,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
         const correct = given === expected;
         input.toggleClass("is-correct", correct && given.length > 0);
         input.toggleClass("is-wrong", !correct && given.length > 0);
-        if (!correct)
-          allCorrect = false;
+        if (!correct) allCorrect = false;
       });
       this.challengeAnswered = allCorrect;
       return allCorrect;
@@ -10010,8 +9956,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
     }
     new import_obsidian9.Notice("\u2705 Frase de rescate verificada. Ya puedes configurar la huella o continuar.");
     const actions = this.modalEl.querySelector(".mysecret-actions-group");
-    if (!actions)
-      return;
+    if (!actions) return;
     const encryptAllBtn = actions.createEl("button", {
       cls: "mod-cta mysecret-wizard-btn",
       text: "\u{1F512} Cifrar notas existentes ahora",
@@ -10038,8 +9983,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
     this.plugin.keyManager.initializeVault(this.generatedPassword, false).then(async ({ envelope, commit }) => {
       await this.plugin.saveVaultEnvelope(envelope);
       await commit();
-      if (this.isClosed)
-        return;
+      if (this.isClosed) return;
       loadingEl.remove();
       const successCard = container.createDiv({ cls: "mysecret-challenge-feedback is-success" });
       successCard.setText("\u2713 B\xF3veda configurada con \xE9xito en modo de solo contrase\xF1a");
@@ -10084,8 +10028,7 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
     statusEl.createSpan({ text: "Comprobando hardware biom\xE9trico de este equipo\u2026" });
     const vaultId = this.plugin.getVaultId();
     const capabilities = await this.plugin.biometricManager.checkBiometricAvailability(vaultId);
-    if (this.isClosed)
-      return;
+    if (this.isClosed) return;
     statusEl.remove();
     const finishSetup = () => {
       this.close();
@@ -10170,10 +10113,8 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
    * Picks 2 distinct random indices for the backup challenge
    */
   pickChallengeIndices(wordCount) {
-    if (wordCount === 0)
-      return [];
-    if (wordCount === 1)
-      return [0];
+    if (wordCount === 0) return [];
+    if (wordCount === 1) return [0];
     const first = Math.floor(Math.random() * wordCount);
     let second = Math.floor(Math.random() * wordCount);
     while (second === first) {
@@ -10192,6 +10133,9 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
 
 // src/ui/migration-modal.ts
 var import_obsidian10 = require("obsidian");
+function setCssStyles4(el, styles) {
+  Object.assign(el.style, styles);
+}
 var ETA_REFRESH_MS = 500;
 var MigrationModal = class extends import_obsidian10.Modal {
   constructor(app, plugin, mode) {
@@ -10344,8 +10288,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
     let modified = 0;
     this.startEtaTicker();
     for (const file of targets) {
-      if (this.isCancelled)
-        break;
+      if (this.isCancelled) break;
       const path = file.path;
       const isText = this.plugin.pathFilter.isTextNote(path);
       this.updateProgress(this.progress.processedFiles, this.progress.totalFiles, path);
@@ -10396,8 +10339,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
    * Requests an emergency stop of the running migration
    */
   stopMigration() {
-    if (!this.isRunning)
-      return;
+    if (!this.isRunning) return;
     this.isCancelled = true;
     this.progress.isCancelled = true;
     this.cancelBtn.disabled = true;
@@ -10440,17 +10382,13 @@ var MigrationModal = class extends import_obsidian10.Modal {
    * Formats a duration in milliseconds as a human readable string
    */
   formatDuration(ms) {
-    if (!isFinite(ms) || ms < 0)
-      return "\u2014";
-    if (ms < 1e3)
-      return "< 1 s";
+    if (!isFinite(ms) || ms < 0) return "\u2014";
+    if (ms < 1e3) return "< 1 s";
     const totalSeconds = Math.round(ms / 1e3);
-    if (totalSeconds < 60)
-      return `${totalSeconds} s`;
+    if (totalSeconds < 60) return `${totalSeconds} s`;
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    if (minutes < 60)
-      return `${minutes} min ${seconds} s`;
+    if (minutes < 60) return `${minutes} min ${seconds} s`;
     const hours = Math.floor(minutes / 60);
     return `${hours} h ${minutes % 60} min`;
   }
@@ -10459,7 +10397,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
    */
   updateProgress(current, total, currentPath) {
     const percent = total === 0 ? 100 : Math.round(current / total * 100);
-    (0, import_obsidian10.setCssStyles)(this.progressBar, { width: `${percent}%` });
+    setCssStyles4(this.progressBar, { width: `${percent}%` });
     this.progressPercentEl.setText(`${percent}%`);
     this.counterText.setText(`${current} de ${total} procesados`);
     this.currentFileEl.setText(currentPath ? `\u{1F4C4} ${currentPath}` : "");
@@ -10481,8 +10419,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
     this.errorListEl.show();
     this.errorCountEl.setText(`${errors.length} ${errors.length === 1 ? "error" : "errores"}`);
     const list = this.errorListEl.querySelector(".mysecret-migration-errors-list");
-    if (!list)
-      return;
+    if (!list) return;
     list.empty();
     errors.slice(0, 50).forEach((item) => {
       const li = list.createEl("li");
@@ -10514,7 +10451,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
       this.etaText.setText("");
       new import_obsidian10.Notice(`\u26A0\uFE0F ${t("common.cancel")}`);
     } else {
-      (0, import_obsidian10.setCssStyles)(this.progressBar, { width: "100%" });
+      setCssStyles4(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.counterText.setText(`${this.progress.totalFiles} / ${this.progress.totalFiles}`);
       this.currentFileEl.setText("");
@@ -10623,8 +10560,7 @@ var ChangePasswordModal = class extends import_obsidian11.Modal {
     this.confirmInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        if (!this.isBusy)
-          this.handleSubmit();
+        if (!this.isBusy) this.handleSubmit();
       }
     });
     window.setTimeout(() => this.passwordInput.focus(), 60);
@@ -10641,10 +10577,8 @@ var ChangePasswordModal = class extends import_obsidian11.Modal {
    * Wipes the sensitive inputs from the DOM.
    */
   wipeInputs() {
-    if (this.passwordInput)
-      this.passwordInput.value = "";
-    if (this.confirmInput)
-      this.confirmInput.value = "";
+    if (this.passwordInput) this.passwordInput.value = "";
+    if (this.confirmInput) this.confirmInput.value = "";
   }
   async handleSubmit() {
     const newPass = this.passwordInput.value;
@@ -10750,8 +10684,7 @@ var RecoveryPhraseModal = class extends import_obsidian12.Modal {
         await navigator.clipboard.writeText(this.mnemonic);
         copyBtn.setText(`\u2705 ${t("common.copied")}`);
         new import_obsidian12.Notice(t("common.copied"));
-        if (this.clearTimer !== null)
-          window.clearTimeout(this.clearTimer);
+        if (this.clearTimer !== null) window.clearTimeout(this.clearTimer);
         this.clearTimer = window.setTimeout(async () => {
           try {
             const current = await navigator.clipboard.readText();
@@ -10793,8 +10726,7 @@ var RecoveryPhraseModal = class extends import_obsidian12.Modal {
 var ENCRYPTED_CREDENTIAL_PREFIX = "enc:v1:";
 var CREDENTIAL_AAD = "mysecret-credential-v1";
 async function encryptCredential(vaultKey, plaintext) {
-  if (!plaintext)
-    return "";
+  if (!plaintext) return "";
   const enc = await encryptAesGcm(stringToBytes(plaintext), vaultKey, CREDENTIAL_AAD);
   const envelope = {
     iv: bytesToHex(enc.iv),
@@ -10804,8 +10736,7 @@ async function encryptCredential(vaultKey, plaintext) {
   return ENCRYPTED_CREDENTIAL_PREFIX + JSON.stringify(envelope);
 }
 async function decryptCredential(vaultKey, stored) {
-  if (!stored)
-    return "";
+  if (!stored) return "";
   if (!stored.startsWith(ENCRYPTED_CREDENTIAL_PREFIX)) {
     return null;
   }
@@ -10848,8 +10779,7 @@ async function sha256Hex(data) {
   return bytesToHex(new Uint8Array(digest));
 }
 function constantTimeHexEqual(a, b) {
-  if (!a || !b || a.length !== b.length)
-    return false;
+  if (!a || !b || a.length !== b.length) return false;
   try {
     return constantTimeEqual(hexToBytes(a), hexToBytes(b));
   } catch {
@@ -10968,8 +10898,7 @@ var DeviceBiometricStorage = class {
     }
     const key = `${ENVELOPE_PREFIX}${vaultSaltOrId}`;
     const raw = window.localStorage.getItem(key);
-    if (!raw)
-      return null;
+    if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
       if (!parsed || !parsed.ciphertext) {
@@ -11015,8 +10944,7 @@ function getEnv(name) {
   try {
     if (typeof process !== "undefined" && process.env) {
       const value = process.env[name];
-      if (typeof value === "string" && value.length > 0)
-        return value;
+      if (typeof value === "string" && value.length > 0) return value;
     }
   } catch {
   }
@@ -11027,8 +10955,7 @@ function getEnvHome() {
   try {
     if (os && typeof os.homedir === "function") {
       const home = os.homedir();
-      if (home)
-        return home;
+      if (home) return home;
     }
   } catch {
   }
@@ -11050,15 +10977,13 @@ function getCurrentUsername() {
 function isTrustedSystemBinary(fs, filePath) {
   try {
     const stats = fs.statSync(filePath);
-    if (!stats || !stats.isFile())
-      return false;
+    if (!stats || !stats.isFile()) return false;
     if (typeof stats.mode === "number" && (stats.mode & 18) !== 0) {
       return false;
     }
     if (typeof stats.uid === "number" && typeof process !== "undefined") {
       const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
-      if (isRoot && stats.uid !== 0)
-        return false;
+      if (isRoot && stats.uid !== 0) return false;
     }
     return true;
   } catch {
@@ -11068,10 +10993,8 @@ function isTrustedSystemBinary(fs, filePath) {
 function resolveSystemBinary(name) {
   const fs = getNodeModule("fs");
   const path = getNodeModule("path");
-  if (!fs || !path)
-    return null;
-  if (!/^[A-Za-z0-9._-]+$/.test(name))
-    return null;
+  if (!fs || !path) return null;
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) return null;
   for (const dir of LINUX_SYSTEM_BIN_DIRS) {
     const candidate = path.join(dir, name);
     try {
@@ -11086,8 +11009,7 @@ function resolveSystemBinary(name) {
 function resolvePowerShell() {
   const fs = getNodeModule("fs");
   const path = getNodeModule("path");
-  if (!fs || !path)
-    return null;
+  if (!fs || !path) return null;
   const systemRoot = getEnv("SystemRoot") || getEnv("windir") || "C:\\Windows";
   const candidates = [
     path.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
@@ -11095,8 +11017,7 @@ function resolvePowerShell() {
   ];
   for (const candidate of candidates) {
     try {
-      if (fs.existsSync(candidate))
-        return candidate;
+      if (fs.existsSync(candidate)) return candidate;
     } catch {
     }
   }
@@ -11137,8 +11058,7 @@ function runProcess(options) {
       return;
     }
     const finish = (code) => {
-      if (settled)
-        return;
+      if (settled) return;
       settled = true;
       window.clearTimeout(timer);
       resolve({ code, stdout, stderr, timedOut });
@@ -11152,12 +11072,10 @@ function runProcess(options) {
       finish(null);
     }, timeoutMs);
     child.stdout?.on("data", (chunk) => {
-      if (stdout.length < maxOutputBytes)
-        stdout += chunk.toString();
+      if (stdout.length < maxOutputBytes) stdout += chunk.toString();
     });
     child.stderr?.on("data", (chunk) => {
-      if (stderr.length < maxOutputBytes)
-        stderr += chunk.toString();
+      if (stderr.length < maxOutputBytes) stderr += chunk.toString();
     });
     child.on("error", (err2) => {
       stderr += String(err2?.message || err2);
@@ -11268,8 +11186,7 @@ var WindowsHelloProvider = class {
   }
   async isAvailable() {
     const ps = this.getPowerShell();
-    if (!ps)
-      return false;
+    if (!ps) return false;
     const result = await runProcess({
       bin: ps,
       args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "-"],
@@ -11290,8 +11207,7 @@ var WindowsHelloProvider = class {
    */
   async promptVerification(promptMessage) {
     const ps = this.getPowerShell();
-    if (!ps)
-      return false;
+    if (!ps) return false;
     const result = await runProcess({
       bin: ps,
       args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "-"],
@@ -11299,8 +11215,7 @@ var WindowsHelloProvider = class {
       env: { MYSECRET_BIO_PROMPT: promptMessage },
       timeoutMs: 12e4
     });
-    if (result.timedOut)
-      return false;
+    if (result.timedOut) return false;
     return result.code === 0 && result.stdout.includes("VERIFIED");
   }
   /**
@@ -11311,8 +11226,7 @@ var WindowsHelloProvider = class {
    */
   async dpapiProtect(dataBase64, entropyBase64) {
     const ps = this.getPowerShell();
-    if (!ps)
-      throw new Error("PowerShell no disponible");
+    if (!ps) throw new Error("PowerShell no disponible");
     const result = await runProcess({
       bin: ps,
       args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "-"],
@@ -11333,8 +11247,7 @@ var WindowsHelloProvider = class {
    */
   async dpapiUnprotect(encBase64, entropyBase64) {
     const ps = this.getPowerShell();
-    if (!ps)
-      throw new Error("PowerShell no disponible");
+    if (!ps) throw new Error("PowerShell no disponible");
     const result = await runProcess({
       bin: ps,
       args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "-"],
@@ -11401,8 +11314,7 @@ var WindowsHelloProvider = class {
       return rawKey;
     } catch (err2) {
       console.error("[MySecret] Windows Hello DPAPI decryption error:", err2);
-      if (rawKey)
-        zeroize(rawKey);
+      if (rawKey) zeroize(rawKey);
       return null;
     }
   }
@@ -11556,8 +11468,7 @@ var LinuxBiometricProvider = class {
    */
   async isAvailable() {
     const hasFprintd = await this.isFprintdReady();
-    if (hasFprintd)
-      return true;
+    if (hasFprintd) return true;
     return this.resolveSecretTool() !== null;
   }
   /**
@@ -11569,19 +11480,16 @@ var LinuxBiometricProvider = class {
    */
   async promptFprintd() {
     const bin = resolveSystemBinary("fprintd-verify");
-    if (!bin)
-      return false;
+    if (!bin) return false;
     const result = await runProcess({
       bin,
       args: [getCurrentUsername()],
       timeoutMs: 6e4
     });
-    if (result.timedOut)
-      return false;
+    if (result.timedOut) return false;
     const output = `${result.stdout}
 ${result.stderr}`;
-    if (output.includes("verify-match"))
-      return true;
+    if (output.includes("verify-match")) return true;
     return result.code === 0 && output.includes("verify-match");
   }
   /**
@@ -11589,15 +11497,13 @@ ${result.stderr}`;
    */
   async isFprintdReady() {
     const bin = resolveSystemBinary("fprintd-list");
-    if (!bin)
-      return false;
+    if (!bin) return false;
     const result = await runProcess({
       bin,
       args: [getCurrentUsername()],
       timeoutMs: 15e3
     });
-    if (result.code !== 0)
-      return false;
+    if (result.code !== 0) return false;
     const out = result.stdout;
     return out.includes("enrolled") || out.includes("finger");
   }
@@ -11625,8 +11531,7 @@ ${result.stderr}`;
   async getOrCreateDeviceSecret(deviceId, vaultId) {
     const secretPath = this.getDeviceSecretPath(deviceId, vaultId);
     const existing = this.readDeviceSecret(secretPath);
-    if (existing)
-      return existing;
+    if (existing) return existing;
     const fs = getNodeModule("fs");
     const path = getNodeModule("path");
     if (!fs || !path) {
@@ -11689,20 +11594,17 @@ ${result.stderr}`;
    */
   readDeviceSecret(secretPath) {
     const fs = getNodeModule("fs");
-    if (!fs)
-      return null;
+    if (!fs) return null;
     try {
       const stats = fs.statSync(secretPath);
-      if (!stats.isFile())
-        return null;
+      if (!stats.isFile()) return null;
       if (typeof stats.mode === "number" && (stats.mode & 63) !== 0) {
         console.warn("[MySecret] Device secret has insecure permissions; ignoring it.");
         return null;
       }
       const data = fs.readFileSync(secretPath);
       const bytes = new Uint8Array(data);
-      if (bytes.length !== 32)
-        return null;
+      if (bytes.length !== 32) return null;
       return bytes;
     } catch {
       return null;
@@ -11801,8 +11703,7 @@ ${result.stderr}`;
       console.error("[MySecret] Linux decryption error:", err2);
       return null;
     } finally {
-      if (deviceSecret)
-        zeroize(deviceSecret);
+      if (deviceSecret) zeroize(deviceSecret);
     }
   }
   /**
@@ -11853,8 +11754,7 @@ ${result.stderr}`;
    */
   async secretToolStore(deviceId, vaultId, secret) {
     const bin = this.resolveSecretTool();
-    if (!bin)
-      throw new Error("secret-tool no disponible");
+    if (!bin) throw new Error("secret-tool no disponible");
     const result = await runProcess({
       bin,
       args: [
@@ -11882,8 +11782,7 @@ ${result.stderr}`;
    */
   async secretToolLookup(deviceId, vaultId) {
     const bin = this.resolveSecretTool();
-    if (!bin)
-      return null;
+    if (!bin) return null;
     const result = await runProcess({
       bin,
       args: [
@@ -11897,8 +11796,7 @@ ${result.stderr}`;
       ],
       timeoutMs: 3e4
     });
-    if (result.code !== 0)
-      return null;
+    if (result.code !== 0) return null;
     const out = result.stdout.trim();
     return out.length > 0 ? out : null;
   }
@@ -11936,8 +11834,7 @@ async function sha256Bytes(data) {
 function derToRawEcdsaSignature(der) {
   let offset = 0;
   const readLength = () => {
-    if (offset >= der.length)
-      throw new Error("Firma ECDSA DER truncada.");
+    if (offset >= der.length) throw new Error("Firma ECDSA DER truncada.");
     let length = der[offset++];
     if ((length & 128) !== 0) {
       const count = length & 127;
@@ -11971,8 +11868,7 @@ function derToRawEcdsaSignature(der) {
   const s = readInteger();
   const normalize = (value) => {
     let start = 0;
-    while (start < value.length - 1 && value[start] === 0)
-      start++;
+    while (start < value.length - 1 && value[start] === 0) start++;
     const out = new Uint8Array(32);
     const slice = value.slice(start);
     if (slice.length > 32) {
@@ -12104,8 +12000,7 @@ async function verifyWebAuthnAssertion(assertion, options) {
   }
 }
 function decodeBase642(base64) {
-  if (!base64)
-    return new Uint8Array(0);
+  if (!base64) return new Uint8Array(0);
   try {
     const binary = atob(base64.replace(/\s+/g, ""));
     const bytes = new Uint8Array(binary.length);
@@ -12134,8 +12029,7 @@ var WebAuthnProvider = class {
     }
     try {
       const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-      if (!available)
-        return false;
+      if (!available) return false;
       return await this.isPrfSupported();
     } catch {
       return false;
@@ -12192,8 +12086,7 @@ var WebAuthnProvider = class {
         }
       }
     });
-    if (!assertion)
-      return null;
+    if (!assertion) return null;
     const authData = assertion.response?.authenticatorData ? new Uint8Array(assertion.response.authenticatorData) : null;
     const isUv = authData && authData.length >= 33 && (authData[32] & 4) !== 0 || assertion.response?.userVerified === true;
     if (!isUv) {
@@ -12203,8 +12096,7 @@ var WebAuthnProvider = class {
     }
     const extensionResults = assertion.getClientExtensionResults?.() ?? {};
     const prfResult = extensionResults.prf?.results?.first;
-    if (!prfResult)
-      return null;
+    if (!prfResult) return null;
     const prfSecret = normalizePrfOutput(prfResult);
     return { prfSecret, assertion, challenge };
   }
@@ -12381,8 +12273,7 @@ var WebAuthnProvider = class {
       console.warn("[MySecret] WebAuthn unlock cancelled or failed:", err2);
       return null;
     } finally {
-      if (prfSecret)
-        zeroize(prfSecret);
+      if (prfSecret) zeroize(prfSecret);
     }
   }
 };
@@ -12498,8 +12389,7 @@ var ExternalBridgeProvider = class {
    * Available if a valid HTTPS bridge URL has been configured.
    */
   async isAvailable() {
-    if (!this.bridgeUrl)
-      return false;
+    if (!this.bridgeUrl) return false;
     try {
       const parsed = new URL(this.bridgeUrl);
       return parsed.protocol === "https:" || parsed.hostname === "localhost";
@@ -12581,8 +12471,7 @@ var ExternalBridgeProvider = class {
     this.pendingSession = null;
     window.clearTimeout(currentSession.timeoutTimer);
     if (error) {
-      if (currentSession.rawVaultKey)
-        zeroize(currentSession.rawVaultKey);
+      if (currentSession.rawVaultKey) zeroize(currentSession.rawVaultKey);
       currentSession.reject(new Error(decodeURIComponent(error)));
       return true;
     }
@@ -12758,8 +12647,7 @@ var ExternalBridgeProvider = class {
       }
       return true;
     } catch (err2) {
-      if (currentSession.rawVaultKey)
-        zeroize(currentSession.rawVaultKey);
+      if (currentSession.rawVaultKey) zeroize(currentSession.rawVaultKey);
       currentSession.reject(err2);
       return true;
     }
@@ -13098,8 +12986,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
       name: t("commands.lockVault"),
       checkCallback: (checking) => {
         if (!this.keyManager.isLocked) {
-          if (!checking)
-            this.lockVault();
+          if (!checking) this.lockVault();
           return true;
         }
         return false;
@@ -13110,8 +12997,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
       name: t("commands.unlockVault"),
       checkCallback: (checking) => {
         if (this.keyManager.isLocked) {
-          if (!checking)
-            this.openLockScreen();
+          if (!checking) this.openLockScreen();
           return true;
         }
         return false;
@@ -13270,12 +13156,9 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
   async setEncryptedCredential(field, plaintext) {
     const backup = this.settings.backup;
     if (!plaintext) {
-      if (field === "googleDriveAccessToken")
-        backup.googleDrive.accessToken = "";
-      else if (field === "oneDriveAccessToken")
-        backup.oneDrive.accessToken = "";
-      else
-        backup.webdav.password = "";
+      if (field === "googleDriveAccessToken") backup.googleDrive.accessToken = "";
+      else if (field === "oneDriveAccessToken") backup.oneDrive.accessToken = "";
+      else backup.webdav.password = "";
       await this.saveSettings();
       return;
     }
@@ -13286,12 +13169,9 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
     }
     try {
       const encrypted = await encryptCredential(vaultKey, plaintext);
-      if (field === "googleDriveAccessToken")
-        backup.googleDrive.accessToken = encrypted;
-      else if (field === "oneDriveAccessToken")
-        backup.oneDrive.accessToken = encrypted;
-      else
-        backup.webdav.password = encrypted;
+      if (field === "googleDriveAccessToken") backup.googleDrive.accessToken = encrypted;
+      else if (field === "oneDriveAccessToken") backup.oneDrive.accessToken = encrypted;
+      else backup.webdav.password = encrypted;
       await this.saveSettings();
     } catch (err2) {
       new import_obsidian14.Notice("\u274C No se pudo guardar la credencial: " + (err2?.message || String(err2)));
@@ -13304,10 +13184,8 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
    * empty string is returned instead so the field looks "unset".
    */
   getCredentialDisplayValue(stored) {
-    if (!stored)
-      return "";
-    if (isEncryptedCredential(stored))
-      return "";
+    if (!stored) return "";
+    if (isEncryptedCredential(stored)) return "";
     return stored;
   }
   /**
@@ -13343,10 +13221,8 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
       }
     ];
     for (const secret of secrets) {
-      if (!secret.current)
-        continue;
-      if (isEncryptedCredential(secret.current))
-        continue;
+      if (!secret.current) continue;
+      if (isEncryptedCredential(secret.current)) continue;
       try {
         const encrypted = await encryptCredential(vaultKey, secret.current);
         secret.apply(encrypted);
@@ -13389,8 +13265,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
       }
     ];
     for (const secret of secrets) {
-      if (!secret.stored)
-        continue;
+      if (!secret.stored) continue;
       if (!isEncryptedCredential(secret.stored)) {
         secret.apply(secret.stored);
         continue;
@@ -13473,10 +13348,8 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
     }, 15 * 60 * 1e3);
   }
   async runBackgroundAutoBackup(triggerReason, preResolved) {
-    if (this.isAutoBackupRunning)
-      return;
-    if (!this.settings.backup.autoBackup || this.settings.backup.provider === "none")
-      return;
+    if (this.isAutoBackupRunning) return;
+    if (!this.settings.backup.autoBackup || this.settings.backup.provider === "none") return;
     if (triggerReason === "interval") {
       const minIntervalMs = this.settings.backup.autoBackupIntervalHours * 60 * 60 * 1e3;
       const elapsed = Date.now() - (this.settings.backup.lastBackupTimestamp || 0);
@@ -13490,8 +13363,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
       return;
     }
     const provider = createCloudProvider(resolvedConfig);
-    if (!provider)
-      return;
+    if (!provider) return;
     this.isAutoBackupRunning = true;
     console.log(`[MySecret] Triggering background auto-backup (${triggerReason}) to ${provider.name}...`);
     try {
@@ -13537,8 +13409,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
     }
   }
   async restoreSavedOpenNotes() {
-    if (!this.savedOpenLeaves || this.savedOpenLeaves.length === 0)
-      return;
+    if (!this.savedOpenLeaves || this.savedOpenLeaves.length === 0) return;
     const leavesToRestore = [...this.savedOpenLeaves];
     this.savedOpenLeaves = [];
     for (const saved of leavesToRestore) {
@@ -13558,8 +13429,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
   }
   // --- Vault Locking & Unlocking ---
   lockVault() {
-    if (this.keyManager.isLocked)
-      return;
+    if (this.keyManager.isLocked) return;
     if (this.mediaManager) {
       this.mediaManager.revokeAll();
     }
@@ -13601,8 +13471,7 @@ var MySecretPlugin = class extends import_obsidian14.Plugin {
     }
   }
   updateRibbonIcon() {
-    if (!this.ribbonIconEl)
-      return;
+    if (!this.ribbonIconEl) return;
     if (this.keyManager.isLocked) {
       this.ribbonIconEl.setAttribute("aria-label", t("ribbon.lockedTooltip"));
       this.ribbonIconEl.classList.add("mysecret-locked");

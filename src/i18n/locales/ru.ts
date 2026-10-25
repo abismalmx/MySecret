@@ -89,7 +89,7 @@ export const ru: TranslationDictionary = {
   settings: {
     heroTitle: 'MySecret',
     heroDesc: 'Шифруйте заметки Obsidian с помощью передовой криптографии (AES-256-GCM + Argon2id). Полная конфиденциальность: никто, кроме вас, не сможет прочесть ваши заметки.',
-    heroAuthor: 'Создано Abismalmx',
+    heroAuthor: 'Создано abismalmx',
     // Section 1: Auto-lock
     autoLockSectionTitle: 'Защита и автоблокировка',
     autoLockSectionDesc: 'Настройте, как и когда блокируется хранилище при бездействии или переключении приложений.',
