@@ -22,8 +22,8 @@
 ### 📽️ Slide Presentation / Presentación
 
 > 📊 **Explore the Architecture & Feature Slides:**
-> - 🇬🇧 **[English Presentation (Default)](media/MySecret_for_Obsidian.pptx)**
-> - 🇪🇸 **[Presentación en Español](media/MySecret_presentación.pptx)**
+> - 🇬🇧 **[English Presentation (Default)](media/MySecret_for_Obsidian.pdf)**
+> - 🇪🇸 **[Presentación en Español](media/MySecret_Cifrado_Nativo_para_Obsidian.pdf)**
 
 ---
 

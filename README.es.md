@@ -22,8 +22,8 @@
 ### 📽️ Presentación Diapositivas / Slide Deck
 
 > 📊 **Explora la Presentación de Arquitectura y Características:**
-> - 🇬🇧 **[Presentación en Inglés (Por defecto)](media/MySecret_for_Obsidian.pptx)**
-> - 🇪🇸 **[Presentación en Español](media/MySecret_presentación.pptx)**
+> - 🇬🇧 **[Presentación en Inglés (Por defecto)](media/MySecret_for_Obsidian.pdf)**
+> - 🇪🇸 **[Presentación en Español](media/MySecret_Cifrado_Nativo_para_Obsidian.pdf)**
 
 ---
 
