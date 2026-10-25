@@ -42,7 +42,7 @@ Thumbs.db
 *.swo
 
 # Temporary and Backup archives
-backup/
+/backup/
 *.zip
 *.tar.gz
 *.bak
