@@ -3,7 +3,7 @@
  * SetupWizardModal: First-Run Onboarding, Master Password & BIP-39 Recovery Cards
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setIcon } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BIP39_WORD_COUNT, MIN_MASTER_PASSWORD_LENGTH } from '../constants';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
@@ -244,10 +244,12 @@ export class SetupWizardModal extends Modal {
         title: 'Mostrar contraseña'
       }
     });
-    p1Toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    setIcon(p1Toggle, 'eye');
     p1Toggle.addEventListener('click', () => {
       const isHidden = p1.type === 'password';
       p1.type = isHidden ? 'text' : 'password';
+      p1Toggle.empty();
+      setIcon(p1Toggle, isHidden ? 'eye-off' : 'eye');
       p1Toggle.setAttr('aria-pressed', String(isHidden));
       p1Toggle.setAttr('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
       p1.focus();

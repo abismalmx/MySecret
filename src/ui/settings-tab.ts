@@ -40,7 +40,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     });
 
     const heroInfo = hero.createDiv({ cls: 'mysecret-settings-hero-info' });
-    heroInfo.createEl('h2', { cls: 'mysecret-settings-hero-title', text: t('settings.heroTitle') });
+    heroInfo.createDiv({ cls: 'mysecret-settings-hero-title', text: t('settings.heroTitle') });
     heroInfo.createEl('p', {
       cls: 'mysecret-settings-hero-desc',
       text: t('settings.heroDesc')
@@ -53,7 +53,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 1: Auto-Lock & Encryption
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.autoLockSectionTitle') });
+    new Setting(containerEl).setName(t('settings.autoLockSectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.autoLockSectionDesc')
@@ -111,7 +111,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 1b: Biometrics
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.biometricsSectionTitle') });
+    new Setting(containerEl).setName(t('settings.biometricsSectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.biometricsSectionDesc')
@@ -123,13 +123,8 @@ export class MySecretSettingTab extends PluginSettingTab {
     const isEnabled = Boolean(this.plugin.settings.biometrics?.enabled && isEnrolled);
 
     if (isAndroid) {
-      const androidInfo = containerEl.createDiv({ cls: 'setting-item-description' });
-      androidInfo.style.background = 'rgba(99, 102, 241, 0.1)';
-      androidInfo.style.padding = '0.75rem 1rem';
-      androidInfo.style.borderRadius = '8px';
-      androidInfo.style.marginBottom = '1rem';
-      androidInfo.style.border = '1px solid rgba(99, 102, 241, 0.25)';
-      androidInfo.innerHTML = t('settings.androidBridgeNotice');
+      const androidInfo = containerEl.createDiv({ cls: 'setting-item-description mysecret-android-bridge-notice' });
+      androidInfo.setText(t('settings.androidBridgeNotice'));
 
       new Setting(containerEl)
         .setName(t('settings.androidBridgeUrlTitle'))
@@ -284,7 +279,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 2: Excluded Folders
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.exclusionsSectionTitle') });
+    new Setting(containerEl).setName(t('settings.exclusionsSectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.exclusionsSectionDesc')
@@ -394,7 +389,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 3: Password & Recovery Phrase
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.recoverySectionTitle') });
+    new Setting(containerEl).setName(t('settings.recoverySectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.recoverySectionDesc')
@@ -462,7 +457,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 4: Cloud Backups
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.backupSectionTitle') });
+    new Setting(containerEl).setName(t('settings.backupSectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.backupSectionDesc')
@@ -698,7 +693,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 5: Export & Restore
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.manualSectionTitle') });
+    new Setting(containerEl).setName(t('settings.manualSectionTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.manualSectionDesc')
@@ -744,7 +739,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 6: Maintenance & Migration
     // =========================================================================
-    containerEl.createEl('h3', { text: t('settings.maintenanceTitle') });
+    new Setting(containerEl).setName(t('settings.maintenanceTitle')).setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: t('settings.maintenanceDesc')
@@ -776,7 +771,7 @@ export class MySecretSettingTab extends PluginSettingTab {
     // =========================================================================
     // Section 7: Language Settings (ALWAYS IN ENGLISH)
     // =========================================================================
-    containerEl.createEl('h3', { text: 'Language' });
+    new Setting(containerEl).setName('Language').setHeading();
     containerEl.createEl('p', {
       cls: 'setting-item-description',
       text: 'Select the display language for the plugin interface.'

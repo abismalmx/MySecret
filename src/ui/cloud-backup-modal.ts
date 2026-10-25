@@ -3,7 +3,7 @@
  * CloudBackupModal: Immediate Encrypted Cloud Backup Upload
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setCssStyles } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
 import { createCloudProvider } from '../backup/cloud';
@@ -225,7 +225,7 @@ export class CloudBackupModal extends Modal {
         { mode: 'encrypted', includeAttachments: true, includeEnvelope: true },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round((current / total) * 50) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          setCssStyles(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t('exportModal.exporting', { processed: current, total }));
           this.currentFileEl.setText(`📦 ${currentFile}`);
@@ -242,7 +242,7 @@ export class CloudBackupModal extends Modal {
         (uploaded, total) => {
           const ratio = total > 0 ? uploaded / total : 0;
           const percent = 50 + Math.round(ratio * 50);
-          this.progressBar.style.width = `${percent}%`;
+          setCssStyles(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(`${(uploaded / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} MB`);
         }
@@ -252,7 +252,7 @@ export class CloudBackupModal extends Modal {
         throw new Error(uploadResult.error || 'Upload failed');
       }
 
-      this.progressBar.style.width = '100%';
+      setCssStyles(this.progressBar, { width: '100%' });
       this.progressPercentEl.setText('100%');
       this.progressStatusEl.setText(`✅ ${t('notices.backupSuccess')}`);
       this.currentFileEl.setText(zipResult.filename);

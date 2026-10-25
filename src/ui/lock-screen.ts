@@ -3,7 +3,7 @@
  * LockScreenModal: Fullscreen Lock Screen with Password & Recovery Phrase Unlock
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setIcon } from 'obsidian';
 import MySecretPlugin from '../main';
 import { validateMnemonic } from '../crypto/bip39';
 import { BIP39_WORD_COUNT } from '../constants';
@@ -15,10 +15,6 @@ import { t } from '../i18n';
  * Visual states of the lock indicator badge
  */
 type LockStatus = 'locked' | 'working' | 'unlocked';
-
-const EYE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-
-const EYE_ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1"/><path d="M6.3 6.3A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 
 export class LockScreenModal extends Modal {
   private plugin: MySecretPlugin;
@@ -144,7 +140,9 @@ export class LockScreenModal extends Modal {
           'data-mysecret-testid': 'lock-biometric-button'
         }
       });
-      this.biometricBtn.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><span>${t('lockScreen.biometricButton')}</span>`;
+      const bioIcon = this.biometricBtn.createSpan({ cls: 'mysecret-bio-icon' });
+      setIcon(bioIcon, 'fingerprint');
+      this.biometricBtn.createSpan({ text: t('lockScreen.biometricButton') });
       this.biometricBtn.addEventListener('click', () => {
         void this.handleBiometricUnlock();
       });
@@ -186,7 +184,7 @@ export class LockScreenModal extends Modal {
         'data-mysecret-testid': 'lock-visibility-toggle'
       }
     });
-    this.visibilityBtn.innerHTML = EYE_ICON;
+    setIcon(this.visibilityBtn, 'eye');
 
     this.visibilityBtn.addEventListener('click', () => this.togglePasswordVisibility());
 
@@ -325,7 +323,8 @@ export class LockScreenModal extends Modal {
   private togglePasswordVisibility(): void {
     const isHidden = this.passwordInput.type === 'password';
     this.passwordInput.type = isHidden ? 'text' : 'password';
-    this.visibilityBtn.innerHTML = isHidden ? EYE_ICON_OFF : EYE_ICON;
+    this.visibilityBtn.empty();
+    setIcon(this.visibilityBtn, isHidden ? 'eye-off' : 'eye');
     this.visibilityBtn.setAttr('aria-pressed', String(isHidden));
     this.visibilityBtn.setAttr('aria-label', isHidden ? t('lockScreen.hidePassword') : t('lockScreen.showPassword'));
     this.visibilityBtn.setAttr('title', isHidden ? t('lockScreen.hidePassword') : t('lockScreen.showPassword'));
@@ -633,7 +632,8 @@ export class LockScreenModal extends Modal {
       this.recoveryInput.value = '';
     }
     if (this.visibilityBtn) {
-      this.visibilityBtn.innerHTML = EYE_ICON;
+      this.visibilityBtn.empty();
+      setIcon(this.visibilityBtn, 'eye');
     }
 
     const { contentEl } = this;

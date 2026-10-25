@@ -3,7 +3,7 @@
  * MigrationModal: Interactive Batch Encryption & Clean Full Decryption (Rollback)
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setCssStyles } from 'obsidian';
 import MySecretPlugin from '../main';
 import { isArmoredEncrypted, isBinaryEncrypted } from '../crypto/envelope';
 import { MigrationProgress } from '../types';
@@ -347,7 +347,7 @@ export class MigrationModal extends Modal {
   private updateProgress(current: number, total: number, currentPath: string): void {
     const percent = total === 0 ? 100 : Math.round((current / total) * 100);
 
-    this.progressBar.style.width = `${percent}%`;
+    setCssStyles(this.progressBar, { width: `${percent}%` });
     this.progressPercentEl.setText(`${percent}%`);
     this.counterText.setText(`${current} de ${total} procesados`);
     this.currentFileEl.setText(currentPath ? `📄 ${currentPath}` : '');
@@ -415,7 +415,7 @@ export class MigrationModal extends Modal {
       this.etaText.setText('');
       new Notice(`⚠️ ${t('common.cancel')}`);
     } else {
-      this.progressBar.style.width = '100%';
+      setCssStyles(this.progressBar, { width: '100%' });
       this.progressPercentEl.setText('100%');
       this.counterText.setText(`${this.progress.totalFiles} / ${this.progress.totalFiles}`);
       this.currentFileEl.setText('');

@@ -7251,7 +7251,7 @@ var ExportModal = class extends import_obsidian3.Modal {
       this.mode = "encrypted";
       encCard.addClass("is-selected");
       decCard.removeClass("is-selected");
-      envelopeSetting.style.display = "flex";
+      (0, import_obsidian3.setCssStyles)(envelopeSetting, { display: "flex" });
     });
     decCard.addEventListener("click", () => {
       if (this.plugin.keyManager.isLocked) {
@@ -7262,7 +7262,7 @@ var ExportModal = class extends import_obsidian3.Modal {
       this.mode = "decrypted";
       decCard.addClass("is-selected");
       encCard.removeClass("is-selected");
-      envelopeSetting.style.display = "none";
+      (0, import_obsidian3.setCssStyles)(envelopeSetting, { display: "none" });
     });
     const optionsSection = contentEl.createDiv({ cls: "mysecret-export-options" });
     const attachSetting = optionsSection.createDiv({ cls: "mysecret-checkbox-row" });
@@ -7348,13 +7348,13 @@ var ExportModal = class extends import_obsidian3.Modal {
         },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 100) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          (0, import_obsidian3.setCssStyles)(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("exportModal.exporting", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4C4} ${currentFile}`);
         }
       );
-      this.progressBar.style.width = "100%";
+      (0, import_obsidian3.setCssStyles)(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(
         `${t("common.success")} ${(result.stats.totalBytes / (1024 * 1024)).toFixed(2)} MB (${result.stats.totalFiles})`
@@ -8116,7 +8116,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
         { mode: "encrypted", includeAttachments: true, includeEnvelope: true },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 50) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          (0, import_obsidian4.setCssStyles)(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("exportModal.exporting", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4E6} ${currentFile}`);
@@ -8130,7 +8130,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
         (uploaded, total) => {
           const ratio = total > 0 ? uploaded / total : 0;
           const percent = 50 + Math.round(ratio * 50);
-          this.progressBar.style.width = `${percent}%`;
+          (0, import_obsidian4.setCssStyles)(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(`${(uploaded / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} MB`);
         }
@@ -8138,7 +8138,7 @@ var CloudBackupModal = class extends import_obsidian4.Modal {
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || "Upload failed");
       }
-      this.progressBar.style.width = "100%";
+      (0, import_obsidian4.setCssStyles)(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(`\u2705 ${t("notices.backupSuccess")}`);
       this.currentFileEl.setText(zipResult.filename);
@@ -8334,7 +8334,7 @@ var RestoreModal = class extends import_obsidian5.Modal {
     this.isProcessing = true;
     this.restoreBtn.disabled = true;
     this.cancelBtn.disabled = true;
-    this.dropZone.style.pointerEvents = "none";
+    (0, import_obsidian5.setCssStyles)(this.dropZone, { pointerEvents: "none" });
     progressContainer.show();
     try {
       this.progressStatusEl.setText(t("common.loading"));
@@ -8343,13 +8343,13 @@ var RestoreModal = class extends import_obsidian5.Modal {
         this.selectedZipBytes,
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round(current / total * 100) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          (0, import_obsidian5.setCssStyles)(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t("restoreModal.restoring", { processed: current, total }));
           this.currentFileEl.setText(`\u{1F4C4} ${currentFile}`);
         }
       );
-      this.progressBar.style.width = "100%";
+      (0, import_obsidian5.setCssStyles)(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(t("notices.restoreSuccess", { count: result.restoredFiles }));
       this.currentFileEl.setText("");
@@ -8466,7 +8466,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
       }
     });
     const heroInfo = hero.createDiv({ cls: "mysecret-settings-hero-info" });
-    heroInfo.createEl("h2", { cls: "mysecret-settings-hero-title", text: t("settings.heroTitle") });
+    heroInfo.createDiv({ cls: "mysecret-settings-hero-title", text: t("settings.heroTitle") });
     heroInfo.createEl("p", {
       cls: "mysecret-settings-hero-desc",
       text: t("settings.heroDesc")
@@ -8475,7 +8475,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
       text: t("settings.heroAuthor"),
       cls: "mysecret-hero-author"
     });
-    containerEl.createEl("h3", { text: t("settings.autoLockSectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.autoLockSectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.autoLockSectionDesc")
@@ -8503,7 +8503,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         );
       });
     });
-    containerEl.createEl("h3", { text: t("settings.biometricsSectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.biometricsSectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.biometricsSectionDesc")
@@ -8513,13 +8513,8 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
     const isEnrolled = this.plugin.biometricManager.isBiometricsEnrolled(vaultId);
     const isEnabled = Boolean(this.plugin.settings.biometrics?.enabled && isEnrolled);
     if (isAndroid) {
-      const androidInfo = containerEl.createDiv({ cls: "setting-item-description" });
-      androidInfo.style.background = "rgba(99, 102, 241, 0.1)";
-      androidInfo.style.padding = "0.75rem 1rem";
-      androidInfo.style.borderRadius = "8px";
-      androidInfo.style.marginBottom = "1rem";
-      androidInfo.style.border = "1px solid rgba(99, 102, 241, 0.25)";
-      androidInfo.innerHTML = t("settings.androidBridgeNotice");
+      const androidInfo = containerEl.createDiv({ cls: "setting-item-description mysecret-android-bridge-notice" });
+      androidInfo.setText(t("settings.androidBridgeNotice"));
       new import_obsidian7.Setting(containerEl).setName(t("settings.androidBridgeUrlTitle")).setDesc(t("settings.androidBridgeUrlDesc")).addText((text) => {
         text.setPlaceholder(t("settings.androidBridgePlaceholder")).setValue(this.plugin.settings.biometrics?.bridgeUrl || "").onChange(async (val) => {
           const trimmed = (val || "").trim();
@@ -8645,7 +8640,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         });
       });
     }
-    containerEl.createEl("h3", { text: t("settings.exclusionsSectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.exclusionsSectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.exclusionsSectionDesc")
@@ -8726,7 +8721,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
       }
     };
     renderFolderList();
-    containerEl.createEl("h3", { text: t("settings.recoverySectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.recoverySectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.recoverySectionDesc")
@@ -8762,7 +8757,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         });
       });
     }
-    containerEl.createEl("h3", { text: t("settings.backupSectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.backupSectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.backupSectionDesc")
@@ -8886,7 +8881,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         });
       }
     }
-    containerEl.createEl("h3", { text: t("settings.manualSectionTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.manualSectionTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.manualSectionDesc")
@@ -8906,7 +8901,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         new RestoreModal(this.app, this.plugin).open();
       });
     });
-    containerEl.createEl("h3", { text: t("settings.maintenanceTitle") });
+    new import_obsidian7.Setting(containerEl).setName(t("settings.maintenanceTitle")).setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: t("settings.maintenanceDesc")
@@ -8921,7 +8916,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         this.plugin.openMigrationModal("decrypt");
       });
     });
-    containerEl.createEl("h3", { text: "Language" });
+    new import_obsidian7.Setting(containerEl).setName("Language").setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: "Select the display language for the plugin interface."
@@ -8940,8 +8935,6 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
 
 // src/ui/lock-screen.ts
 var import_obsidian8 = require("obsidian");
-var EYE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
-var EYE_ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.9 9.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.1 4.1"/><path d="M6.3 6.3A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
 var LockScreenModal = class extends import_obsidian8.Modal {
   constructor(app, plugin) {
     super(app);
@@ -9027,7 +9020,9 @@ var LockScreenModal = class extends import_obsidian8.Modal {
           "data-mysecret-testid": "lock-biometric-button"
         }
       });
-      this.biometricBtn.innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/></svg><span>${t("lockScreen.biometricButton")}</span>`;
+      const bioIcon = this.biometricBtn.createSpan({ cls: "mysecret-bio-icon" });
+      (0, import_obsidian8.setIcon)(bioIcon, "fingerprint");
+      this.biometricBtn.createSpan({ text: t("lockScreen.biometricButton") });
       this.biometricBtn.addEventListener("click", () => {
         void this.handleBiometricUnlock();
       });
@@ -9062,7 +9057,7 @@ var LockScreenModal = class extends import_obsidian8.Modal {
         "data-mysecret-testid": "lock-visibility-toggle"
       }
     });
-    this.visibilityBtn.innerHTML = EYE_ICON;
+    (0, import_obsidian8.setIcon)(this.visibilityBtn, "eye");
     this.visibilityBtn.addEventListener("click", () => this.togglePasswordVisibility());
     this.passwordInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -9182,7 +9177,8 @@ var LockScreenModal = class extends import_obsidian8.Modal {
   togglePasswordVisibility() {
     const isHidden = this.passwordInput.type === "password";
     this.passwordInput.type = isHidden ? "text" : "password";
-    this.visibilityBtn.innerHTML = isHidden ? EYE_ICON_OFF : EYE_ICON;
+    this.visibilityBtn.empty();
+    (0, import_obsidian8.setIcon)(this.visibilityBtn, isHidden ? "eye-off" : "eye");
     this.visibilityBtn.setAttr("aria-pressed", String(isHidden));
     this.visibilityBtn.setAttr("aria-label", isHidden ? t("lockScreen.hidePassword") : t("lockScreen.showPassword"));
     this.visibilityBtn.setAttr("title", isHidden ? t("lockScreen.hidePassword") : t("lockScreen.showPassword"));
@@ -9449,7 +9445,8 @@ var LockScreenModal = class extends import_obsidian8.Modal {
       this.recoveryInput.value = "";
     }
     if (this.visibilityBtn) {
-      this.visibilityBtn.innerHTML = EYE_ICON;
+      this.visibilityBtn.empty();
+      (0, import_obsidian8.setIcon)(this.visibilityBtn, "eye");
     }
     const { contentEl } = this;
     contentEl.empty();
@@ -9638,10 +9635,12 @@ var SetupWizardModal = class extends import_obsidian9.Modal {
         title: "Mostrar contrase\xF1a"
       }
     });
-    p1Toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    (0, import_obsidian9.setIcon)(p1Toggle, "eye");
     p1Toggle.addEventListener("click", () => {
       const isHidden = p1.type === "password";
       p1.type = isHidden ? "text" : "password";
+      p1Toggle.empty();
+      (0, import_obsidian9.setIcon)(p1Toggle, isHidden ? "eye-off" : "eye");
       p1Toggle.setAttr("aria-pressed", String(isHidden));
       p1Toggle.setAttr("aria-label", isHidden ? "Ocultar contrase\xF1a" : "Mostrar contrase\xF1a");
       p1.focus();
@@ -10460,7 +10459,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
    */
   updateProgress(current, total, currentPath) {
     const percent = total === 0 ? 100 : Math.round(current / total * 100);
-    this.progressBar.style.width = `${percent}%`;
+    (0, import_obsidian10.setCssStyles)(this.progressBar, { width: `${percent}%` });
     this.progressPercentEl.setText(`${percent}%`);
     this.counterText.setText(`${current} de ${total} procesados`);
     this.currentFileEl.setText(currentPath ? `\u{1F4C4} ${currentPath}` : "");
@@ -10515,7 +10514,7 @@ var MigrationModal = class extends import_obsidian10.Modal {
       this.etaText.setText("");
       new import_obsidian10.Notice(`\u26A0\uFE0F ${t("common.cancel")}`);
     } else {
-      this.progressBar.style.width = "100%";
+      (0, import_obsidian10.setCssStyles)(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.counterText.setText(`${this.progress.totalFiles} / ${this.progress.totalFiles}`);
       this.currentFileEl.setText("");

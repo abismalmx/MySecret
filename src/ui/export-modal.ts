@@ -3,7 +3,7 @@
  * ExportModal: Local Vault Export (Encrypted / Decrypted ZIP)
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setCssStyles } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
@@ -82,7 +82,7 @@ export class ExportModal extends Modal {
       this.mode = 'encrypted';
       encCard.addClass('is-selected');
       decCard.removeClass('is-selected');
-      envelopeSetting.style.display = 'flex';
+      setCssStyles(envelopeSetting, { display: 'flex' });
     });
 
     decCard.addEventListener('click', () => {
@@ -94,7 +94,7 @@ export class ExportModal extends Modal {
       this.mode = 'decrypted';
       decCard.addClass('is-selected');
       encCard.removeClass('is-selected');
-      envelopeSetting.style.display = 'none';
+      setCssStyles(envelopeSetting, { display: 'none' });
     });
 
     // Options container
@@ -201,14 +201,14 @@ export class ExportModal extends Modal {
         },
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          setCssStyles(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t('exportModal.exporting', { processed: current, total }));
           this.currentFileEl.setText(`📄 ${currentFile}`);
         }
       );
 
-      this.progressBar.style.width = '100%';
+      setCssStyles(this.progressBar, { width: '100%' });
       this.progressPercentEl.setText('100%');
       this.progressStatusEl.setText(
         `${t('common.success')} ${(result.stats.totalBytes / (1024 * 1024)).toFixed(2)} MB (${result.stats.totalFiles})`

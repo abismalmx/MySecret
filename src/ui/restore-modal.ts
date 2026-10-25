@@ -3,7 +3,7 @@
  * RestoreModal: Restore Vault from Backup ZIP Archive
  */
 
-import { App, Modal, Notice } from 'obsidian';
+import { App, Modal, Notice, setCssStyles } from 'obsidian';
 import { unzipSync, strFromU8 } from 'fflate';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
@@ -232,7 +232,7 @@ export class RestoreModal extends Modal {
     this.isProcessing = true;
     this.restoreBtn.disabled = true;
     this.cancelBtn.disabled = true;
-    this.dropZone.style.pointerEvents = 'none';
+    setCssStyles(this.dropZone, { pointerEvents: 'none' });
     progressContainer.show();
 
     try {
@@ -243,14 +243,14 @@ export class RestoreModal extends Modal {
         this.selectedZipBytes,
         (currentFile, current, total) => {
           const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-          this.progressBar.style.width = `${percent}%`;
+          setCssStyles(this.progressBar, { width: `${percent}%` });
           this.progressPercentEl.setText(`${percent}%`);
           this.progressStatusEl.setText(t('restoreModal.restoring', { processed: current, total }));
           this.currentFileEl.setText(`📄 ${currentFile}`);
         }
       );
 
-      this.progressBar.style.width = '100%';
+      setCssStyles(this.progressBar, { width: '100%' });
       this.progressPercentEl.setText('100%');
       this.progressStatusEl.setText(t('notices.restoreSuccess', { count: result.restoredFiles }));
       this.currentFileEl.setText('');
