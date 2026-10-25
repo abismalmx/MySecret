@@ -1,7 +1,7 @@
 {
   "id": "mysecret",
   "name": "MySecret",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.5.0",
   "description": "Cifra tus notas y archivos con AES-256-GCM y Argon2id. Privacidad absoluta: nadie, más que tú, podrá ver el contenido de tus notas.",
   "author": "Anthony Rios Licea (abismalmx)",

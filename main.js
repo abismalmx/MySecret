@@ -8704,7 +8704,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
         });
       });
       new import_obsidian7.Setting(containerEl).setName(t("settings.deleteRecoveryTitle")).setDesc(t("settings.deleteRecoveryDesc")).addButton((button) => {
-        button.setButtonText(t("settings.deletePhraseBtn")).setDestructive().onClick(async () => {
+        button.setButtonText(t("settings.deletePhraseBtn")).setWarning().onClick(async () => {
           const confirmed = window.confirm(t("settings.deletePhraseConfirm"));
           if (confirmed) {
             await this.plugin.disableRecoveryPhrase();
@@ -8878,7 +8878,7 @@ var MySecretSettingTab = class extends import_obsidian7.PluginSettingTab {
       });
     });
     new import_obsidian7.Setting(containerEl).setName(t("settings.bulkDecryptTitle")).setDesc(t("settings.bulkDecryptDesc")).addButton((button) => {
-      button.setButtonText(t("settings.bulkDecryptBtn")).setDestructive().onClick(() => {
+      button.setButtonText(t("settings.bulkDecryptBtn")).setWarning().onClick(() => {
         this.plugin.openMigrationModal("decrypt");
       });
     });

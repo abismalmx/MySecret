@@ -19,7 +19,7 @@ export class LocalSyncProvider implements CloudProvider {
   private getFs(): any {
     try {
       // Available on Obsidian Desktop (Electron)
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Dynamic import of Node.js fs module in Electron environment
       return (window as any).require ? (window as any).require('fs') : require('fs');
     } catch {
       return null;
@@ -28,7 +28,7 @@ export class LocalSyncProvider implements CloudProvider {
 
   private getPathModule(): any {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- Dynamic import of Node.js path module in Electron environment
       return (window as any).require ? (window as any).require('path') : require('path');
     } catch {
       return null;
