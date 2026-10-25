@@ -36,7 +36,10 @@ Watch the complete video overview of MySecret explaining how transparent at-rest
 | [▶️ **Watch English Overview (MP4)**](media/MySecret_en.mp4) | [▶️ **Ver Explicación en Español (MP4)**](media/MySecret_es.mp4) |
 
 > [!TIP]
-> **Interactive Infographic**: Explore the interactive security architecture with step-by-step pipeline animations in [docs/interactive-infographic.html](docs/interactive-infographic.html).
+> 🌐 **Interactive Security Infographic (Web)**: Explore the interactive architecture with step-by-step pipeline animations at **[abismalmx.github.io/MySecret](https://abismalmx.github.io/MySecret/docs/interactive-infographic.html)**.  
+> 🧠 **Interactive NotebookLM Guide**:
+> - 🇬🇧 [Explore on NotebookLM (English)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b)
+> - 🇪🇸 [Explorar en NotebookLM (Español)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c)
 
 ---
 

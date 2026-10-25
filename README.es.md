@@ -36,7 +36,10 @@ Mira la demostración completa en video de MySecret explicando cómo el cifrado 
 | [▶️ **Ver Demostración en Inglés (MP4)**](media/MySecret_en.mp4) | [▶️ **Ver Explicación en Español (MP4)**](media/MySecret_es.mp4) |
 
 > [!TIP]
-> **Infografía Interactiva**: Explora la arquitectura de seguridad interactiva con animaciones del pipeline paso a paso en [docs/interactive-infographic.html](docs/interactive-infographic.html).
+> 🌐 **Infografía de Seguridad Interactiva (Web)**: Explora la arquitectura interactiva con animaciones paso a paso en **[abismalmx.github.io/MySecret](https://abismalmx.github.io/MySecret/docs/interactive-infographic.html)**.  
+> 🧠 **Guía Interactiva en NotebookLM**:
+> - 🇪🇸 [Explorar en NotebookLM (Español)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c)
+> - 🇬🇧 [Explore on NotebookLM (English)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b)
 
 ---
 
