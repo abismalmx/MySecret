@@ -53,8 +53,16 @@ import { MediaManager } from '../src/adapter/media-manager.ts';
 import { PathFilter } from '../src/adapter/path-filter.ts';
 import { KeyManager } from '../src/crypto/key-manager.ts';
 import { importAesKey, decryptAesGcm } from '../src/crypto/aes.ts';
-import { isArmoredEncrypted, deserializeArmored, isBinaryEncrypted } from '../src/crypto/envelope.ts';
-import { TFolder } from 'obsidian';
+import {
+  isArmoredEncrypted,
+  deserializeArmored,
+  isBinaryEncrypted,
+  deserializeBinary
+} from '../src/crypto/envelope.ts';
+import { MetadataHashPatch } from '../src/adapter/metadata-hash-patch.ts';
+import { PublishGuard } from '../src/adapter/publish-guard.ts';
+import { sha256Hex } from '../src/crypto/hash.ts';
+import { TFolder, TFile, Vault } from 'obsidian';
 
 /**
  * In-memory vault adapter.
@@ -90,6 +98,18 @@ function createFakeAdapter() {
     },
     async writeBinary(p, data) {
       files.set(p, new Uint8Array(data));
+    },
+    async append(p, data) {
+      const existing = files.has(p) ? new TextDecoder().decode(files.get(p)) : '';
+      files.set(p, new TextEncoder().encode(existing + data));
+    },
+    async appendBinary(p, data) {
+      const existing = files.has(p) ? files.get(p) : new Uint8Array(0);
+      const appended = new Uint8Array(data);
+      const merged = new Uint8Array(existing.length + appended.length);
+      merged.set(existing, 0);
+      merged.set(appended, existing.length);
+      files.set(p, merged);
     },
     async list(p) {
       // Absolute paths, like the real Obsidian adapter.
@@ -309,8 +329,15 @@ test('Adapter: writeBinary encrypts image on disk while getResourcePath returns 
   const rawDiskBytes = new Uint8Array(rawDiskBuffer);
   assert.strictEqual(isBinaryEncrypted(rawDiskBytes), true, 'The disk file must be encrypted binary');
 
-  // 2. adapter.readBinary must return the original decrypted image bytes
-  const decryptedBuffer = await adapter.readBinary('Pasted image.png');
+  // 2. The raw adapter returns the CIPHERTEXT (Obsidian Sync must never see
+  //    the cleartext), while the interceptor exposes the plaintext on demand.
+  const rawBuffer = await adapter.readBinary('Pasted image.png');
+  assert.ok(
+    isBinaryEncrypted(new Uint8Array(rawBuffer)),
+    'the raw adapter must return the ciphertext of the image'
+  );
+
+  const decryptedBuffer = await interceptor.readPlaintextBinary('Pasted image.png');
   assert.deepStrictEqual(new Uint8Array(decryptedBuffer), fakeImageBytes);
 
   // 3. adapter.getResourcePath must return the in-memory Blob URL
@@ -324,3 +351,525 @@ test('Adapter: writeBinary encrypts image on disk while getResourcePath returns 
   mediaManager.destroy();
   interceptor.uninstall();
 });
+
+test('Adapter: vault.readBinary transparently decrypts armored Markdown notes (required for Obsidian metadataCache & footnotes)', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const noteContent = 'Texto con nota al pie[^1].\n\n[^1]: Definición de la nota al pie.';
+  await adapter.write('Notas/Footnote.md', noteContent);
+
+  // On disk, the file must be armored encrypted
+  const diskRaw = await interceptor.getRawAdapter().read('Notas/Footnote.md');
+  assert.ok(isArmoredEncrypted(diskRaw), 'File on disk must be armored encrypted');
+
+  // When Obsidian's indexing engine calls `vault.readBinary()`, it MUST
+  // receive the decrypted plaintext bytes, otherwise the footnotes are not
+  // indexed.
+  const binaryBuffer = await vault.readBinary(createFakeFile('Notas/Footnote.md'));
+  const readBackText = new TextDecoder().decode(binaryBuffer);
+  assert.strictEqual(readBackText, noteContent, 'vault.readBinary must return the decrypted note content');
+
+  // The raw adapter MUST keep returning the ciphertext (Obsidian Sync).
+  const rawText = new TextDecoder().decode(await adapter.readBinary('Notas/Footnote.md'));
+  assert.ok(isArmoredEncrypted(rawText), 'adapter.readBinary must keep returning the ciphertext');
+
+  // When Obsidian calls vault.process() to append a missing footnote definition:
+  await adapter.process('Notas/Footnote.md', current => {
+    return current + '\n\n[^2]: Segunda nota creada nativamente.';
+  });
+
+  const updatedBinary = await vault.readBinary(createFakeFile('Notas/Footnote.md'));
+  const updatedText = new TextDecoder().decode(updatedBinary);
+  assert.ok(updatedText.includes('[^2]: Segunda nota creada nativamente.'));
+
+  interceptor.uninstall();
+});
+
+test('SECURITY: adapter.process throws when vault is locked and never wipes existing notes', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager);
+  interceptor.install();
+
+  // Create an encrypted note
+  await adapter.write('Notas/Importante.md', 'Contenido confidencial original');
+
+  // Lock the vault
+  keyManager.lock();
+
+  // Attempting adapter.process on an existing file while locked MUST throw
+  await assert.rejects(
+    async () => {
+      await adapter.process('Notas/Importante.md', current => current + ' modificado');
+    },
+    /locked/i,
+    'adapter.process must reject when vault is locked'
+  );
+
+  // Verify the file was NOT corrupted or overwritten on disk
+  const rawDisk = await interceptor.getRawAdapter().read('Notas/Importante.md');
+  assert.ok(isArmoredEncrypted(rawDisk), 'File must remain intact and encrypted on disk');
+
+  interceptor.uninstall();
+});
+
+/**
+ * Builds a `Vault` stub bound to the fake adapter.
+ */
+function createFakeVault(adapter) {
+  return new Vault(adapter);
+}
+
+/**
+ * Creates a `TFile` that mimics the real Obsidian `TFile`.
+ */
+function createFakeFile(path) {
+  const file = new TFile(path);
+  file.extension = 'md';
+  return file;
+}
+
+/**
+ * Decrypts an armored payload read from disk.
+ */
+async function decryptArmoredOnDisk(keyManager, rawText, aad) {
+  const payload = deserializeArmored(rawText);
+  const plain = await decryptAesGcm(
+    payload.ciphertext,
+    keyManager.getVaultKey(),
+    payload.iv,
+    payload.tag,
+    aad
+  );
+  return new TextDecoder().decode(plain);
+}
+
+test('SECURITY: adapter.readBinary returns the CIPHERTEXT so Obsidian Sync cannot upload the cleartext', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const secret = 'Contraseña: hunter2-secreto';
+  await adapter.write('Notas/Secreto.md', secret);
+
+  // Obsidian Sync reads the files through `app.vault.adapter.readBinary(path)`
+  // and uploads whatever it receives to the cloud.
+  const rawBuffer = await adapter.readBinary('Notas/Secreto.md');
+  const rawText = new TextDecoder().decode(rawBuffer);
+
+  assert.ok(
+    !rawText.includes('hunter2-secreto'),
+    'adapter.readBinary must NEVER return the cleartext of an encrypted note'
+  );
+  assert.ok(
+    isArmoredEncrypted(rawText),
+    'adapter.readBinary must return the armored ciphertext'
+  );
+
+  interceptor.uninstall();
+});
+
+test('SECURITY: vault.readBinary decrypts for the indexer while the adapter keeps the ciphertext', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const noteContent = 'Texto con nota al pie[^1].\n\n[^1]: Definición de la nota al pie.';
+  await adapter.write('Notas/Footnote.md', noteContent);
+
+  const file = createFakeFile('Notas/Footnote.md');
+
+  // The metadata indexer goes through `vault.readBinary(file)` and MUST
+  // receive the plaintext, otherwise the footnotes are not indexed.
+  const vaultBuffer = await vault.readBinary(file);
+  assert.strictEqual(
+    new TextDecoder().decode(vaultBuffer),
+    noteContent,
+    'vault.readBinary must return the decrypted note so the footnotes are indexed'
+  );
+
+  // But the raw adapter MUST still return the ciphertext for Obsidian Sync.
+  const rawText = new TextDecoder().decode(await adapter.readBinary('Notas/Footnote.md'));
+  assert.ok(isArmoredEncrypted(rawText), 'the raw adapter must still return the ciphertext');
+  assert.ok(!rawText.includes('Definición'), 'the raw adapter must not leak the cleartext');
+
+  interceptor.uninstall();
+});
+
+test('SECURITY: vault.readBinary refreshes the in-memory TFile cache with the plaintext', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const noteContent = 'Contenido de la nota.\n\n[^1]: Nota al pie real.';
+  await adapter.write('Notas/Cache.md', noteContent);
+
+  const file = createFakeFile('Notas/Cache.md');
+  await vault.readBinary(file);
+
+  // `Vault.cachedRead()` must return the plaintext, not the armored envelope.
+  const cached = await vault.cachedRead(file);
+  assert.strictEqual(
+    cached,
+    noteContent,
+    'the in-memory cache must hold the plaintext, not the ciphertext'
+  );
+  assert.ok(!cached.includes('BEGIN MYSECRET'), 'the cache must not hold the armored envelope');
+
+  interceptor.uninstall();
+});
+
+test('DATA INTEGRITY: Obsidian Sync writing back the ciphertext does NOT double-encrypt the note', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const noteContent = 'Nota que Sync descarga y reescribe.';
+  await adapter.write('Notas/Sync.md', noteContent);
+
+  // This is exactly what Obsidian Sync does: it downloads the ciphertext and
+  // writes it back verbatim through `vault.modifyBinary()` ->
+  // `adapter.writeBinary()`.
+  const downloadedCiphertext = await adapter.readBinary('Notas/Sync.md');
+  await adapter.writeBinary('Notas/Sync.md', downloadedCiphertext);
+
+  // The file must still be a SINGLE layer of encryption and must still be
+  // readable. A double encryption would make it unreadable forever.
+  const onDisk = await interceptor.getRawAdapter().read('Notas/Sync.md');
+  assert.ok(isArmoredEncrypted(onDisk), 'the file must remain armored on disk');
+
+  const plain = await decryptArmoredOnDisk(keyManager, onDisk, 'Notas/Sync.md');
+  assert.strictEqual(
+    plain,
+    noteContent,
+    'the note must still decrypt after Sync wrote the ciphertext back (no double encryption)'
+  );
+
+  interceptor.uninstall();
+});
+
+test('DATA INTEGRITY: a file that merely LOOKS like a container is still encrypted normally', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager);
+  interceptor.install();
+
+  // A file whose first bytes happen to be "MYSE" but that was never
+  // encrypted by MySecret must NOT be stored verbatim in cleartext.
+  const lookalike = new Uint8Array([0x4d, 0x59, 0x53, 0x45, 0x01, 9, 9, 9]);
+  await adapter.writeBinary('datos.bin', lookalike.buffer);
+
+  const onDisk = new Uint8Array(
+    await interceptor.getRawAdapter().readBinary('datos.bin')
+  );
+
+  assert.ok(
+    isBinaryEncrypted(onDisk),
+    'the lookalike file must be encrypted as a normal MySecret container'
+  );
+
+  // And it must decrypt back to the original bytes.
+  const payload = deserializeBinary(onDisk);
+  const plain = await decryptAesGcm(
+    payload.ciphertext,
+    keyManager.getVaultKey(),
+    payload.iv,
+    payload.tag,
+    'datos.bin'
+  );
+  assert.deepStrictEqual(new Uint8Array(plain), lookalike, 'the file must round-trip');
+
+  interceptor.uninstall();
+});
+
+test('DATA INTEGRITY: append propagates a read failure instead of truncating the note', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager);
+  interceptor.install();
+
+  const original = 'Contenido original que NO debe perderse.';
+  await adapter.write('Notas/Truncada.md', original);
+
+  // Keep a reference to the key: `lock()` wipes it from RAM on purpose.
+  const vaultKey = keyManager.getVaultKey();
+
+  // Break the decryption by locking the vault: the read will fail.
+  keyManager.lock();
+
+  await assert.rejects(
+    async () => {
+      await adapter.append('Notas/Truncada.md', ' fragmento añadido');
+    },
+    /could not be read/i,
+    'append must propagate the read failure'
+  );
+
+  // The file on disk must be untouched.
+  const onDisk = await interceptor.getRawAdapter().read('Notas/Truncada.md');
+  assert.ok(isArmoredEncrypted(onDisk), 'the note must remain encrypted on disk');
+
+  const payload = deserializeArmored(onDisk);
+  const plain = await decryptAesGcm(
+    payload.ciphertext,
+    vaultKey,
+    payload.iv,
+    payload.tag,
+    'Notas/Truncada.md'
+  );
+  assert.strictEqual(
+    new TextDecoder().decode(plain),
+    original,
+    'the note must NOT be truncated'
+  );
+
+  interceptor.uninstall();
+});
+
+test('DATA INTEGRITY: appendBinary refuses to corrupt an armored text note', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager);
+  interceptor.install();
+
+  const noteContent = 'Nota de texto que no debe destruirse.';
+  await adapter.write('Notas/Texto.md', noteContent);
+
+  await assert.rejects(
+    async () => {
+      await adapter.appendBinary('Notas/Texto.md', new Uint8Array([1, 2, 3]).buffer);
+    },
+    /Refusing to append binary data/i,
+    'appendBinary must refuse to corrupt an armored text note'
+  );
+
+  // The note must be intact.
+  const onDisk = await interceptor.getRawAdapter().read('Notas/Texto.md');
+  const plain = await decryptArmoredOnDisk(keyManager, onDisk, 'Notas/Texto.md');
+  assert.strictEqual(plain, noteContent, 'the note must be intact');
+
+  interceptor.uninstall();
+});
+
+test('DATA INTEGRITY: renaming a plaintext, armored and binary file keeps the content readable', async () => {
+  const adapter = createFakeAdapter();
+  // The "excluido" folder is NOT encrypted, so it holds a real plaintext file.
+  const pathFilter = new PathFilter(['excluido'], true);
+  const keyManager = await createUnlockedKeyManager();
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager);
+  interceptor.install();
+
+  // 1. A file that is NOT encrypted (it lives in an excluded folder).
+  const plainContent = 'Texto plano sin cifrar.';
+  await adapter.write('excluido/plain.md', plainContent);
+
+  // 2. An armored Markdown note.
+  const armoredContent = '# Nota blindada\n\n[^1]: pie de nota.';
+  await adapter.write('Notas/Blindada.md', armoredContent);
+
+  // 3. A binary attachment.
+  const binaryContent = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7, 7, 7]);
+  await adapter.writeBinary('adjunto.png', binaryContent.buffer);
+
+  // Rename all three.
+  await adapter.rename('excluido/plain.md', 'excluido/renombrado.md');
+  await adapter.rename('Notas/Blindada.md', 'Notas/Renombrada.md');
+  await adapter.rename('adjunto.png', 'adjunto-renombrado.png');
+
+  await interceptor.handleVaultRename(
+    { path: 'excluido/renombrado.md', name: 'renombrado.md' },
+    'excluido/plain.md'
+  );
+  await interceptor.handleVaultRename(
+    { path: 'Notas/Renombrada.md', name: 'Renombrada.md' },
+    'Notas/Blindada.md'
+  );
+  await interceptor.handleVaultRename(
+    { path: 'adjunto-renombrado.png', name: 'adjunto-renombrado.png' },
+    'adjunto.png'
+  );
+
+  // 1. The plaintext file is still plaintext and readable.
+  assert.strictEqual(
+    await adapter.read('excluido/renombrado.md'),
+    plainContent,
+    'the plaintext file must stay readable after the rename'
+  );
+
+  // 2. The armored note still decrypts.
+  assert.strictEqual(
+    await adapter.read('Notas/Renombrada.md'),
+    armoredContent,
+    'the armored note must still decrypt after the rename'
+  );
+
+  // 3. The binary attachment still decrypts byte for byte.
+  const binaryBuffer = await interceptor.readPlaintextBinary('adjunto-renombrado.png');
+  assert.deepStrictEqual(
+    new Uint8Array(binaryBuffer),
+    binaryContent,
+    'the binary attachment must still decrypt after the rename'
+  );
+
+  interceptor.uninstall();
+});
+
+test('SECURITY: the metadata cache hash is aligned with the ciphertext hash used by Obsidian Sync', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  // A minimal metadata cache that stores the hash of the bytes returned by
+  // `vault.readBinary()` (the plaintext), exactly like Obsidian does.
+  const fileCache = new Map();
+  const metadataCache = {
+    fileCache,
+    getFileInfo(path) {
+      return fileCache.get(path) || null;
+    }
+  };
+  const app = { vault, metadataCache, internalPlugins: null };
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const hashPatch = new MetadataHashPatch(app);
+  hashPatch.install();
+  interceptor.setMetadataHashPatch(hashPatch);
+
+  const noteContent = 'Nota para el indexador.';
+  await adapter.write('Notas/Hash.md', noteContent);
+
+  const file = createFakeFile('Notas/Hash.md');
+
+  // The metadata indexer reads the note and stores the hash of what it read
+  // (the plaintext).
+  const vaultBytes = new Uint8Array(await vault.readBinary(file));
+  const plaintextHash = await sha256Hex(vaultBytes);
+  fileCache.set('Notas/Hash.md', { mtime: 1, size: vaultBytes.length, hash: plaintextHash });
+
+  // The hash of the ciphertext (what Sync computes).
+  const ciphertextBytes = new Uint8Array(await adapter.readBinary('Notas/Hash.md'));
+  const ciphertextHash = await sha256Hex(ciphertextBytes);
+
+  assert.notStrictEqual(
+    plaintextHash,
+    ciphertextHash,
+    'the plaintext hash and the ciphertext hash must be different (sanity check)'
+  );
+
+  // Without the patch the two hashes would never match and Sync would
+  // re-download the whole vault on every run.
+  const info = metadataCache.getFileInfo('Notas/Hash.md');
+  assert.strictEqual(
+    info.hash,
+    ciphertextHash,
+    'the hash exposed to Sync must be the hash of the ciphertext'
+  );
+
+  // The metadata cache must keep working: the returned object is a copy, so
+  // the original entry (the key of the parsed metadata) is untouched.
+  assert.strictEqual(
+    fileCache.get('Notas/Hash.md').hash,
+    plaintextHash,
+    'the original metadata entry must not be mutated'
+  );
+
+  hashPatch.uninstall();
+  interceptor.uninstall();
+});
+
+test('SECURITY: Obsidian Publish cannot upload the cleartext of an encrypted note', async () => {
+  const adapter = createFakeAdapter();
+  // The "publico" folder is NOT encrypted, so it holds a real plaintext note.
+  const pathFilter = new PathFilter(['publico'], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = createFakeVault(adapter);
+
+  let uploaded = null;
+  const publishInstance = {
+    async apiUploadFile(file) {
+      const bytes = await vault.readBinary(file);
+      uploaded = new TextDecoder().decode(new Uint8Array(bytes));
+      return 'ok';
+    }
+  };
+  const app = {
+    vault,
+    metadataCache: { getFileInfo: () => null },
+    internalPlugins: {
+      getEnabledPluginById: (id) => (id === 'publish' ? publishInstance : null)
+    }
+  };
+
+  const guard = new PublishGuard(app);
+  assert.strictEqual(guard.install(), true, 'the guard must be installed');
+
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+
+  const secret = 'Contenido que jamas debe publicarse.';
+  await adapter.write('Notas/Publicada.md', secret);
+
+  const file = createFakeFile('Notas/Publicada.md');
+
+  await assert.rejects(
+    async () => {
+      await publishInstance.apiUploadFile(file);
+    },
+    /Publish no puede publicar|encrypted/i,
+    'the upload of an encrypted note must be blocked'
+  );
+
+  assert.strictEqual(uploaded, null, 'no cleartext must have been uploaded');
+
+  // A plaintext note (in the excluded folder) can still be published.
+  await adapter.write('publico/Libre.md', 'Nota publica de ejemplo.');
+  const publicFile = createFakeFile('publico/Libre.md');
+  await publishInstance.apiUploadFile(publicFile);
+  assert.strictEqual(uploaded, 'Nota publica de ejemplo.', 'a plaintext note must still publish');
+
+  guard.uninstall();
+  interceptor.uninstall();
+});
+
+

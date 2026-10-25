@@ -258,8 +258,11 @@ export class MigrationModal extends Modal {
             const diskBuffer = await rawAdapter.readBinary(path);
             const diskBytes = new Uint8Array(diskBuffer);
             if (isBinaryEncrypted(diskBytes)) {
-              const plainBuffer = await this.app.vault.adapter.readBinary(path);
-              await rawAdapter.writeBinary(path, plainBuffer);
+              // The raw adapter returns the bytes as they are on disk, so the
+              // plaintext is obtained through the interceptor, which decrypts
+              // explicitly.
+              const plainBytes = await this.plugin.interceptor.readPlaintextBinary(path);
+              await rawAdapter.writeBinary(path, plainBytes.buffer as ArrayBuffer);
               modified++;
             }
           }

@@ -67,6 +67,7 @@ test('BIP-39: Key derivation produces deterministic 32-byte key', async () => {
 // 2. Envelope Tests
 import {
   isArmoredEncrypted,
+  isArmoredBytesEncrypted,
   serializeArmored,
   deserializeArmored,
   isBinaryEncrypted,
@@ -120,6 +121,26 @@ test('Envelope: Empty payload (0-byte ciphertext) armored round-trip', () => {
   const parsedCrlf = deserializeArmored(crlfArmored);
   assert.strictEqual(parsedCrlf.ciphertext.length, 0);
 });
+
+test('Envelope: isArmoredBytesEncrypted detects armored header with BOM and whitespace', () => {
+  const encText = '-----BEGIN MYSECRET ENCRYPTED FILE-----\nVersion: 1';
+  const normalBytes = new TextEncoder().encode(encText);
+  assert.strictEqual(isArmoredBytesEncrypted(normalBytes), true);
+
+  // With leading whitespace
+  const spaceBytes = new TextEncoder().encode('  \n\t' + encText);
+  assert.strictEqual(isArmoredBytesEncrypted(spaceBytes), true);
+
+  // With UTF-8 BOM
+  const bomBytes = new Uint8Array([0xEF, 0xBB, 0xBF, ...normalBytes]);
+  assert.strictEqual(isArmoredBytesEncrypted(bomBytes), true);
+
+  // Plaintext markdown or random binary
+  assert.strictEqual(isArmoredBytesEncrypted(new TextEncoder().encode('# Regular Markdown Note')), false);
+  assert.strictEqual(isArmoredBytesEncrypted(new Uint8Array([1, 2, 3])), false);
+  assert.strictEqual(isArmoredBytesEncrypted(new Uint8Array(0)), false);
+});
+
 
 test('Envelope: Deserializing note without body separator (empty note on disk)', () => {
   const rawDiskNote = `-----BEGIN MYSECRET ENCRYPTED FILE-----

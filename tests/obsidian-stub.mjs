@@ -18,6 +18,7 @@ export class TFile extends TAbstractFile {
   constructor(path, stat = {}) {
     super(path);
     this.stat = { ctime: 0, mtime: 0, size: 0, type: 'file', ...stat };
+    this.cachedContent = null;
   }
   basename() {
     return this.name;
@@ -25,6 +26,14 @@ export class TFile extends TAbstractFile {
   extension() {
     const idx = this.name.lastIndexOf('.');
     return idx === -1 ? '' : this.name.slice(idx + 1);
+  }
+  /**
+   * Reproduces the in-memory cache of the real `TFile`.
+   *
+   * @param content The text to cache, or `null` to invalidate the cache.
+   */
+  cache(content) {
+    this.cachedContent = content === null ? null : content;
   }
 }
 
@@ -35,6 +44,39 @@ export class TFolder extends TAbstractFile {
   }
   isRoot() {
     return this.path === '/' || this.path === '';
+  }
+}
+
+/**
+ * Minimal `Vault` stub.
+ *
+ * It reproduces the two behaviours of the real Obsidian `Vault` that matter
+ * for the encryption hooks:
+ *
+ *   * `readBinary(file)` delegates to `adapter.readBinary(file.path)` and
+ *     caches the RAW bytes in the `TFile` (the real implementation calls
+ *     `file.cache(new TextDecoder().decode(bytes))`).
+ *   * `cachedRead(file)` returns the cached text when available.
+ */
+export class Vault {
+  constructor(adapter) {
+    this.adapter = adapter;
+  }
+
+  async readBinary(file) {
+    const bytes = await this.adapter.readBinary(file.path);
+    if (file && typeof file.cache === 'function' && file.extension === 'md') {
+      file.cache(new TextDecoder().decode(new Uint8Array(bytes)));
+    }
+    return bytes;
+  }
+
+  async cachedRead(file) {
+    if (file && typeof file.cachedContent === 'string') {
+      return file.cachedContent;
+    }
+    const bytes = await this.readBinary(file);
+    return new TextDecoder().decode(new Uint8Array(bytes));
   }
 }
 

@@ -143,8 +143,11 @@ export class BackupEngine {
             manifestFiles.push({ path, size: fileBytes.length, isEncrypted: false });
           } else {
             attachmentsCount++;
-            const plainBuffer = await plugin.app.vault.adapter.readBinary(path);
-            const fileBytes = new Uint8Array(plainBuffer);
+            // The raw adapter returns the bytes as they are on disk, so the
+            // plaintext is obtained through the interceptor, which decrypts
+            // explicitly.
+            const plainBytes = await plugin.interceptor.readPlaintextBinary(path);
+            const fileBytes = plainBytes;
             zipData[path] = fileBytes;
             totalBytes += fileBytes.length;
             manifestFiles.push({ path, size: fileBytes.length, isEncrypted: false });

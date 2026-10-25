@@ -38,6 +38,26 @@ The following sections detail the active defenses against specific attack vector
 - **Full Coverage:** Transparently intercepts every file operation method on Obsidian's `app.vault.adapter`: `read`, `write`, `readBinary`, `writeBinary`, `append`, and `appendBinary`.
 - **Guarantee:** No file write operation bypasses the cryptographic engine; binary attachments and text notes are encrypted in-flight before touching the filesystem.
 
+### 🛡️ Surface Separation: On-Disk Ciphertext vs. In-Memory Plaintext
+- **Adapter surface (`DataAdapter.readBinary`):** Returns **exactly the bytes stored on disk** (the ciphertext). It never returns cleartext.
+- **Vault surface (`Vault.readBinary`):** Returns the **decrypted plaintext**, and is the only surface the Obsidian metadata indexer (`MetadataCache.computeFileMetadataAsync`) uses to extract links, footnotes and frontmatter.
+- **Why the separation is required:** Obsidian **Sync** reads files through `app.vault.adapter.readBinary(path)` (a direct adapter call), while the indexer and Obsidian **Publish** go through `vault.readBinary(file)`. Decrypting in the adapter exposed the cleartext of **every** note to the sync engine, which uploaded it to the cloud in the clear.
+- **Result:** Encrypted notes remain indexable (footnotes, links and search keep working) while the cleartext never leaves the process towards Obsidian Sync.
+
+### 🛡️ Double-Encryption Integrity Guard (Anti Double-Encryption)
+- **Threat:** Obsidian Sync downloads the ciphertext of a file and writes it back **verbatim** on disk through `vault.modifyBinary()` → `adapter.writeBinary()`. If the write hook encrypted it again, the file would end up encrypted **twice** and would become permanently unreadable.
+- **Defense:** Before encrypting, the `write` and `writeBinary` hooks check whether the bytes already form an **authenticated MySecret container** for that exact path, cryptographically verifying the GCM tag with the path as associated data.
+- **Guarantee:** Only a container produced by MySecret for that path is stored as-is; a file that merely *looks* like a container (e.g. an image starting with the `MYSE` bytes) is encrypted normally and never leaks in cleartext.
+
+### 🛡️ MetadataCache Hash Alignment with Obsidian Sync
+- **Threat:** The metadata indexer computes `SHA-256(vault.readBinary())` (plaintext) while Sync computes `SHA-256(adapter.readBinary())` (ciphertext). Since they never match, Sync would detect a change on **every** file on **every** run, re-downloading and rewriting the whole vault forever.
+- **Defense:** `MetadataHashPatch` replaces the hash exposed by `metadataCache.getFileInfo()` with the ciphertext hash (the one Sync actually compares), without mutating the original metadata cache entry so links, footnotes and frontmatter keep working.
+
+### 🛡️ Encrypted Note Publication Block (Obsidian Publish)
+- **Threat:** Obsidian Publish uploads notes to a **public website** and reads them through `vault.readBinary(file)`, the same path that hands the cleartext to the indexer.
+- **Defense:** `PublishGuard` intercepts the internal `publish` plugin's `apiUploadFile()` and **rejects** the upload of any file that is encrypted on disk, with an actionable message pointing to "Decrypt everything".
+- **Guarantee:** The cleartext of an encrypted note is never published; plaintext notes (excluded folders) publish normally.
+
 ### 🛡️ Guaranteed Memory Zeroization on Error Paths
 - **Unconditional Cleanup:** Sensitive cryptographic scrubbing (`zeroize()`) is enforced inside `finally` blocks across all critical cryptographic pathways.
 - **Defense:** In the event of an unexpected exception or failure, intermediate keys and password buffers are immediately overwritten with zeros in RAM, preventing memory inspection attacks.

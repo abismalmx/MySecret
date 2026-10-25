@@ -10,6 +10,7 @@
 import { App, TFile } from 'obsidian';
 import { PathFilter } from './path-filter';
 import { KeyManager } from '../crypto/key-manager';
+import { decryptContainer, toArrayBuffer } from './decrypt';
 
 const MIME_MAP: Record<string, string> = {
   png: 'image/png',
@@ -110,12 +111,25 @@ export class MediaManager {
 
     const resolutionPromise = (async () => {
       try {
-        // adapter.readBinary triggers the transparent decryption in AdapterInterceptor
-        const decryptedBuffer = await this.app.vault.adapter.readBinary(norm);
-        if (!decryptedBuffer || decryptedBuffer.byteLength === 0) {
+        // The raw adapter returns the bytes as they are on disk, so the
+        // decryption has to be performed explicitly here.
+        //
+        // SECURITY: `adapter.readBinary` intentionally does NOT decrypt,
+        // because Obsidian Sync reads the files through the raw adapter and
+        // would otherwise upload the cleartext to the cloud.
+        const rawBuffer = await this.app.vault.adapter.readBinary(norm);
+        if (!rawBuffer || rawBuffer.byteLength === 0) {
           return null;
         }
 
+        const rawBytes = new Uint8Array(rawBuffer);
+        const outcome = await decryptContainer(
+          rawBytes,
+          norm,
+          this.keyManager
+        );
+
+        const decryptedBuffer = toArrayBuffer(outcome.bytes);
         const mime = this.getMimeType(norm);
         const blob = new Blob([decryptedBuffer], { type: mime });
         const blobUrl = URL.createObjectURL(blob);

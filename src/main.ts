@@ -9,6 +9,8 @@ import { PLUGIN_ID, VAULT_ENVELOPE_PATH, VAULT_ENVELOPE_FILENAME } from './const
 import { PathFilter } from './adapter/path-filter';
 import { KeyManager } from './crypto/key-manager';
 import { AdapterInterceptor } from './adapter/adapter-interceptor';
+import { MetadataHashPatch } from './adapter/metadata-hash-patch';
+import { PublishGuard } from './adapter/publish-guard';
 import { MediaManager } from './adapter/media-manager';
 import { MySecretSettingTab } from './ui/settings-tab';
 import { LockScreenModal } from './ui/lock-screen';
@@ -63,6 +65,8 @@ export default class MySecretPlugin extends Plugin {
   public biometricManager!: BiometricManager;
   public interceptor!: AdapterInterceptor;
   public mediaManager!: MediaManager;
+  public metadataHashPatch?: MetadataHashPatch;
+  public publishGuard?: PublishGuard;
 
   private inactivityTimer: any = null;
   private autoBackupIntervalTimer: any = null;
@@ -109,16 +113,48 @@ export default class MySecretPlugin extends Plugin {
       this.app.vault.adapter,
       this.pathFilter,
       this.keyManager,
-      this.mediaManager
+      this.mediaManager,
+      this.app.vault
     );
     this.interceptor.install();
 
-    // 3b. Transparent media rendering in Reading View and markdown cards
+    // 3a. Install the Vault.readBinary() hook.
+    //
+    // SECURITY (confidentiality): the transparent decryption of the notes is
+    // performed HERE and not in the DataAdapter hook, because Obsidian Sync
+    // reads the files through `app.vault.adapter.readBinary(path)` (direct
+    // call) while the metadata indexer reads them through
+    // `vault.readBinary(file)`. Decrypting only at the Vault level keeps the
+    // cleartext away from the sync engine (which would otherwise upload the
+    // notes in cleartext to the cloud).
+    this.interceptor.installVaultHooks();
+
+    // 3b. Keep the metadata cache hash aligned with the hash computed by
+    // Obsidian Sync.
+    //
+    // The metadata indexer hashes the PLAINTEXT (`vault.readBinary`) while
+    // Sync hashes the CIPHERTEXT (`adapter.readBinary`). Without this patch
+    // the two hashes would never match and Sync would re-download and
+    // re-write the whole vault on every single run.
+    this.metadataHashPatch = new MetadataHashPatch(this.app);
+    this.metadataHashPatch.install();
+    this.interceptor.setMetadataHashPatch(this.metadataHashPatch);
+
+    // 3c. Block the publication of encrypted notes.
+    //
+    // SECURITY (confidentiality): Obsidian Publish uploads the notes to a
+    // PUBLIC website, and it reads them through `vault.readBinary()` (the
+    // very hook that hands the cleartext to the metadata indexer). Without
+    // this guard the encrypted notes would be published in cleartext.
+    this.publishGuard = new PublishGuard(this.app);
+    this.publishGuard.install();
+
+    // 3c. Transparent media rendering in Reading View and markdown cards
     this.registerMarkdownPostProcessor((element) => {
       this.mediaManager.scanAndPatch(element);
     });
 
-    // 3c. Re-bind the encryption AAD when Obsidian renames a file or folder.
+    // 3d. Re-bind the encryption AAD when Obsidian renames a file or folder.
     //
     // SECURITY / DATA INTEGRITY: the AES-GCM additional authenticated data is
     // bound to the normalized vault path. If a file is renamed and the AAD is
@@ -283,6 +319,8 @@ export default class MySecretPlugin extends Plugin {
     // Securely wipe RAM and uninstall hooks
     this.keyManager.lock();
     this.interceptor.uninstall();
+    this.metadataHashPatch?.uninstall();
+    this.publishGuard?.uninstall();
   }
 
   public async loadSettings(): Promise<void> {
@@ -738,6 +776,27 @@ export default class MySecretPlugin extends Plugin {
     }
     // Restore notes that were open before locking
     void this.restoreSavedOpenNotes();
+
+    // Re-index encrypted notes whose metadata is missing or unindexed
+    try {
+      const metaCache = this.app.metadataCache as any;
+      if (typeof metaCache?.computeFileMetadataAsync === 'function') {
+        const files = this.app.vault.getMarkdownFiles();
+        for (const file of files) {
+          if (this.pathFilter.shouldEncrypt(file.path)) {
+            const existing = metaCache.getFileCache?.(file);
+            if (!existing || (!existing.headings && !existing.links && !existing.footnotes)) {
+              if (metaCache.fileCache && metaCache.fileCache[file.path]) {
+                delete metaCache.fileCache[file.path];
+              }
+              void metaCache.computeFileMetadataAsync(file);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[MySecret] Error re-indexing files after unlock:', err);
+    }
   }
 
   public onLockModalClosed(modal: LockScreenModal): void {

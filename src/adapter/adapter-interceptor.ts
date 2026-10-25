@@ -3,12 +3,13 @@
  * Transparent DataAdapter Interceptor (VaultAdapter Hook)
  */
 
-import { DataAdapter, TAbstractFile, TFolder } from 'obsidian';
+import { DataAdapter, TAbstractFile, TFile, TFolder, Vault } from 'obsidian';
 import { PathFilter } from './path-filter';
 import { KeyManager } from '../crypto/key-manager';
 import { encryptAesGcm, decryptAesGcm } from '../crypto/aes';
 import {
   isArmoredEncrypted,
+  isArmoredBytesEncrypted,
   serializeArmored,
   deserializeArmored,
   isBinaryEncrypted,
@@ -16,6 +17,13 @@ import {
   deserializeBinary
 } from '../crypto/envelope';
 import { stringToBytes, bytesToString } from '../utils/buffer';
+import {
+  detectContainerFormat,
+  decryptContainer,
+  isAuthenticContainer,
+  toArrayBuffer
+} from './decrypt';
+import { MetadataHashPatch } from './metadata-hash-patch';
 
 import { MediaManager } from './media-manager';
 
@@ -25,6 +33,21 @@ export class AdapterInterceptor {
   private keyManager: KeyManager;
   private mediaManager?: MediaManager;
   private isHooked: boolean = false;
+
+  /**
+   * The Obsidian `Vault` instance.
+   *
+   * It is required to intercept `Vault.readBinary()`, which is a DIFFERENT
+   * entry point than `DataAdapter.readBinary()` (see the install() method for
+   * the full rationale).
+   */
+  private vault?: Vault;
+
+  /**
+   * Keeps the hash of the metadata cache aligned with the hash that
+   * Obsidian Sync computes (the hash of the ciphertext).
+   */
+  private metadataHashPatch?: MetadataHashPatch;
 
   // Stored original adapter methods
   private origRead!: (path: string) => Promise<string>;
@@ -39,15 +62,35 @@ export class AdapterInterceptor {
   private origStat!: (path: string) => Promise<{ type: string } | null>;
   private origGetResourcePath!: (path: string) => string;
 
-  constructor(adapter: DataAdapter, pathFilter: PathFilter, keyManager: KeyManager, mediaManager?: MediaManager) {
+  /**
+   * Original `Vault.readBinary`, restored on uninstall.
+   */
+  private origVaultReadBinary?: (file: TFile) => Promise<ArrayBuffer>;
+
+  constructor(
+    adapter: DataAdapter,
+    pathFilter: PathFilter,
+    keyManager: KeyManager,
+    mediaManager?: MediaManager,
+    vault?: Vault
+  ) {
     this.adapter = adapter;
     this.pathFilter = pathFilter;
     this.keyManager = keyManager;
     this.mediaManager = mediaManager;
+    this.vault = vault;
   }
 
   public setMediaManager(mediaManager: MediaManager): void {
     this.mediaManager = mediaManager;
+  }
+
+  /**
+   * Attaches the patch that keeps the metadata cache hash aligned with the
+   * hash that Obsidian Sync computes.
+   */
+  public setMetadataHashPatch(patch: MetadataHashPatch): void {
+    this.metadataHashPatch = patch;
   }
 
   /**
@@ -142,6 +185,22 @@ export class AdapterInterceptor {
         throw new Error('[MySecret] Vault key unavailable in memory');
       }
 
+      // DATA INTEGRITY / ANTI DOUBLE-ENCRYPTION:
+      //
+      // Obsidian Sync writes back the ciphertext it downloaded. Encrypting it
+      // again would produce a doubly encrypted note that could never be
+      // decrypted. The payload is stored verbatim when it is a valid,
+      // AUTHENTICATED MySecret container for that exact path.
+      if (
+        await isAuthenticContainer(
+          stringToBytes(data),
+          self.pathFilter.normalizePath(path),
+          self.keyManager
+        )
+      ) {
+        return await self.origWrite(path, data, options);
+      }
+
       const plainBytes = stringToBytes(data);
       const encResult = await encryptAesGcm(
         plainBytes,
@@ -160,41 +219,34 @@ export class AdapterInterceptor {
     };
 
     // 3. Hook readBinary
+    //
+    // SECURITY (confidentiality): this hook returns the RAW ON-DISK BYTES.
+    //
+    // The transparent decryption was originally implemented here because
+    // Obsidian's metadata indexer reads notes through
+    // `MetadataCache -> vault.readBinary(file) -> adapter.readBinary(path)`.
+    // Decrypting in this hook therefore fixed the footnote indexing, but it
+    // ALSO handed the cleartext to every other consumer of the raw adapter,
+    // most importantly:
+    //
+    //   * Obsidian Sync  -> `app.vault.adapter.readBinary(path)` (direct call,
+    //     it never goes through `vault.readBinary`). It would have uploaded
+    //     the cleartext of every note to the cloud.
+    //   * Obsidian Publish -> `vault.readBinary(file)`, which would have
+    //     published the cleartext to a public website.
+    //
+    // The two consumers can be told apart WITHOUT relying on private APIs:
+    // the indexer (and Publish) go through `Vault.readBinary(file)`, while Sync
+    // calls the `DataAdapter` directly. Decryption is therefore moved to the
+    // `Vault.readBinary` hook (see `installVaultHooks`), and this hook keeps
+    // returning exactly what is on disk.
+    //
+    // This also fixes a silent data-corruption bug: Obsidian Sync downloads
+    // the ciphertext and writes it back with `adapter.writeBinary`. With the
+    // previous implementation the downloaded ciphertext was encrypted a SECOND
+    // time, producing a doubly-encrypted file that could never be decrypted.
     a.readBinary = async function (path: string): Promise<ArrayBuffer> {
-      if (!self.pathFilter.shouldEncrypt(path)) {
-        return await self.origReadBinary(path);
-      }
-
-      if (self.keyManager.isLocked) {
-        throw new Error(`[MySecret] Access denied: Vault is locked (${path})`);
-      }
-
-      const rawBuffer = await self.origReadBinary(path);
-      const rawBytes = new Uint8Array(rawBuffer);
-
-      if (!isBinaryEncrypted(rawBytes)) {
-        return rawBuffer;
-      }
-
-      const vaultKey = self.keyManager.getVaultKey();
-      if (!vaultKey) {
-        throw new Error('[MySecret] Vault key unavailable in memory');
-      }
-
-      try {
-        const payload = deserializeBinary(rawBytes);
-        const decrypted = await decryptAesGcm(
-          payload.ciphertext,
-          vaultKey,
-          payload.iv,
-          payload.tag,
-          self.pathFilter.normalizePath(path)
-        );
-        return decrypted.buffer as ArrayBuffer;
-      } catch (err) {
-        console.error(`[MySecret] Failed to decrypt binary ${path}:`, err);
-        throw new Error(`[MySecret] Binary decryption failed for ${path}`);
-      }
+      return await self.origReadBinary(path);
     };
 
     // 4. Hook writeBinary
@@ -207,17 +259,41 @@ export class AdapterInterceptor {
         throw new Error(`[MySecret] Cannot write binary while vault is locked (${path})`);
       }
 
-      // Immediately cache plaintext media so pasted attachments display instantaneously
-      if (self.mediaManager) {
-        self.mediaManager.registerPlaintextMedia(path, data);
-      }
-
       const vaultKey = self.keyManager.getVaultKey();
       if (!vaultKey) {
         throw new Error('[MySecret] Vault key unavailable in memory');
       }
 
       const plainBytes = new Uint8Array(data);
+
+      // DATA INTEGRITY / ANTI DOUBLE-ENCRYPTION:
+      //
+      // Obsidian Sync downloads the ciphertext of a file and writes it back
+      // verbatim through `vault.modifyBinary()` -> `adapter.writeBinary()`.
+      // Encrypting that payload again would produce a DOUBLY encrypted file
+      // that could never be decrypted (the outer layer would authenticate the
+      // inner ciphertext instead of the note), silently destroying the vault.
+      //
+      // The payload is therefore stored verbatim when it is a valid,
+      // AUTHENTICATED MySecret container for that exact path. The check is
+      // cryptographic (it decrypts and verifies the GCM tag using the path as
+      // AAD), so a file that merely looks like a container is still encrypted
+      // normally and never leaks in cleartext.
+      if (
+        await isAuthenticContainer(
+          plainBytes,
+          self.pathFilter.normalizePath(path),
+          self.keyManager
+        )
+      ) {
+        return await self.origWriteBinary(path, toArrayBuffer(plainBytes), options);
+      }
+
+      // Immediately cache plaintext media so pasted attachments display instantaneously
+      if (self.mediaManager) {
+        self.mediaManager.registerPlaintextMedia(path, data);
+      }
+
       const encResult = await encryptAesGcm(
         plainBytes,
         vaultKey,
@@ -231,7 +307,7 @@ export class AdapterInterceptor {
         ciphertext: encResult.ciphertext
       });
 
-      return await self.origWriteBinary(path, binaryEncrypted.buffer as ArrayBuffer, options);
+      return await self.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
     };
 
     // 5. Hook append
@@ -241,10 +317,31 @@ export class AdapterInterceptor {
           return await self.origAppend(path, data, options);
         }
         // Decrypt current, append in memory, and re-encrypt
-        let existing = '';
+        //
+        // DATA INTEGRITY: a read failure must NEVER be swallowed here. If the
+        // existing content cannot be read (locked vault, wrong AAD, corrupted
+        // ciphertext), falling back to an empty string would silently REPLACE
+        // the note with just the appended fragment, destroying the user's data.
+        // The error is propagated instead.
+        let existing: string;
         try {
           existing = await a.read(path);
-        } catch {
+        } catch (err: any) {
+          // A genuinely missing file is the only case where starting from an
+          // empty buffer is correct.
+          let exists = false;
+          if (typeof self.adapter.exists === 'function') {
+            try {
+              exists = await self.adapter.exists(path);
+            } catch {
+              exists = false;
+            }
+          }
+          if (exists) {
+            throw new Error(
+              `[MySecret] Refusing to append to ${path}: the existing content could not be read (${err?.message || err}).`
+            );
+          }
           existing = '';
         }
         await a.write(path, existing + data, options);
@@ -272,7 +369,20 @@ export class AdapterInterceptor {
         }
 
         // Decrypt the current content, append, and re-encrypt everything.
+        //
+        // DATA INTEGRITY: as with `append`, a read failure must not be
+        // swallowed. Swallowing it would silently truncate the attachment to
+        // just the appended bytes.
         let existingBytes: Uint8Array = new Uint8Array(0);
+        let fileExists = false;
+        if (typeof self.adapter.exists === 'function') {
+          try {
+            fileExists = await self.adapter.exists(path);
+          } catch {
+            fileExists = false;
+          }
+        }
+
         try {
           const rawBuffer = await self.origReadBinary(path);
           const rawBytes = new Uint8Array(rawBuffer);
@@ -285,11 +395,23 @@ export class AdapterInterceptor {
               payload.tag,
               self.pathFilter.normalizePath(path)
             );
+          } else if (isArmoredBytesEncrypted(rawBytes)) {
+            // The target is an armored TEXT note (e.g. a Markdown file). The
+            // binary envelope cannot be appended to it without destroying the
+            // note, so it is rejected explicitly instead of being corrupted.
+            throw new Error(
+              `[MySecret] Refusing to append binary data to the text note ${path}.`
+            );
           } else {
             existingBytes = rawBytes;
           }
-        } catch {
-          // A missing or unreadable file starts empty.
+        } catch (err: any) {
+          if (fileExists) {
+            throw new Error(
+              `[MySecret] Refusing to append to ${path}: the existing content could not be read (${err?.message || err}).`
+            );
+          }
+          // A genuinely missing file starts empty.
           existingBytes = new Uint8Array(0);
         }
 
@@ -316,21 +438,53 @@ export class AdapterInterceptor {
     }
 
     // 6. Hook process
-    if (a.process) {
-      a.process = async function (
-        path: string,
-        fn: (data: string) => string,
-        options?: any
-      ): Promise<string> {
-        if (!self.pathFilter.shouldEncrypt(path)) {
+    a.process = async function (
+      path: string,
+      fn: (data: string) => string,
+      options?: any
+    ): Promise<string> {
+      if (!self.pathFilter.shouldEncrypt(path)) {
+        if (self.origProcess) {
           return await self.origProcess(path, fn, options);
         }
-        const currentText = await a.read(path);
-        const processed = fn(currentText);
-        await a.write(path, processed, options);
+        let plain = '';
+        try {
+          plain = await self.origRead(path);
+        } catch {
+          plain = '';
+        }
+        const processed = fn(plain);
+        await self.origWrite(path, processed, options);
         return processed;
-      };
-    }
+      }
+
+      // Check if file exists. If it exists, read MUST succeed; if read fails
+      // (e.g. vault locked or decryption error), we MUST throw to prevent overwriting
+      // existing user notes with empty text.
+      let exists = false;
+      if (typeof self.adapter.exists === 'function') {
+        try {
+          exists = await self.adapter.exists(path);
+        } catch {
+          exists = false;
+        }
+      }
+
+      let currentText = '';
+      if (exists) {
+        currentText = await a.read(path);
+      } else {
+        try {
+          currentText = await a.read(path);
+        } catch {
+          currentText = '';
+        }
+      }
+
+      const processed = fn(currentText);
+      await a.write(path, processed, options);
+      return processed;
+    };
 
     // 7. Hook copy
     //
@@ -360,6 +514,95 @@ export class AdapterInterceptor {
     }
 
     this.isHooked = true;
+  }
+
+  /**
+   * Installs the `Vault.readBinary()` hook.
+   *
+   * WHY THIS HOOK EXISTS: the metadata indexer of Obsidian (which extracts
+   * the footnotes, the links and the frontmatter) reads a note through
+   * `MetadataCache.computeFileMetadataAsync()` ->
+   * `vault.readBinary(file)` -> `adapter.readBinary(file.path)`.
+   *
+   * Because `Vault.readBinary` is a *different* entry point from
+   * `DataAdapter.readBinary`, hooking it lets the plugin decrypt the notes
+   * for the indexer while keeping the raw adapter (used by Obsidian Sync)
+   * untouched. The cleartext is therefore never exposed to the sync engine.
+   *
+   * The hook is idempotent and it is safe to call it when the `Vault`
+   * instance was not provided (e.g. in unit tests).
+   */
+  public installVaultHooks(): void {
+    const vault = this.vault;
+    if (!vault) return;
+
+    const v = vault as any;
+    if (!v.readBinary) return;
+
+    if (!this.origVaultReadBinary) {
+      this.origVaultReadBinary = v.readBinary.bind(vault);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- Preserve interceptor instance context across patched methods
+    const self = this;
+
+    v.readBinary = async function (file: TFile): Promise<ArrayBuffer> {
+      const path = file?.path;
+
+      if (!path || !self.pathFilter.shouldEncrypt(path)) {
+        return await self.origVaultReadBinary!(file);
+      }
+
+      if (self.keyManager.isLocked) {
+        throw new Error(`[MySecret] Access denied: Vault is locked (${path})`);
+      }
+
+      const rawBuffer = await self.origVaultReadBinary!(file);
+      const rawBytes = new Uint8Array(rawBuffer);
+
+      // Files that are not encrypted on disk (e.g. before the initial
+      // migration) are returned untouched.
+      const format = detectContainerFormat(rawBytes);
+      if (format === 'plain') {
+        return rawBuffer;
+      }
+
+      try {
+        // Keep the metadata cache hash aligned with the hash that Obsidian
+        // Sync computes (the hash of the CIPHERTEXT). Without this, Sync
+        // would detect a change on every file on every run.
+        await self.metadataHashPatch?.recordCiphertextHashFromBytes(path, rawBytes);
+
+        const outcome = await decryptContainer(
+          rawBytes,
+          self.pathFilter.normalizePath(path),
+          self.keyManager
+        );
+
+        // The original `Vault.readBinary()` caches the RAW bytes it read in
+        // the `TFile` object (`file.cache(decoded)`), so the CIPHERTEXT would
+        // end up in the in-memory cache of the note. `Vault.cachedRead()`
+        // would then return the armored content to the editor, and the user
+        // would see the raw envelope instead of the note.
+        //
+        // The cache is therefore overwritten with the plaintext, so that
+        // `cachedRead()` stays consistent with `read()`.
+        if (typeof (file as any)?.cache === 'function') {
+          try {
+            (file as any).cache(new TextDecoder().decode(outcome.bytes));
+          } catch (err) {
+            // A failure to update the cache is not fatal: `cachedRead()` will
+            // simply fall back to reading the file again.
+            console.warn(`[MySecret] Could not refresh the in-memory cache of ${path}:`, err);
+          }
+        }
+
+        return toArrayBuffer(outcome.bytes);
+      } catch (err) {
+        console.error(`[MySecret] Failed to decrypt ${path} for the metadata indexer:`, err);
+        throw new Error(`[MySecret] Decryption failed for ${path}: Authentication check failed`);
+      }
+    };
   }
 
   /**
@@ -480,6 +723,15 @@ export class AdapterInterceptor {
   }
 
   /**
+   * Returns an ArrayBuffer that contains exactly the bytes of `data`.
+   *
+   * @deprecated Use the shared {@link toArrayBuffer} helper from `./decrypt`.
+   */
+  private toArrayBuffer(data: Uint8Array): ArrayBuffer {
+    return toArrayBuffer(data);
+  }
+
+  /**
    * Re-binds the AES-GCM AAD of a file after it has been moved or copied.
    *
    * The file is read from disk in its *current* (encrypted with the old AAD)
@@ -509,10 +761,47 @@ export class AdapterInterceptor {
     const oldAad = this.pathFilter.normalizePath(fromAbs);
     const newAad = this.pathFilter.normalizePath(toAbs);
 
-    // --- Text files ---
-    const rawText = await this.origRead(toAbs);
-    if (isArmoredEncrypted(rawText)) {
-      const payload = deserializeArmored(rawText);
+    /*
+     * DATA INTEGRITY: the container format is detected from the RAW BYTES, not
+     * by reading the file as text first.
+     *
+     * The previous implementation read the file with `origRead()` (UTF-8) and
+     * only then decided whether it was a text or a binary file. That was wrong
+     * in two ways:
+     *
+     *  1. A *plaintext* Markdown note fell through to the binary branch (the
+     *     text branch had no `return` after re-encrypting it), so the file was
+     *     encrypted a second time as a binary container: the note became an
+     *     unreadable blob.
+     *  2. An *encrypted binary* attachment was decoded as UTF-8 (producing
+     *     mojibake) and treated as plaintext, so the original bytes were
+     *     replaced by corrupted data. The attachment was irrecoverably lost.
+     */
+    const rawBuffer = await this.origReadBinary(toAbs);
+    const rawBytes = new Uint8Array(rawBuffer);
+
+    // --- Encrypted BINARY container (attachments) ---
+    if (isBinaryEncrypted(rawBytes)) {
+      const payload = deserializeBinary(rawBytes);
+      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      if (!shouldEncryptNew) {
+        await this.origWriteBinary(toAbs, this.toArrayBuffer(plain));
+        return;
+      }
+      const enc = await encryptAesGcm(plain, vaultKey, newAad);
+      const binEnc = serializeBinary({
+        version: 1,
+        iv: enc.iv,
+        tag: enc.tag,
+        ciphertext: enc.ciphertext
+      });
+      await this.origWriteBinary(toAbs, this.toArrayBuffer(binEnc));
+      return;
+    }
+
+    // --- Encrypted TEXT container (armored Markdown notes) ---
+    if (isArmoredBytesEncrypted(rawBytes)) {
+      const payload = deserializeArmored(bytesToString(rawBytes));
       const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
       if (!shouldEncryptNew) {
         await this.origWrite(toAbs, bytesToString(plain));
@@ -528,48 +817,61 @@ export class AdapterInterceptor {
       return;
     }
 
-    // Plaintext file: encrypt it only if the new location requires it.
-    if (shouldEncryptNew) {
-      const enc = await encryptAesGcm(stringToBytes(rawText), vaultKey, newAad);
+    // --- Plaintext file ---
+    // Nothing to do when the destination does not require encryption.
+    if (!shouldEncryptNew) {
+      return;
+    }
+
+    const isTextNote = this.pathFilter.isTextNote(toAbs);
+    if (isTextNote) {
+      const enc = await encryptAesGcm(rawBytes, vaultKey, newAad);
       await this.origWrite(toAbs, serializeArmored({
         version: 1,
         iv: enc.iv,
         tag: enc.tag,
         ciphertext: enc.ciphertext
       }));
-    }
-
-    // --- Binary files ---
-    const rawBuffer = await this.origReadBinary(toAbs);
-    const rawBytes = new Uint8Array(rawBuffer);
-    if (isBinaryEncrypted(rawBytes)) {
-      const payload = deserializeBinary(rawBytes);
-      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
-      if (!shouldEncryptNew) {
-        await this.origWriteBinary(toAbs, plain.buffer as ArrayBuffer);
-        return;
-      }
-      const enc = await encryptAesGcm(plain, vaultKey, newAad);
-      const binEnc = serializeBinary({
-        version: 1,
-        iv: enc.iv,
-        tag: enc.tag,
-        ciphertext: enc.ciphertext
-      });
-      await this.origWriteBinary(toAbs, binEnc.buffer as ArrayBuffer);
       return;
     }
 
-    if (shouldEncryptNew) {
-      const enc = await encryptAesGcm(rawBytes, vaultKey, newAad);
-      const binEnc = serializeBinary({
-        version: 1,
-        iv: enc.iv,
-        tag: enc.tag,
-        ciphertext: enc.ciphertext
-      });
-      await this.origWriteBinary(toAbs, binEnc.buffer as ArrayBuffer);
+    const enc = await encryptAesGcm(rawBytes, vaultKey, newAad);
+    const binEnc = serializeBinary({
+      version: 1,
+      iv: enc.iv,
+      tag: enc.tag,
+      ciphertext: enc.ciphertext
+    });
+    await this.origWriteBinary(toAbs, this.toArrayBuffer(binEnc));
+  }
+
+  /**
+   * Reads a file and returns its PLAINTEXT bytes.
+   *
+   * The raw `DataAdapter.readBinary()` intentionally returns the bytes as they
+   * are on disk (so that Obsidian Sync never sees the cleartext). The
+   * consumers that legitimately need the plaintext (the "decrypted" backup
+   * export and the "decrypt everything" migration) must use this method
+   * instead of the raw adapter.
+   *
+   * @param path The vault-relative path of the file.
+   * @returns The decrypted bytes (or the original bytes when the file was not
+   *          encrypted on disk).
+   */
+  public async readPlaintextBinary(path: string): Promise<Uint8Array> {
+    const rawBuffer = await this.origReadBinary(path);
+    const rawBytes = new Uint8Array(rawBuffer);
+
+    if (!this.pathFilter.shouldEncrypt(path)) {
+      return rawBytes;
     }
+
+    const outcome = await decryptContainer(
+      rawBytes,
+      this.pathFilter.normalizePath(path),
+      this.keyManager
+    );
+    return outcome.bytes;
   }
 
   /**
@@ -588,6 +890,12 @@ export class AdapterInterceptor {
     if (this.origProcess) a.process = this.origProcess;
     if (this.origCopy) a.copy = this.origCopy;
     if (this.origGetResourcePath) a.getResourcePath = this.origGetResourcePath;
+
+    // Restore the original Vault.readBinary as well.
+    if (this.vault && this.origVaultReadBinary) {
+      (this.vault as any).readBinary = this.origVaultReadBinary;
+      this.origVaultReadBinary = undefined;
+    }
 
     this.isHooked = false;
   }

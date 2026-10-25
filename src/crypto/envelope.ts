@@ -23,6 +23,30 @@ export function isArmoredEncrypted(text: string): boolean {
 }
 
 /**
+ * Checks if a byte buffer contains the armored encryption header without decoding the entire buffer
+ */
+export function isArmoredBytesEncrypted(data: Uint8Array): boolean {
+  if (!data || data.length < ARMORED_HEADER_START.length) return false;
+  let i = 0;
+  // Skip UTF-8 BOM if present (0xEF, 0xBB, 0xBF)
+  if (data.length >= 3 && data[0] === 0xEF && data[1] === 0xBB && data[2] === 0xBF) {
+    i = 3;
+  }
+  // Skip leading whitespace bytes (space 32, tab 9, \r 13, \n 10)
+  while (i < data.length && (data[i] === 32 || data[i] === 9 || data[i] === 13 || data[i] === 10)) {
+    i++;
+  }
+  if (data.length - i < ARMORED_HEADER_START.length) return false;
+  for (let j = 0; j < ARMORED_HEADER_START.length; j++) {
+    if (data[i + j] !== ARMORED_HEADER_START.charCodeAt(j)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+/**
  * Serializes an EncryptedPayload into safe Armored ASCII text (CRLF/LF immune)
  */
 export function serializeArmored(payload: EncryptedPayload): string {

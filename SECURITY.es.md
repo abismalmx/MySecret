@@ -38,6 +38,26 @@ A continuación se detallan las medidas de endurecimiento activas contra vectore
 - **Intercepción Completa:** Intercepción transparente de todos los métodos del adaptador de almacenamiento de Obsidian: `read`, `write`, `readBinary`, `writeBinary`, `append` y `appendBinary`.
 - **Garantía:** Ningún flujo de escritura en disco elude el motor de cifrado; los adjuntos binarios grandes y las notas se cifran en streaming antes de tocar el sistema de ficheros.
 
+### 🛡️ Separación de Superficies: Cifrado en Disco vs. Texto Claro en Memoria
+- **Superficie del Adaptador (`DataAdapter.readBinary`):** Devuelve **exactamente los bytes almacenados en disco** (el ciphertext). Nunca devuelve texto claro.
+- **Superficie de la Bóveda (`Vault.readBinary`):** Devuelve el **texto claro** descifrado, y es la única superficie que usa el indexador de metadatos de Obsidian (`MetadataCache.computeFileMetadataAsync`) para extraer enlaces, notas al pie y frontmatter.
+- **Por qué la separación es necesaria:** Obsidian **Sync** lee los archivos mediante `app.vault.adapter.readBinary(path)` (llamada directa al adaptador), mientras que el indexador y Obsidian **Publish** usan `vault.readBinary(file)`. Descifrar en el adaptador exponía el texto claro de **todas** las notas al motor de sincronización, que las subía a la nube en claro.
+- **Resultado:** Las notas blindadas siguen siendo indexables (notas al pie, enlaces y búsqueda funcionan) sin que el texto claro salga nunca del proceso hacia Obsidian Sync.
+
+### 🛡️ Integridad contra el Doble Cifrado (Anti Double-Encryption)
+- **Amenaza:** Obsidian Sync descarga el ciphertext de un archivo y lo reescribe **literalmente** en disco mediante `vault.modifyBinary()` → `adapter.writeBinary()`. Si el hook de escritura lo cifrara de nuevo, el archivo quedaría cifrado **dos veces** y sería ilegible de forma permanente.
+- **Defensa:** Antes de cifrar, los hooks `write` y `writeBinary` comprueban si los bytes ya constituyen un **contenedor MySecret autenticado** para esa ruta concreta, verificando criptográficamente la etiqueta GCM con el AAD (la ruta) como datos asociados.
+- **Garantía:** Solo un contenedor producido por MySecret para esa ruta se almacena tal cual; un archivo que *parezca* un contenedor (p. ej. una imagen que empiece por los bytes `MYSE`) se cifra normalmente y nunca queda en claro.
+
+### 🛡️ Alineación del Hash del MetadataCache con Obsidian Sync
+- **Amenaza:** El indexador de metadatos calcula `SHA-256(vault.readBinary())` (texto claro) mientras que Sync calcula `SHA-256(adapter.readBinary())` (ciphertext). Como nunca coinciden, Sync detectaría un cambio en **todos** los archivos en **cada** ejecución, re-descargando y reescribiendo la bóveda entera indefinidamente.
+- **Defensa:** `MetadataHashPatch` sustituye el hash expuesto por `metadataCache.getFileInfo()` por el hash del ciphertext (el que Sync realmente compara), sin mutar la entrada original del cache de metadatos para no perder enlaces, notas al pie ni frontmatter.
+
+### 🛡️ Bloqueo de la Publicación de Notas Cifradas (Obsidian Publish)
+- **Amenaza:** Obsidian Publish sube las notas a un **sitio web público** y las lee mediante `vault.readBinary(file)`, la misma ruta que entrega el texto claro al indexador.
+- **Defensa:** `PublishGuard` intercepta `apiUploadFile()` del plugin interno `publish` y **rechaza** la subida de cualquier archivo que esté cifrado en disco, con un mensaje accionable que indica usar «Descifrar todo».
+- **Garantía:** Nunca se publica texto claro de una nota blindada; las notas en texto plano (carpetas excluidas) se publican con normalidad.
+
 ### 🛡️ Zeroización de Memoria Garantizada en Rutas de Error
 - **Limpieza Incondicional:** La rutina criptográfica de borrado de memoria (`zeroize()`) se ejecuta dentro de bloques `finally` en todas las operaciones críticas.
 - **Defensa:** Ante cualquier error o excepción, las claves intermedias y los fragmentos de contraseñas son inmediatamente sobrescritos con ceros en RAM, evitando fugas por inspección de memoria residual.
