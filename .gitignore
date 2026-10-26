@@ -47,3 +47,6 @@ Thumbs.db
 *.tar.gz
 *.bak
 scratch/
+
+# Auditoria de seguridad (informes locales, nunca se versionan)
+.auditor_security/
