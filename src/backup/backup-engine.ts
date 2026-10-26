@@ -91,6 +91,7 @@ export class BackupEngine {
       // skipped instead of breaking the whole backup.
       if (hasForbiddenSegment(path)) {
         console.warn(`[MySecret] Skipped unsafe file name in backup: ${path}`);
+        skipped.push({ path, reason: 'reserved path segment (__proto__)' });
         continue;
       }
 

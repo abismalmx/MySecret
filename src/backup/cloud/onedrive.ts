@@ -4,7 +4,8 @@
  */
 
 import { requestHttp, toExactArrayBuffer } from '../../utils/http';
-import { CloudProvider, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { CloudProvider, CloudPruneResult, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { selectBackupsToDelete } from './retention';
 
 export class OneDriveProvider implements CloudProvider {
   public readonly id = 'onedrive';
@@ -104,5 +105,47 @@ export class OneDriveProvider implements CloudProvider {
         message: `Error de red al subir a OneDrive: ${err?.message || String(err)}`
       };
     }
+  }
+
+  /**
+   * OneDrive sends deleted items to the recycle bin (recoverable).
+   */
+  public async pruneBackups(filenamePrefix: string, keep: number): Promise<CloudPruneResult> {
+    if (!this.accessToken) return { deleted: 0, failed: 0, message: 'Token de acceso no configurado.' };
+    const auth = { Authorization: `Bearer ${this.accessToken}`, Accept: 'application/json' };
+    const safeFolder = encodeURIComponent(this.folderPath).replace(/%2F/g, '/');
+
+    const items: Array<{ id: string; name: string }> = [];
+    let url: string | null =
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${safeFolder}:/children?$select=id,name&$top=200`;
+    while (url) {
+      const res = await requestHttp({ url, method: 'GET', headers: auth });
+      if (res.status !== 200 || !res.json) {
+        return { deleted: 0, failed: 0, message: `No se pudo listar OneDrive (Código ${res.status}).` };
+      }
+      for (const f of res.json.value || []) {
+        if (f && typeof f.id === 'string' && typeof f.name === 'string') items.push(f);
+      }
+      const next: unknown = res.json['@odata.nextLink'];
+      // Only follow pagination links that stay on Microsoft Graph.
+      url = typeof next === 'string' && next.startsWith('https://graph.microsoft.com/') ? next : null;
+    }
+
+    let deleted = 0;
+    let failed = 0;
+    for (const item of selectBackupsToDelete(items, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(item.id)}`,
+          method: 'DELETE',
+          headers: auth
+        });
+        if (res.status === 204 || res.status === 200 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 }

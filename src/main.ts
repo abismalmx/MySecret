@@ -24,7 +24,7 @@ import { ChangePasswordModal } from './ui/change-password-modal';
 import { RecoveryPhraseModal } from './ui/recovery-phrase-modal';
 import { ReauthModal } from './ui/reauth-modal';
 import { BackupEngine } from './backup/backup-engine';
-import { createCloudProvider } from './backup/cloud';
+import { createCloudProvider, pruneAfterUpload } from './backup/cloud';
 import {
   encryptCredential,
   decryptCredential,
@@ -758,7 +758,11 @@ export default class MySecretPlugin extends Plugin {
     if (!this.settings.backup.autoBackup || this.settings.backup.provider === 'none') return;
 
     if (triggerReason === 'interval') {
-      const minIntervalMs = this.settings.backup.autoBackupIntervalHours * 60 * 60 * 1000;
+      // A hand-edited or corrupt value (0, NaN) would make every 15-minute tick
+      // look "due"; fall back to the default instead of backing up non-stop.
+      const configuredHours = Number(this.settings.backup.autoBackupIntervalHours);
+      const intervalHours = Number.isFinite(configuredHours) && configuredHours > 0 ? configuredHours : 24;
+      const minIntervalMs = intervalHours * 60 * 60 * 1000;
       const elapsed = Date.now() - (this.settings.backup.lastBackupTimestamp || 0);
       if (elapsed < minIntervalMs) {
         return;
@@ -801,6 +805,7 @@ export default class MySecretPlugin extends Plugin {
 
       const uploadResult = await provider.uploadBackup(result.filename, result.zipBytes);
       if (uploadResult.success) {
+        await pruneAfterUpload(provider, result.filename, this.settings.backup.retentionCount);
         this.settings.backup.lastBackupTimestamp = Date.now();
         await this.saveSettings();
         console.log(`[MySecret] Auto-backup succeeded: ${result.filename}`);
@@ -899,6 +904,10 @@ export default class MySecretPlugin extends Plugin {
 
     this.dropPlaintextCaches();
     this.keyManager.lock();
+    // "Being unlocked is not enough" for sensitive actions: a grace period
+    // earned in this session must not carry over to the next unlock (for
+    // example one done with a fingerprint).
+    this.reauthValidUntil = 0;
     this.updateRibbonIcon();
     new Notice(`🔒 ${t('notices.vaultLocked')}`);
     this.openLockScreen();
@@ -1129,8 +1138,14 @@ export default class MySecretPlugin extends Plugin {
       return null;
     }
     if (!(await this.requireReauth())) return null;
+    const snapshot = this.keyManager.snapshotRecoveryState();
     const result = await this.keyManager.addRecoveryPhrase();
-    await this.saveVaultEnvelope(result.envelope);
+    try {
+      await this.saveVaultEnvelope(result.envelope);
+    } catch (err) {
+      this.keyManager.restoreRecoveryState(snapshot);
+      throw err;
+    }
     new Notice('✅ Frase de recuperación activada.');
     return result.mnemonic;
   }
@@ -1142,8 +1157,14 @@ export default class MySecretPlugin extends Plugin {
       return false;
     }
     if (!(await this.requireReauth())) return false;
+    const snapshot = this.keyManager.snapshotRecoveryState();
     const updatedEnvelope = this.keyManager.removeRecoveryPhrase();
-    await this.saveVaultEnvelope(updatedEnvelope);
+    try {
+      await this.saveVaultEnvelope(updatedEnvelope);
+    } catch (err) {
+      this.keyManager.restoreRecoveryState(snapshot);
+      throw err;
+    }
     new Notice('🛡️ Frase de recuperación eliminada. Solo podrás acceder con tu contraseña.');
     return true;
   }

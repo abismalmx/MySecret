@@ -83,6 +83,25 @@ export class MediaManager {
   }
 
   /**
+   * Drops the cached Blob URL of a path whose bytes changed behind the
+   * plugin's back (a ciphertext written verbatim, e.g. by Sync) and, while the
+   * vault is unlocked, re-resolves it so the images already on screen refresh.
+   */
+  public invalidate(path: string): void {
+    const norm = this.pathFilter.normalizePath(path);
+    const existing = this.blobUrls.get(norm);
+    if (existing) {
+      try {
+        URL.revokeObjectURL(existing);
+      } catch {
+        // best effort
+      }
+      this.blobUrls.delete(norm);
+    }
+    void this.getOrResolveMediaBlob(norm);
+  }
+
+  /**
    * Synchronously returns a cached Blob URL for a normalized path if one exists.
    */
   public getCachedBlobUrl(path: string): string | null {

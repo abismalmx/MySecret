@@ -581,3 +581,330 @@ test('X: a bridge error message containing "%" settles the session instead of ha
   const outcome = await Promise.race([pending, new Promise((r) => setTimeout(() => r('HUNG'), 1000))]);
   assert.strictEqual(outcome, null, 'the pending verification must resolve (to null), not hang');
 });
+
+// ---------------------------------------------------------------------------
+// Regression tests (bug hunt 2026-10-26)
+// ---------------------------------------------------------------------------
+
+import MySecretPlugin from '../src/main.ts';
+
+async function createPluginWithVault(recovery) {
+  const km = new KeyManager();
+  const { envelope, commit } = await km.initializeVault('Correct-Horse-1!', recovery);
+  await commit();
+  km.setEnvelope(envelope);
+  const plugin = Object.create(MySecretPlugin.prototype);
+  plugin.keyManager = km;
+  plugin.requireReauth = async () => true;
+  return { plugin, km };
+}
+
+test('Recovery phrase: a failed save leaves memory identical to disk when enabling', async () => {
+  const { plugin, km } = await createPluginWithVault(false);
+  plugin.saveVaultEnvelope = async () => { throw new Error('disk full'); };
+
+  await assert.rejects(plugin.enableRecoveryPhrase(), /disk full/);
+
+  assert.strictEqual(km.hasRecoveryEnvelope(), false, 'the in-memory envelope must not claim a phrase that was never saved');
+  assert.strictEqual(km.getRecoveryMnemonic(), null);
+});
+
+test('Recovery phrase: a failed save leaves memory identical to disk when disabling', async () => {
+  const { plugin, km } = await createPluginWithVault(true);
+  const mnemonic = km.getRecoveryMnemonic();
+  plugin.saveVaultEnvelope = async () => { throw new Error('disk full'); };
+
+  await assert.rejects(plugin.disableRecoveryPhrase(), /disk full/);
+
+  assert.strictEqual(km.hasRecoveryEnvelope(), true, 'the phrase is still on disk, so it must still be in memory');
+  assert.strictEqual(km.getRecoveryMnemonic(), mnemonic);
+});
+
+test('Re-authentication grace does not survive a lock', async () => {
+  const { plugin } = await createPluginWithVault(false);
+  plugin.settings = { backup: { autoBackup: false } };
+  plugin.app = { vault: { getFiles: () => [] }, workspace: { getLeavesOfType: () => [] } };
+  plugin.pathFilter = new PathFilter([], true);
+  plugin.mediaManager = { revokeAll() {} };
+  plugin.updateRibbonIcon = () => {};
+  plugin.openLockScreen = () => {};
+  plugin.reauthValidUntil = Date.now() + 60_000;
+
+  plugin.lockVault();
+
+  assert.strictEqual(plugin.reauthValidUntil, 0, 'the next unlock must prove the master password again');
+});
+
+import { createCloudProvider } from '../src/backup/cloud/index.ts';
+import { validateWebAuthnRegistration } from '../src/biometrics/webauthn-assertion.ts';
+
+test('WebDAV: a nested remote path creates every collection and uploads inside it', async () => {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push(`${init.method} ${url}`);
+    return { status: init.method === 'PUT' ? 201 : 405, text: async () => '' };
+  };
+  try {
+    const provider = createCloudProvider({
+      provider: 'webdav',
+      googleDrive: { accessToken: '', folderId: '' },
+      oneDrive: { accessToken: '', folderPath: '' },
+      webdav: { serverUrl: 'https://cloud.example.com/dav', username: 'u', password: 'p', remotePath: 'Backups/My Vault' },
+      localSync: { destinationPath: '' }
+    });
+    const result = await provider.uploadBackup('b.zip', new Uint8Array([1, 2, 3]));
+    assert.strictEqual(result.success, true);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepStrictEqual(calls, [
+    'MKCOL https://cloud.example.com/dav/Backups',
+    'MKCOL https://cloud.example.com/dav/Backups/My%20Vault',
+    'PUT https://cloud.example.com/dav/Backups/My%20Vault/b.zip'
+  ]);
+});
+
+test('Auto-backup: an invalid interval does not fire a backup on every tick', async () => {
+  const { plugin } = await createPluginWithVault(false);
+  let resolved = 0;
+  plugin.settings = {
+    backup: { autoBackup: true, provider: 'webdav', autoBackupIntervalHours: Number.NaN, lastBackupTimestamp: Date.now() - 60_000 }
+  };
+  plugin.getDecryptedBackupSettings = async () => { resolved++; return null; };
+
+  await plugin.runBackgroundAutoBackup('interval');
+
+  assert.strictEqual(resolved, 0, 'one minute after the last backup nothing is due');
+});
+
+test('WebAuthn: enrollment reads the public key through getPublicKey() like a real browser', async () => {
+  const pair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const spki = await webcrypto.subtle.exportKey('spki', pair.publicKey);
+  // A real AuthenticatorAttestationResponse: the key is ONLY available via the method.
+  const credential = { id: 'abc', response: { userVerified: true, getPublicKey: () => spki } };
+
+  const bytes = await validateWebAuthnRegistration(credential);
+
+  assert.deepStrictEqual([...bytes], [...new Uint8Array(spki)]);
+});
+
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+test('Auth bridge: "Reintentar" runs the ceremony again instead of reloading an empty page', async () => {
+  const makeEl = () => ({
+    textContent: '', className: '', style: {}, href: '', onclick: null,
+    classList: { _s: new Set(), add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); }, contains(c) { return this._s.has(c); } }
+  });
+  const els = Object.fromEntries(
+    ['status-badge', 'status-text', 'action-btn', 'manual-return-btn', 'pulse-ring', 'fingerprint-icon'].map(id => [id, makeEl()])
+  );
+  let reloads = 0;
+  const sandbox = {
+    console: { error() {}, warn() {}, log() {} },
+    document: { getElementById: id => els[id] },
+    history: { replaceState() {} },
+    navigator: {},
+    setTimeout, clearTimeout, URLSearchParams, TextEncoder, TextDecoder, btoa, atob, Uint8Array, ArrayBuffer, parseInt, encodeURIComponent,
+    crypto: webcrypto,
+    PublicKeyCredential: function () {},
+    alert() {}
+  };
+  sandbox.window = {
+    location: { hash: '#action=bogus&session=s1&v=2&vb=' + 'a'.repeat(64), pathname: '/', search: '', hostname: 'localhost', reload() { reloads++; } },
+    addEventListener() {},
+    PublicKeyCredential: sandbox.PublicKeyCredential,
+    crypto: webcrypto
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(readFileSync('auth-bridge/auth.js', 'utf8') + '\nglobalThis.__main = main;', sandbox);
+
+  await sandbox.__main();
+  assert.strictEqual(els['status-badge'].textContent, 'Error');
+  assert.match(els['status-text'].textContent, /Acción desconocida|Versión del protocolo/);
+  assert.ok(typeof els['action-btn'].onclick === 'function');
+
+  // The fragment was wiped, as intended; the retry must still work.
+  sandbox.window.location.hash = '';
+  els['action-btn'].onclick();
+  await new Promise(resolve => setTimeout(resolve, 20));
+
+  assert.strictEqual(reloads, 0, 'must not fall back to reloading an empty page');
+  assert.strictEqual(els['status-badge'].textContent, 'Error', 'the ceremony ran again');
+  assert.doesNotMatch(els['status-text'].textContent, /Puente WebAuthn activo/);
+});
+
+import { mkdtempSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import {
+  selectBackupsToDelete,
+  backupFilenamePrefix,
+  normalizeRetention,
+  pruneAfterUpload
+} from '../src/backup/cloud/retention.ts';
+
+const stamp = (day, vault = 'V', kind = 'Cifrado') =>
+  `MySecret_${vault}_${kind}_2026-10-${String(day).padStart(2, '0')}T10-00-00.zip`;
+
+function cloudSettings(provider, over = {}) {
+  return {
+    provider,
+    googleDrive: { accessToken: 'tok', folderId: '' },
+    oneDrive: { accessToken: 'tok', folderPath: 'MySecretBackups' },
+    webdav: { serverUrl: 'https://cloud.example.com/dav', username: 'u', password: 'p', remotePath: 'Backups' },
+    localSync: { destinationPath: '' },
+    ...over
+  };
+}
+
+test('Retention: keeps the newest N of THIS vault, by the date in the name, and nothing else', () => {
+  const prefix = 'MySecret_V_Cifrado_';
+  const entries = [
+    ...[3, 9, 1, 7, 5, 2, 8].map(d => ({ name: stamp(d) })), // 7 backups of this vault, shuffled
+    { name: stamp(1, 'Other') },                              // another vault
+    { name: stamp(1, 'V', 'Descifrado') },                    // plaintext export: not ours to prune
+    { name: 'notes.zip' },
+    { name: 'MySecret_V_Cifrado_final.zip' },                 // looks similar, not a timestamp
+    { name: stamp(4).replace('.zip', '.zip.bak') }
+  ];
+  const doomed = selectBackupsToDelete(entries, prefix, 5).map(e => e.name).sort();
+  assert.deepStrictEqual(doomed, [stamp(1), stamp(2)].sort());
+});
+
+test('Retention: an invalid or zero setting never deletes everything', () => {
+  for (const bad of [0, -3, NaN, undefined, null, 'x']) {
+    assert.strictEqual(normalizeRetention(bad), 5);
+  }
+  assert.strictEqual(normalizeRetention(2.9), 2);
+  const entries = [1, 2, 3].map(d => ({ name: stamp(d) }));
+  assert.strictEqual(selectBackupsToDelete(entries, 'MySecret_V_Cifrado_', 0).length, 0);
+});
+
+test('Retention: only names produced by this plugin yield a prefix', () => {
+  assert.strictEqual(backupFilenamePrefix('MySecret_My Vault_Cifrado_2026-10-26T03-04-05.zip'), 'MySecret_My Vault_Cifrado_');
+  assert.strictEqual(backupFilenamePrefix('MySecret_V_Descifrado_2026-10-26T03-04-05.zip'), null);
+  assert.strictEqual(backupFilenamePrefix('holiday.zip'), null);
+});
+
+test('Retention: WebDAV deletes the oldest backups of the vault and nothing else', async () => {
+  const days = [1, 2, 3, 4, 5, 6, 7];
+  const hrefs = ['/dav/Backups/', ...days.map(d => `/dav/Backups/${encodeURIComponent(stamp(d))}`), '/dav/Backups/photos.zip', `/dav/Backups/${stamp(1, 'Other')}`];
+  const xml = `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${hrefs.map(h => `<d:response><d:href>${h}</d:href></d:response>`).join('')}</d:multistatus>`;
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push(`${init.method} ${url}`);
+    if (init.method === 'PROPFIND') return { status: 207, text: async () => xml };
+    return { status: 204, text: async () => '' };
+  };
+  try {
+    const provider = createCloudProvider(cloudSettings('webdav'));
+    const result = await pruneAfterUpload(provider, stamp(7), 5);
+    assert.deepStrictEqual({ deleted: result.deleted, failed: result.failed }, { deleted: 2, failed: 0 });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepStrictEqual(calls.filter(c => c.startsWith('DELETE')).sort(), [
+    `DELETE https://cloud.example.com/dav/Backups/${encodeURIComponent(stamp(1))}`,
+    `DELETE https://cloud.example.com/dav/Backups/${encodeURIComponent(stamp(2))}`
+  ].sort());
+});
+
+test('Retention: WebDAV deletes nothing when the folder cannot be listed', async () => {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { calls.push(init.method); return { status: 403, text: async () => 'no' }; };
+  try {
+    const provider = createCloudProvider(cloudSettings('webdav'));
+    const result = await pruneAfterUpload(provider, stamp(7), 5);
+    assert.strictEqual(result.deleted, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepStrictEqual(calls, ['PROPFIND']);
+});
+
+test('Retention: Google Drive follows pagination and moves old backups to the trash', async () => {
+  const page1 = [1, 2, 3].map(d => ({ id: `id${d}`, name: stamp(d) }));
+  const page2 = [4, 5, 6, 7].map(d => ({ id: `id${d}`, name: stamp(d) })).concat([{ id: 'x', name: 'photos.zip' }]);
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push({ method: init.method, url: String(url), body: init.body });
+    if (init.method === 'GET') {
+      const second = String(url).includes('pageToken=P2');
+      return { status: 200, text: async () => JSON.stringify(second ? { files: page2 } : { files: page1, nextPageToken: 'P2' }) };
+    }
+    return { status: 200, text: async () => '{}' };
+  };
+  try {
+    const provider = createCloudProvider(cloudSettings('google-drive'));
+    const result = await pruneAfterUpload(provider, stamp(7), 5);
+    assert.strictEqual(result.deleted, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  const patches = calls.filter(c => c.method === 'PATCH');
+  assert.deepStrictEqual(patches.map(c => c.url.split('/').pop()).sort(), ['id1', 'id2']);
+  assert.ok(patches.every(c => c.body === JSON.stringify({ trashed: true })), 'trashed, not erased');
+  assert.ok(calls.some(c => c.method === 'GET' && c.url.includes('pageToken=P2')), 'second page requested');
+});
+
+test('Retention: OneDrive follows Graph pagination only and deletes the oldest', async () => {
+  const mk = days => ({ value: days.map(d => ({ id: `i${d}`, name: stamp(d) })) });
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push(`${init.method} ${url}`);
+    if (init.method === 'GET' && !String(url).includes('page2')) {
+      return { status: 200, text: async () => JSON.stringify({ ...mk([1, 2, 3, 4]), '@odata.nextLink': 'https://graph.microsoft.com/v1.0/page2' }) };
+    }
+    if (init.method === 'GET') {
+      return { status: 200, text: async () => JSON.stringify({ ...mk([5, 6, 7]), '@odata.nextLink': 'https://evil.example.com/steal' }) };
+    }
+    return { status: 204, text: async () => '' };
+  };
+  try {
+    const provider = createCloudProvider(cloudSettings('onedrive'));
+    const result = await pruneAfterUpload(provider, stamp(7), 5);
+    assert.strictEqual(result.deleted, 2);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.ok(!calls.some(c => c.includes('evil.example.com')), 'foreign pagination link is never requested');
+  assert.deepStrictEqual(calls.filter(c => c.startsWith('DELETE')).sort(), [
+    'DELETE https://graph.microsoft.com/v1.0/me/drive/items/i1',
+    'DELETE https://graph.microsoft.com/v1.0/me/drive/items/i2'
+  ]);
+});
+
+test('Retention: local folder keeps the newest backups and leaves other files alone', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mysecret-retention-'));
+  const realRequire = globalThis.window.require;
+  globalThis.window.require = createRequire(import.meta.url);
+  try {
+    for (const d of [1, 2, 3, 4, 5, 6, 7]) writeFileSync(join(dir, stamp(d)), 'x');
+    writeFileSync(join(dir, stamp(1, 'Other')), 'x');
+    writeFileSync(join(dir, 'notes.txt'), 'x');
+    const provider = createCloudProvider(cloudSettings('local-sync', { localSync: { destinationPath: dir } }));
+    const result = await pruneAfterUpload(provider, stamp(7), 5);
+    assert.strictEqual(result.deleted, 2);
+    assert.deepStrictEqual(
+      readdirSync(dir).sort(),
+      [3, 4, 5, 6, 7].map(d => stamp(d)).concat([stamp(1, 'Other'), 'notes.txt']).sort()
+    );
+  } finally {
+    globalThis.window.require = realRequire;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Retention: a failing cleanup is reported as null, never thrown', async () => {
+  const provider = { pruneBackups: async () => { throw new Error('boom'); } };
+  assert.strictEqual(await pruneAfterUpload(provider, stamp(7), 5), null);
+  assert.strictEqual(await pruneAfterUpload(provider, 'not-ours.zip', 5), null);
+});

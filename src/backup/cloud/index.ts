@@ -15,6 +15,7 @@ export * from './google-drive';
 export * from './onedrive';
 export * from './webdav';
 export * from './local-sync';
+export * from './retention';
 
 export function createCloudProvider(settings: CloudBackupSettings): CloudProvider | null {
   switch (settings.provider) {

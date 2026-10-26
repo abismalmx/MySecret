@@ -199,6 +199,23 @@ export class KeyManager {
     }
   }
 
+  /**
+   * Captures the recovery-related state so a caller that mutates it
+   * (`addRecoveryPhrase`, `removeRecoveryPhrase`) can undo the change when the
+   * new envelope cannot be persisted: memory and disk must never diverge.
+   */
+  public snapshotRecoveryState(): { envelope: VaultEnvelopeConfig | null; mnemonic: string | null } {
+    return {
+      envelope: this.envelope ? JSON.parse(JSON.stringify(this.envelope)) : null,
+      mnemonic: this.recoveryMnemonic
+    };
+  }
+
+  public restoreRecoveryState(snapshot: { envelope: VaultEnvelopeConfig | null; mnemonic: string | null }): void {
+    this.envelope = snapshot.envelope;
+    this.recoveryMnemonic = snapshot.mnemonic;
+  }
+
   public hasRecoveryEnvelope(): boolean {
     return Boolean(this.envelope && this.envelope.recoveryEnvelope);
   }

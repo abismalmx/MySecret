@@ -267,7 +267,7 @@ Al restaurar, cada ruta dentro del ZIP se valida con `sanitizeVaultRelativePath(
 - Segmentos que contienen `..` son rechazados de inmediato.
 - Rutas absolutas (`/` o `C:\`) son bloqueadas.
 - Carpetas ocultas que empiezan por `.` (como `.obsidian/plugins/`) son filtradas para impedir la inyección de plugins maliciosos.
-- Los diccionarios se crean con prototipo nulo (`Object.create(null)`) contra ataques de Prototype Pollution.
+- Las entradas llamadas `__proto__` se rechazan al restaurar y se reportan (nunca se omiten en silencio) al respaldar, de modo que ninguna clave del archivo pueda alterar un prototipo.
 
 ---
 

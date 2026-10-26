@@ -19,6 +19,14 @@ export interface CloudTestResult {
   details?: Record<string, any>;
 }
 
+export interface CloudPruneResult {
+  /** Backups removed (or already gone). */
+  deleted: number;
+  /** Backups that should have been removed but could not be. */
+  failed: number;
+  message?: string;
+}
+
 export interface CloudProvider {
   readonly id: CloudProviderType;
   readonly name: string;
@@ -32,4 +40,12 @@ export interface CloudProvider {
    * Uploads an encrypted backup zip payload to the cloud service
    */
   uploadBackup(filename: string, data: Uint8Array): Promise<CloudUploadResult>;
+
+  /**
+   * Removes the backups of this vault beyond the newest `keep`.
+   *
+   * `filenamePrefix` (`MySecret_<vault>_Cifrado_`) restricts the candidates
+   * to this vault's files; see `retention.ts` for the selection rules.
+   */
+  pruneBackups(filenamePrefix: string, keep: number): Promise<CloudPruneResult>;
 }

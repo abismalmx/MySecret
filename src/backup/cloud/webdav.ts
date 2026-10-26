@@ -4,7 +4,8 @@
  */
 
 import { requestHttp, assertSafeUrl, toExactArrayBuffer } from '../../utils/http';
-import { CloudProvider, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { CloudProvider, CloudPruneResult, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { selectBackupsToDelete } from './retention';
 
 export class WebDAVProvider implements CloudProvider {
   public readonly id = 'webdav';
@@ -130,16 +131,21 @@ export class WebDAVProvider implements CloudProvider {
       const auth = this.getAuthHeader();
       if (auth) headers['Authorization'] = auth;
 
-      // Attempt to ensure target collection (directory) exists
-      const targetDirUrl = `${this.serverUrl}/${encodeURIComponent(this.remotePath)}`;
-      try {
-        await requestHttp({
-          url: targetDirUrl,
-          method: 'MKCOL',
-          headers: auth ? { Authorization: auth } : {}
-        });
-      } catch {
-        // MKCOL will return 405 or 409 if collection already exists, which is normal
+      // Ensure every collection of the target path exists. MKCOL creates a
+      // single level, and "/" must not be percent-encoded inside the path, so
+      // a nested path ("Backups/Obsidian") is created one segment at a time.
+      let targetDirUrl = this.serverUrl;
+      for (const segment of this.remotePath.split('/').filter(s => s.length > 0)) {
+        targetDirUrl = `${targetDirUrl}/${encodeURIComponent(segment)}`;
+        try {
+          await requestHttp({
+            url: targetDirUrl,
+            method: 'MKCOL',
+            headers: auth ? { Authorization: auth } : {}
+          });
+        } catch {
+          // MKCOL will return 405 or 409 if collection already exists, which is normal
+        }
       }
 
       const fileUrl = `${targetDirUrl}/${encodeURIComponent(filename)}`;
@@ -169,5 +175,61 @@ export class WebDAVProvider implements CloudProvider {
         message: `Error de red al subir a WebDAV: ${err?.message || String(err)}`
       };
     }
+  }
+
+  /** URL of the collection that holds the backups (one segment per level). */
+  private getTargetDirUrl(): string {
+    let url = this.serverUrl;
+    for (const segment of this.remotePath.split('/').filter(s => s.length > 0)) {
+      url = `${url}/${encodeURIComponent(segment)}`;
+    }
+    return url;
+  }
+
+  public async pruneBackups(filenamePrefix: string, keep: number): Promise<CloudPruneResult> {
+    this.assertSecureTransport();
+    const auth = this.getAuthHeader();
+    const headers: Record<string, string> = auth ? { Authorization: auth } : {};
+    const dirUrl = this.getTargetDirUrl();
+
+    const listing = await requestHttp({
+      url: dirUrl,
+      method: 'PROPFIND',
+      headers: { ...headers, Depth: '1', 'Content-Type': 'application/xml' }
+    });
+    if (listing.status !== 207 && listing.status !== 200) {
+      return { deleted: 0, failed: 0, message: `No se pudo listar la carpeta WebDAV (Código ${listing.status}).` };
+    }
+
+    // Only the file NAME of every <href> is used; the delete URL is rebuilt
+    // from the configured collection, never taken from the server response.
+    const names: Array<{ name: string }> = [];
+    const hrefRe = /<(?:[A-Za-z0-9_-]+:)?href[^>]*>([^<]*)<\/(?:[A-Za-z0-9_-]+:)?href>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = hrefRe.exec(listing.text)) !== null) {
+      try {
+        const last = decodeURIComponent(match[1].trim()).replace(/\/+$/, '').split('/').pop();
+        if (last) names.push({ name: last });
+      } catch {
+        // malformed href: ignore
+      }
+    }
+
+    let deleted = 0;
+    let failed = 0;
+    for (const entry of selectBackupsToDelete(names, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `${dirUrl}/${encodeURIComponent(entry.name)}`,
+          method: 'DELETE',
+          headers
+        });
+        if (res.status >= 200 && res.status < 300 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 }

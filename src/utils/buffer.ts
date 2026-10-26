@@ -118,10 +118,14 @@ export function stringToBytes(str: string): Uint8Array {
 }
 
 /**
- * Converts a Uint8Array to a UTF-8 string
+ * Converts a Uint8Array to a UTF-8 string.
+ *
+ * `ignoreBOM` keeps a leading U+FEFF in the result: by default the decoder
+ * drops it, which would silently change a note that starts with a BOM the
+ * moment it is decrypted.
  */
 export function bytesToString(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
 }
 
 /**

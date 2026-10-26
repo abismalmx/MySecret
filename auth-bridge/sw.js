@@ -12,7 +12,7 @@
  * must never be stored in a cache the page controls.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `mysecret-auth-${CACHE_VERSION}`;
 const ASSETS_TO_CACHE = [
   './',

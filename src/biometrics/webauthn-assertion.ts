@@ -384,8 +384,29 @@ export interface RegistrationLike {
   id: string;
   response: {
     userVerified?: boolean;
+    /** Not a standard property of the browser object; kept for plain-object callers. */
     publicKey?: ArrayBuffer | ArrayBufferView | null;
+    /** The standard accessor of `AuthenticatorAttestationResponse`. */
+    getPublicKey?: () => ArrayBuffer | null;
   };
+}
+
+/**
+ * Reads the SPKI public key of a freshly created credential.
+ *
+ * `AuthenticatorAttestationResponse` exposes it ONLY through the
+ * `getPublicKey()` method; there is no `publicKey` property, so reading the
+ * property alone makes every real enrollment fail.
+ */
+export function getRegistrationPublicKey(
+  response: RegistrationLike['response'] | null | undefined
+): ArrayBuffer | ArrayBufferView | null {
+  if (!response) return null;
+  if (typeof response.getPublicKey === 'function') {
+    const viaMethod = response.getPublicKey();
+    if (viaMethod) return viaMethod;
+  }
+  return response.publicKey ?? null;
 }
 
 /**
@@ -409,7 +430,7 @@ export async function validateWebAuthnRegistration(
       'El autenticador no confirmó la verificación de usuario: usa tu contraseña maestra.'
     );
   }
-  const spki = credential.response?.publicKey;
+  const spki = getRegistrationPublicKey(credential.response);
   if (!spki) {
     throw new Error('La credencial biométrica no expuso su clave pública.');
   }

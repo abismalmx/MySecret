@@ -876,7 +876,12 @@ export class SetupWizardModal extends Modal {
         try {
           const success = await this.plugin.biometricManager.enrollBiometrics(rawVaultKey, vaultId);
           if (success) {
-            this.plugin.settings.biometrics = { enabled: true, autoPrompt: true };
+            // Keep the other biometric settings (the Android bridge URL, for one).
+            this.plugin.settings.biometrics = {
+              ...this.plugin.settings.biometrics,
+              enabled: true,
+              autoPrompt: true
+            };
             await this.plugin.saveSettings();
 
             feedback.setText('✓ Huella digital activada correctamente en este equipo');

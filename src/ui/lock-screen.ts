@@ -20,6 +20,8 @@ export class LockScreenModal extends Modal {
   private plugin: MySecretPlugin;
   private isRecoveryMode: boolean = false;
   private isBusy: boolean = false;
+  /** A biometric ceremony is pending in the external browser (password path stays usable). */
+  private isBiometricWaiting: boolean = false;
   private isClosed: boolean = false;
   private allowClose: boolean = false;
 
@@ -436,7 +438,9 @@ export class LockScreenModal extends Modal {
   private setBiometricWaiting(waiting: boolean): void {
     if (this.isClosed) return;
 
-    this.isBusy = waiting;
+    // A separate flag: `isBusy` guards the password/recovery handlers, which
+    // must keep working while the browser prompt is pending.
+    this.isBiometricWaiting = waiting;
     // The password path is deliberately NOT blocked.
     this.passwordInput.disabled = false;
     this.recoveryInput.disabled = false;
@@ -447,8 +451,18 @@ export class LockScreenModal extends Modal {
     }
   }
 
+  /**
+   * The user chose to type a credential: stop waiting for the browser so the
+   * pending biometric call settles instead of racing the typed unlock.
+   */
+  private cancelPendingBiometrics(): void {
+    if (this.isBiometricWaiting) {
+      this.plugin.biometricManager.cancelPendingSession();
+    }
+  }
+
   public async handleBiometricUnlock(): Promise<void> {
-    if (this.isBusy || this.isClosed) return;
+    if (this.isBusy || this.isBiometricWaiting || this.isClosed) return;
 
     this.clearError();
     this.setBiometricWaiting(true);
@@ -523,6 +537,7 @@ export class LockScreenModal extends Modal {
     }
 
     this.clearError();
+    this.cancelPendingBiometrics();
     this.setBusy(true);
 
     try {
@@ -570,6 +585,7 @@ export class LockScreenModal extends Modal {
     }
 
     this.clearError();
+    this.cancelPendingBiometrics();
     this.setBusy(true);
 
     try {

@@ -6,7 +6,7 @@
 import { App, Modal, Notice } from 'obsidian';
 import MySecretPlugin from '../main';
 import { BackupEngine } from '../backup/backup-engine';
-import { createCloudProvider } from '../backup/cloud';
+import { createCloudProvider, pruneAfterUpload } from '../backup/cloud';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
 import { t } from '../i18n';
 
@@ -209,8 +209,16 @@ export class CloudBackupModal extends Modal {
       return;
     }
 
+    // Claimed synchronously: `getProvider()` awaits, and a second click in
+    // that window would otherwise start a second upload.
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+    this.backupBtn.disabled = true;
+
     const provider = await this.getProvider();
     if (!provider) {
+      this.isProcessing = false;
+      this.backupBtn.disabled = false;
       new Notice(t('cloudBackup.providerNone'));
       return;
     }
@@ -263,7 +271,7 @@ export class CloudBackupModal extends Modal {
       );
 
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Upload failed');
+        throw new Error(uploadResult.message || 'Upload failed');
       }
 
       setCssStyles(this.progressBar, { width: '100%' });
@@ -272,10 +280,9 @@ export class CloudBackupModal extends Modal {
       this.currentFileEl.setText(zipResult.filename);
 
       // Prune old backups
-      try {
-        await provider.pruneBackups(this.plugin.settings.backup.retentionCount || 5);
-      } catch (pruneErr) {
-        console.warn('[MySecret] Prune failed:', pruneErr);
+      const pruned = await pruneAfterUpload(provider, zipResult.filename, this.plugin.settings.backup.retentionCount);
+      if (pruned && pruned.failed > 0) {
+        new Notice(`⚠️ MySecret: no se pudieron eliminar ${pruned.failed} copia(s) antigua(s).`);
       }
 
       this.plugin.settings.backup.lastBackupTimestamp = Date.now();

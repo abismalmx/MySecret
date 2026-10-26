@@ -23,8 +23,13 @@ const MAX_PATH_LENGTH = 1024;
 /**
  * Segment names that could poison `Object.prototype` when a path is used as
  * a key of a plain object (prototype pollution).
+ *
+ * Only `__proto__` is special: assigning it does not create a property, it
+ * calls the prototype setter. `constructor` and `prototype` are ordinary own
+ * properties when assigned, so rejecting them would only make real folders
+ * (a "Prototype" folder in a design vault) vanish from backups.
  */
-const FORBIDDEN_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+const FORBIDDEN_SEGMENTS = new Set(['__proto__']);
 
 /**
  * Matches an absolute Windows drive prefix such as `C:` or `c:/`.

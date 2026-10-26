@@ -3,7 +3,8 @@
  * Local Sync Cloud Provider (MEGA, Google Drive Desktop, OneDrive Desktop, Dropbox, USB)
  */
 
-import { CloudProvider, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { CloudProvider, CloudPruneResult, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { selectBackupsToDelete } from './retention';
 import { sanitizeVaultRelativePath } from '../../utils/path-sanitizer';
 
 export class LocalSyncProvider implements CloudProvider {
@@ -126,5 +127,26 @@ export class LocalSyncProvider implements CloudProvider {
         message: `Error al escribir en la carpeta local: ${err?.message || String(err)}`
       };
     }
+  }
+
+  public async pruneBackups(filenamePrefix: string, keep: number): Promise<CloudPruneResult> {
+    const fs = this.getFs();
+    if (!this.destinationPath || !fs || !fs.existsSync(this.destinationPath)) {
+      return { deleted: 0, failed: 0, message: 'Carpeta de destino no disponible.' };
+    }
+    const pathMod = this.getPathModule();
+    const names: string[] = fs.readdirSync(this.destinationPath);
+    let deleted = 0;
+    let failed = 0;
+    for (const entry of selectBackupsToDelete(names.map(name => ({ name })), filenamePrefix, keep)) {
+      try {
+        const target = pathMod ? pathMod.join(this.destinationPath, entry.name) : `${this.destinationPath}/${entry.name}`;
+        fs.unlinkSync(target);
+        deleted++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 }

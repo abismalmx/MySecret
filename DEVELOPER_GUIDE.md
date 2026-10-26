@@ -272,7 +272,7 @@ During restoration, every archive entry path is validated through `sanitizeVault
 - Segments equal to `..` are strictly rejected.
 - Absolute paths (`/` or `C:\`) are blocked.
 - Hidden paths beginning with `.` (such as `.obsidian/plugins/`) are blocked, preventing malicious archives from dropping arbitrary executable code.
-- Object prototypes are preserved using `Object.create(null)` to eliminate prototype pollution.
+- Entries named `__proto__` are rejected on restore and reported (never silently dropped) on backup, so no archive key can tamper with an object's prototype.
 
 ---
 

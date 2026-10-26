@@ -80,15 +80,9 @@ export class RecoveryPhraseModal extends Modal {
 
         if (this.clearTimer !== null) window.clearTimeout(this.clearTimer);
         this.clearTimer = window.setTimeout(async () => {
-          try {
-            const current = await navigator.clipboard.readText();
-            if (current === this.mnemonic) {
-              await navigator.clipboard.writeText('');
-            }
-            copyBtn.setText(`📋 ${t('recoveryPhraseModal.copyMnemonic')}`);
-          } catch {
-            copyBtn.setText(`📋 ${t('recoveryPhraseModal.copyMnemonic')}`);
-          }
+          this.clearTimer = null;
+          await this.wipeClipboard();
+          copyBtn.setText(`📋 ${t('recoveryPhraseModal.copyMnemonic')}`);
         }, 30000);
       } catch {
         new Notice(t('common.error'));
@@ -109,10 +103,33 @@ export class RecoveryPhraseModal extends Modal {
     closeBtn.addEventListener('click', () => this.close());
   }
 
+  /**
+   * Removes the phrase from the clipboard. When the clipboard cannot be read
+   * (permission, focus) it is cleared blindly: leaving 24 words behind is the
+   * worse outcome.
+   */
+  private async wipeClipboard(): Promise<void> {
+    try {
+      const current = await navigator.clipboard.readText();
+      if (current === this.mnemonic) {
+        await navigator.clipboard.writeText('');
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText('');
+      } catch {
+        // nothing else can be done
+      }
+    }
+  }
+
   public override onClose(): void {
     if (this.clearTimer !== null) {
+      // Closing must not cancel the promise made to the user: the copied
+      // phrase is still cleared.
       window.clearTimeout(this.clearTimer);
       this.clearTimer = null;
+      void this.wipeClipboard();
     }
     const { contentEl } = this;
     contentEl.empty();

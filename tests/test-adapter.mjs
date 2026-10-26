@@ -873,3 +873,132 @@ test('SECURITY: Obsidian Publish cannot upload the cleartext of an encrypted not
 });
 
 
+
+// ---------------------------------------------------------------------------
+// Regression tests (bug hunt 2026-10-26)
+// ---------------------------------------------------------------------------
+
+import { BackupEngine } from '../src/backup/backup-engine.ts';
+
+async function createHookedVault() {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const vault = new Vault(adapter);
+  const interceptor = new AdapterInterceptor(adapter, pathFilter, keyManager, undefined, vault);
+  interceptor.install();
+  interceptor.installVaultHooks();
+  return { adapter, pathFilter, keyManager, vault, interceptor };
+}
+
+test('Regression: a text note written through writeBinary stays readable', async () => {
+  const { adapter } = await createHookedVault();
+  await adapter.writeBinary('dropped.md', new TextEncoder().encode('# dropped note').buffer);
+
+  assert.strictEqual(await adapter.read('dropped.md'), '# dropped note');
+  const onDisk = new TextDecoder().decode(new Uint8Array(await adapter.readBinary('dropped.md')));
+  assert.ok(isArmoredEncrypted(onDisk), 'text notes are stored armored, like every other write path');
+});
+
+test('Regression: read() decrypts a text note already stored as a binary container', async () => {
+  const { adapter, interceptor, keyManager } = await createHookedVault();
+  // Reproduce what the old writeBinary produced for a note: a MYSE container.
+  const { encryptAesGcm } = await import('../src/crypto/aes.ts');
+  const { serializeBinary } = await import('../src/crypto/envelope.ts');
+  const enc = await encryptAesGcm(new TextEncoder().encode('legacy note'), keyManager.getVaultKey(), 'legacy.md');
+  await interceptor.getRawAdapter().writeBinary(
+    'legacy.md',
+    serializeBinary({ version: 1, iv: enc.iv, tag: enc.tag, ciphertext: enc.ciphertext }).buffer
+  );
+
+  assert.strictEqual(await adapter.read('legacy.md'), 'legacy note');
+  await adapter.append('legacy.md', '!');
+  assert.strictEqual(await adapter.read('legacy.md'), 'legacy note!');
+});
+
+test('Regression: a plain note that merely starts with "MYSE" is returned untouched', async () => {
+  const { adapter, interceptor } = await createHookedVault();
+  await interceptor.getRawAdapter().write('plain.md', 'MYSELF and I');
+  assert.strictEqual(await adapter.read('plain.md'), 'MYSELF and I');
+});
+
+test('Regression: a leading BOM survives encrypt/decrypt', async () => {
+  const { adapter, interceptor } = await createHookedVault();
+  await adapter.write('bom.md', '﻿hello');
+  assert.strictEqual(await adapter.read('bom.md'), '﻿hello');
+
+  const r = await interceptor.decryptFilesToPlain(['bom.md']);
+  assert.strictEqual(r.failed.length, 0);
+  // The fake adapter's own read() strips the BOM, so the bytes are compared.
+  const onDisk = new Uint8Array(await interceptor.getRawAdapter().readBinary('bom.md'));
+  assert.deepStrictEqual([...onDisk], [0xef, 0xbb, 0xbf, ...new TextEncoder().encode('hello')]);
+});
+
+test('Regression: a save racing with the rename re-bind is not overwritten', async () => {
+  const { adapter, interceptor } = await createHookedVault();
+  await adapter.write('x.md', 'OLD');
+  await adapter.rename('x.md', 'y.md');
+
+  const rebind = interceptor.handleVaultRename({ path: 'y.md', name: 'y.md' }, 'x.md');
+  const save = adapter.write('y.md', 'NEW');
+  await Promise.all([rebind, save]);
+
+  assert.strictEqual(await adapter.read('y.md'), 'NEW');
+});
+
+test('Regression: the media cache follows an attachment written verbatim (Sync)', async () => {
+  const adapter = createFakeAdapter();
+  const pathFilter = new PathFilter([], true);
+  const keyManager = await createUnlockedKeyManager();
+  const mediaManager = new MediaManager({ vault: { adapter } }, pathFilter, keyManager);
+  new AdapterInterceptor(adapter, pathFilter, keyManager, mediaManager).install();
+
+  await adapter.writeBinary('img.png', new Uint8Array([1, 1, 1]).buffer);
+  const first = new Uint8Array(await (await fetch(mediaManager.getCachedBlobUrl('img.png'))).arrayBuffer());
+  assert.deepStrictEqual([...first], [1, 1, 1]);
+
+  // Another device re-encrypted the attachment; Sync writes that ciphertext back.
+  const other = createFakeAdapter();
+  new AdapterInterceptor(other, pathFilter, keyManager).install();
+  await other.writeBinary('img.png', new Uint8Array([2, 2, 2, 2]).buffer);
+  await adapter.writeBinary('img.png', await other.readBinary('img.png'));
+  // invalidate() re-resolves in the background
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  const url = mediaManager.getCachedBlobUrl('img.png');
+  assert.ok(url, 'the attachment is cached again after the refresh');
+  const second = new Uint8Array(await (await fetch(url)).arrayBuffer());
+  assert.deepStrictEqual([...second], [2, 2, 2, 2]);
+});
+
+test('Regression: a folder named "Prototype" is backed up; unarchivable files are reported', async () => {
+  const { adapter, pathFilter, keyManager, interceptor } = await createHookedVault();
+  await adapter.write('Prototype/idea.md', 'my idea');
+  await adapter.write('__proto__/idea.md', 'reserved');
+  await adapter.write('ok.md', 'ok');
+  const plugin = {
+    keyManager,
+    interceptor,
+    pathFilter,
+    app: { vault: { adapter, getFiles: () => [...adapter.files.keys()].map(p => new TFile(p)), getName: () => 'V' } }
+  };
+
+  const zip = await BackupEngine.createVaultZip(plugin, { mode: 'encrypted' });
+  const inZip = zip.manifest.files.map(f => f.path);
+  const reported = zip.stats.skippedFiles.map(f => f.path);
+  assert.ok(inZip.includes('Prototype/idea.md'), 'a folder named Prototype is backed up');
+  assert.ok(reported.includes('__proto__/idea.md'), 'a file that cannot be archived is reported');
+  assert.ok(inZip.includes('ok.md'));
+
+  // ...and the archive restores into a fresh vault.
+  const dst = await createHookedVault();
+  const dstPlugin = {
+    keyManager: dst.keyManager,
+    interceptor: dst.interceptor,
+    pathFilter: dst.pathFilter,
+    app: { vault: { adapter: dst.adapter, getFiles: () => [], getName: () => 'V' } }
+  };
+  const restored = await BackupEngine.restoreFromZip(dstPlugin, zip.zipBytes);
+  assert.deepStrictEqual(restored.errors, []);
+  assert.strictEqual(await dst.adapter.read('Prototype/idea.md'), 'my idea');
+});

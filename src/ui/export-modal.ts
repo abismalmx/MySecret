@@ -188,9 +188,17 @@ export class ExportModal extends Modal {
       return;
     }
 
+    // Claimed synchronously: the re-authentication below awaits, and a second
+    // click in that window would open a second prompt and a second export.
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+    this.exportBtn.disabled = true;
+
     // A plaintext export leaves the protection of the vault: ask for the
     // master password again.
     if (this.mode === 'decrypted' && !(await this.plugin.requireReauth())) {
+      this.isProcessing = false;
+      this.exportBtn.disabled = false;
       return;
     }
 

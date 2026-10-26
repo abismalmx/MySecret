@@ -86,9 +86,15 @@ test('Path Sanitizer: blocks hidden/system directories (plugin drop)', () => {
 });
 
 test('Path Sanitizer: blocks prototype pollution segment names', () => {
-  for (const p of ['__proto__', 'constructor', 'notes/constructor', '__PROTO__/x.md']) {
+  for (const p of ['__proto__', 'notes/__proto__', '__PROTO__/x.md']) {
     const result = sanitizeVaultRelativePath(p);
     assert.strictEqual(result.safe, false, `should reject: ${p}`);
+  }
+});
+
+test('Path Sanitizer: ordinary names that look like Object members are valid folders', () => {
+  for (const p of ['Prototype/idea.md', 'notes/constructor/x.md', 'Constructor.md']) {
+    assert.strictEqual(sanitizeVaultRelativePath(p).safe, true, `should accept: ${p}`);
   }
 });
 
@@ -193,10 +199,11 @@ test('Backup: a "__proto__" file name cannot pollute Object.prototype', () => {
 
   // The backup engine detects and skips the dangerous file name.
   // NOTE: the check is per *segment*, because only an exact "__proto__" /
-  // "constructor" key is able to tamper with an object's prototype.
+  // key is able to tamper with an object's prototype.
   assert.strictEqual(hasForbiddenSegment('__proto__'), true);
   assert.strictEqual(hasForbiddenSegment('notes/__proto__/x.md'), true);
-  assert.strictEqual(hasForbiddenSegment('notes/constructor/x.md'), true);
+  assert.strictEqual(hasForbiddenSegment('notes/constructor/x.md'), false);
+  assert.strictEqual(hasForbiddenSegment('Prototype/x.md'), false);
   assert.strictEqual(hasForbiddenSegment('notes/normal.md'), false);
   assert.strictEqual(hasForbiddenSegment('notes/constructor.md'), false);
 });

@@ -23,6 +23,8 @@ import { t } from '../i18n';
 export class RestoreModal extends Modal {
   private plugin: MySecretPlugin;
   private selectedZipBytes: Uint8Array | null = null;
+  /** Identifies the latest file selection so a slow earlier one cannot overwrite it. */
+  private loadSeq = 0;
   private selectedFilename: string = '';
   private parsedManifest: BackupManifest | null = null;
   private isProcessing: boolean = false;
@@ -166,6 +168,14 @@ export class RestoreModal extends Modal {
   }
 
   private async loadFile(file: File): Promise<void> {
+    // A new selection invalidates the previous one until it validates:
+    // Restore must never run on bytes that failed (or skipped) the checks.
+    const seq = ++this.loadSeq;
+    this.selectedZipBytes = null;
+    this.parsedManifest = null;
+    this.restoreBtn.disabled = true;
+    this.infoBox.hide();
+
     try {
       this.selectedFilename = file.name;
 
@@ -175,11 +185,12 @@ export class RestoreModal extends Modal {
       }
 
       const arrayBuffer = await file.arrayBuffer();
-      this.selectedZipBytes = new Uint8Array(arrayBuffer);
+      if (seq !== this.loadSeq) return;
+      const zipBytes = new Uint8Array(arrayBuffer);
 
       let declaredTotal = 0;
       let entryCount = 0;
-      const unzipped = unzipSync(this.selectedZipBytes, {
+      const unzipped = unzipSync(zipBytes, {
         filter: (entry) => {
           entryCount++;
           declaredTotal += Number(entry.originalSize ?? 0);
@@ -205,6 +216,8 @@ export class RestoreModal extends Modal {
         }
       }
 
+      if (seq !== this.loadSeq) return;
+      this.selectedZipBytes = zipBytes;
       this.renderBackupInfo(Object.keys(unzipped).length, manifest);
       this.restoreBtn.disabled = false;
     } catch (err: any) {

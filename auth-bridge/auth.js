@@ -107,6 +107,22 @@ function setSuccessState(callbackUrl) {
   }, 100);
 }
 
+/**
+ * The parameters of the ceremony in progress. They are wiped from the address
+ * bar for privacy (see `main`), so a retry cannot re-read them from the URL
+ * and must reuse this in-memory copy.
+ */
+let currentParams = null;
+
+/** Puts the page back in the "waiting for the fingerprint" state. */
+function resetPendingState() {
+  setStatus('', 'Conectando...', 'Iniciando verificación biométrica...');
+  if (fingerprintIcon) fingerprintIcon.style.stroke = '';
+  if (pulseRing) pulseRing.style.display = '';
+  if (actionBtn) actionBtn.classList.add('hidden');
+  if (manualReturnBtn) manualReturnBtn.classList.add('hidden');
+}
+
 function setErrorState(errorMsg, session) {
   setStatus('error', 'Error', errorMsg);
   if (fingerprintIcon) fingerprintIcon.style.stroke = '#ef4444';
@@ -115,7 +131,16 @@ function setErrorState(errorMsg, session) {
   if (actionBtn) {
     actionBtn.textContent = 'Reintentar';
     actionBtn.classList.remove('hidden');
-    actionBtn.onclick = () => window.location.reload();
+    actionBtn.onclick = () => {
+      // Reloading would find an empty fragment (it was wiped from the URL) and
+      // land on the idle screen: run the same ceremony again instead.
+      if (currentParams) {
+        resetPendingState();
+        void runCeremony(currentParams);
+      } else {
+        window.location.reload();
+      }
+    };
   }
 
   if (session && manualReturnBtn) {
@@ -543,6 +568,12 @@ async function main() {
     // Some browsers restrict history manipulation: not fatal.
   }
 
+  currentParams = params;
+  await runCeremony(params);
+}
+
+/** Runs one WebAuthn ceremony (also used by the "Reintentar" button). */
+async function runCeremony(params) {
   const session = params.session;
 
   try {

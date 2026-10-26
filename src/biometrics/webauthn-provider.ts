@@ -23,7 +23,7 @@ import {
   sha256Hex,
   constantTimeHexEqual
 } from './kdf';
-import { verifyWebAuthnAssertion, normalizePrfOutput } from './webauthn-assertion';
+import { verifyWebAuthnAssertion, normalizePrfOutput, getRegistrationPublicKey, toUint8Array } from './webauthn-assertion';
 
 /**
  * WebAuthn Platform Biometric Provider
@@ -271,11 +271,11 @@ export class WebAuthnProvider implements BiometricProvider {
     // credential public key proves that the PRF secret really comes from the
     // authenticator that owns this credential (and not from a spoofed
     // extension result).
-    const credentialSpki = credential.response?.publicKey;
+    const credentialSpki = getRegistrationPublicKey(credential.response);
     if (!credentialSpki) {
       throw new Error('La credencial biométrica no expuso su clave pública.');
     }
-    const credentialPublicKey = bytesToBase64(new Uint8Array(credentialSpki));
+    const credentialPublicKey = bytesToBase64(toUint8Array(credentialSpki));
     await verifyWebAuthnAssertion(
       {
         id: credential.id,

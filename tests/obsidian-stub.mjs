@@ -190,3 +190,7 @@ export const Platform = {
   isAndroidApp: false,
   isIosApp: false
 };
+
+// Needed only so `src/main.ts` (which pulls in every modal) can be bundled.
+export class FuzzySuggestModal extends Modal {}
+export function setIcon() {}

@@ -881,7 +881,7 @@ function stringToBytes(str) {
   return new TextEncoder().encode(str);
 }
 function bytesToString(bytes) {
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
 }
 function constantTimeEqual(a, b) {
   if (a.length !== b.length) {
@@ -3357,6 +3357,21 @@ var KeyManager = class {
       zeroize(recoveryKeyBytes);
     }
   }
+  /**
+   * Captures the recovery-related state so a caller that mutates it
+   * (`addRecoveryPhrase`, `removeRecoveryPhrase`) can undo the change when the
+   * new envelope cannot be persisted: memory and disk must never diverge.
+   */
+  snapshotRecoveryState() {
+    return {
+      envelope: this.envelope ? JSON.parse(JSON.stringify(this.envelope)) : null,
+      mnemonic: this.recoveryMnemonic
+    };
+  }
+  restoreRecoveryState(snapshot) {
+    this.envelope = snapshot.envelope;
+    this.recoveryMnemonic = snapshot.mnemonic;
+  }
   hasRecoveryEnvelope() {
     return Boolean(this.envelope && this.envelope.recoveryEnvelope);
   }
@@ -3969,7 +3984,9 @@ var AdapterInterceptor = class {
         throw new Error(`[MySecret] Access denied: Vault is locked (${path})`);
       }
       const rawContent = await self2.origRead(path);
-      if (!isArmoredEncrypted(rawContent)) {
+      const armored = isArmoredEncrypted(rawContent);
+      const maybeBinaryContainer = !armored && rawContent.startsWith("MYSE");
+      if (!armored && !maybeBinaryContainer) {
         return rawContent;
       }
       const vaultKey = self2.keyManager.getVaultKey();
@@ -3977,6 +3994,18 @@ var AdapterInterceptor = class {
         throw new Error("[MySecret] Vault key unavailable in memory");
       }
       try {
+        if (maybeBinaryContainer) {
+          const rawBytes = new Uint8Array(await self2.origReadBinary(path));
+          if (!isBinaryEncrypted(rawBytes)) {
+            return rawContent;
+          }
+          const outcome = await decryptContainer(
+            rawBytes,
+            self2.pathFilter.normalizePath(path),
+            self2.keyManager
+          );
+          return bytesToString(outcome.bytes);
+        }
         const payload = deserializeArmored(rawContent);
         const decryptedBytes = await decryptAesGcm(
           payload.ciphertext,
@@ -3991,10 +4020,7 @@ var AdapterInterceptor = class {
         throw new Error(`[MySecret] Decryption failed for ${path}: Authentication check failed`);
       }
     };
-    a.write = async function(path, data, options) {
-      if (!self2.pathFilter.shouldEncrypt(path)) {
-        return await self2.origWrite(path, data, options);
-      }
+    const writeEncrypted = async (path, data, options) => {
       if (self2.keyManager.isLocked) {
         throw new Error(`[MySecret] Cannot write while vault is locked (${path})`);
       }
@@ -4023,13 +4049,16 @@ var AdapterInterceptor = class {
       });
       return await self2.origWrite(path, armored, options);
     };
+    a.write = function(path, data, options) {
+      if (!self2.pathFilter.shouldEncrypt(path)) {
+        return self2.origWrite(path, data, options);
+      }
+      return self2.withPathLock(path, () => writeEncrypted(path, data, options));
+    };
     a.readBinary = async function(path) {
       return await self2.origReadBinary(path);
     };
-    a.writeBinary = async function(path, data, options) {
-      if (!self2.pathFilter.shouldEncrypt(path)) {
-        return await self2.origWriteBinary(path, data, options);
-      }
+    const writeBinaryEncrypted = async (path, data, options) => {
       if (self2.keyManager.isLocked) {
         throw new Error(`[MySecret] Cannot write binary while vault is locked (${path})`);
       }
@@ -4043,7 +4072,15 @@ var AdapterInterceptor = class {
         self2.pathFilter.normalizePath(path),
         self2.keyManager
       )) {
-        return await self2.origWriteBinary(path, toArrayBuffer(plainBytes), options);
+        const written = await self2.origWriteBinary(path, toArrayBuffer(plainBytes), options);
+        self2.mediaManager?.invalidate(path);
+        return written;
+      }
+      if (self2.pathFilter.isTextNote(path)) {
+        const text = decodeUtf8Strict(plainBytes);
+        if (text !== null) {
+          return await writeEncrypted(path, text, options);
+        }
       }
       if (self2.mediaManager) {
         self2.mediaManager.registerPlaintextMedia(path, data);
@@ -4060,6 +4097,12 @@ var AdapterInterceptor = class {
         ciphertext: encResult.ciphertext
       });
       return await self2.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
+    };
+    a.writeBinary = function(path, data, options) {
+      if (!self2.pathFilter.shouldEncrypt(path)) {
+        return self2.origWriteBinary(path, data, options);
+      }
+      return self2.withPathLock(path, () => writeBinaryEncrypted(path, data, options));
     };
     if (a.append) {
       const appendEncrypted = async (path, data, options) => {
@@ -4082,7 +4125,7 @@ var AdapterInterceptor = class {
           }
           existing = "";
         }
-        await a.write(path, existing + data, options);
+        await writeEncrypted(path, existing + data, options);
       };
       a.append = function(path, data, options) {
         if (!self2.pathFilter.shouldEncrypt(path)) {
@@ -4194,7 +4237,7 @@ var AdapterInterceptor = class {
         }
       }
       const processed = fn(currentText);
-      await a.write(path, processed, options);
+      await writeEncrypted(path, processed, options);
       return processed;
     };
     a.process = function(path, fn, options) {
@@ -4393,7 +4436,10 @@ var AdapterInterceptor = class {
    * rewritten through the raw (unintercepted) adapter so that no double
    * encryption happens.
    */
-  async rebindAad(fromAbs, toAbs) {
+  rebindAad(fromAbs, toAbs) {
+    return this.withPathLock(toAbs, () => this.rebindAadLocked(fromAbs, toAbs));
+  }
+  async rebindAadLocked(fromAbs, toAbs) {
     const shouldEncryptOld = this.pathFilter.shouldEncrypt(fromAbs);
     const shouldEncryptNew = this.pathFilter.shouldEncrypt(toAbs);
     if (!shouldEncryptOld && !shouldEncryptNew) {
@@ -4818,6 +4864,23 @@ var MediaManager = class _MediaManager {
     this.blobUrls.set(norm, blobUrl);
     this.patchDomForPath(norm, blobUrl);
     return blobUrl;
+  }
+  /**
+   * Drops the cached Blob URL of a path whose bytes changed behind the
+   * plugin's back (a ciphertext written verbatim, e.g. by Sync) and, while the
+   * vault is unlocked, re-resolves it so the images already on screen refresh.
+   */
+  invalidate(path) {
+    const norm = this.pathFilter.normalizePath(path);
+    const existing = this.blobUrls.get(norm);
+    if (existing) {
+      try {
+        URL.revokeObjectURL(existing);
+      } catch {
+      }
+      this.blobUrls.delete(norm);
+    }
+    void this.getOrResolveMediaBlob(norm);
   }
   /**
    * Synchronously returns a cached Blob URL for a normalized path if one exists.
@@ -6067,7 +6130,7 @@ function unzipSync(data, opts) {
 // src/utils/path-sanitizer.ts
 var MAX_PATH_SEGMENTS = 64;
 var MAX_PATH_LENGTH = 1024;
-var FORBIDDEN_SEGMENTS = /* @__PURE__ */ new Set(["__proto__", "constructor", "prototype"]);
+var FORBIDDEN_SEGMENTS = /* @__PURE__ */ new Set(["__proto__"]);
 var WINDOWS_DRIVE_RE = /^[a-zA-Z]:/;
 var ILLEGAL_SEGMENT_RE = /[\x00-\x1f<>:"|?*]/;
 function sanitizeVaultRelativePath(rawPath) {
@@ -6165,6 +6228,7 @@ var BackupEngine = class _BackupEngine {
       }
       if (hasForbiddenSegment(path)) {
         console.warn(`[MySecret] Skipped unsafe file name in backup: ${path}`);
+        skipped.push({ path, reason: "reserved path segment (__proto__)" });
         continue;
       }
       try {
@@ -8110,7 +8174,12 @@ var ExportModal = class extends import_obsidian4.Modal {
       this.plugin.openLockScreen();
       return;
     }
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+    this.exportBtn.disabled = true;
     if (this.mode === "decrypted" && !await this.plugin.requireReauth()) {
+      this.isProcessing = false;
+      this.exportBtn.disabled = false;
       return;
     }
     this.isProcessing = true;
@@ -8241,6 +8310,44 @@ async function requestHttp(options) {
   };
 }
 
+// src/backup/cloud/retention.ts
+var TIMESTAMP_SUFFIX = /(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})\.zip$/;
+var DEFAULT_RETENTION_COUNT = 5;
+function backupFilenamePrefix(filename) {
+  const match = TIMESTAMP_SUFFIX.exec(filename);
+  if (!match) return null;
+  const prefix = filename.slice(0, match.index);
+  return /^MySecret_.*_Cifrado_$/.test(prefix) ? prefix : null;
+}
+function backupTime(name, prefix) {
+  if (!name.startsWith(prefix)) return null;
+  const rest = name.slice(prefix.length);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})\.zip$/.exec(rest);
+  if (!match) return null;
+  const [, y, mo, d, h, mi, s] = match;
+  const time = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
+  return Number.isNaN(time) ? null : time;
+}
+function normalizeRetention(keep) {
+  const n = Math.floor(Number(keep));
+  return Number.isFinite(n) && n >= 1 ? n : DEFAULT_RETENTION_COUNT;
+}
+function selectBackupsToDelete(entries, prefix, keep) {
+  const limit = normalizeRetention(keep);
+  const ours = entries.map((entry) => ({ entry, time: backupTime(entry.name, prefix) })).filter((item) => item.time !== null).sort((a, b) => b.time - a.time);
+  return ours.slice(limit).map((item) => item.entry);
+}
+async function pruneAfterUpload(provider, uploadedFilename, keep) {
+  const prefix = backupFilenamePrefix(uploadedFilename);
+  if (!prefix || typeof provider.pruneBackups !== "function") return null;
+  try {
+    return await provider.pruneBackups(prefix, normalizeRetention(keep));
+  } catch (err2) {
+    console.warn("[MySecret] Backup retention failed:", err2);
+    return null;
+  }
+}
+
 // src/backup/cloud/google-drive.ts
 function generateMultipartBoundary() {
   const bytes = new Uint8Array(16);
@@ -8361,6 +8468,45 @@ Content-Type: application/zip\r
       };
     }
   }
+  /**
+   * Old backups are moved to the Drive trash (recoverable), not erased.
+   */
+  async pruneBackups(filenamePrefix, keep) {
+    if (!this.accessToken) return { deleted: 0, failed: 0, message: "Token de acceso no configurado." };
+    const auth = { Authorization: `Bearer ${this.accessToken}`, Accept: "application/json" };
+    const parent = this.folderId.replace(/['\\]/g, "");
+    const query = `mimeType = 'application/zip' and trashed = false and '${parent || "root"}' in parents`;
+    const files = [];
+    let pageToken = "";
+    do {
+      const url = `https://www.googleapis.com/drive/v3/files?pageSize=1000&q=${encodeURIComponent(query)}&fields=${encodeURIComponent("nextPageToken,files(id,name)")}` + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
+      const res = await requestHttp({ url, method: "GET", headers: auth });
+      if (res.status !== 200 || !res.json) {
+        return { deleted: 0, failed: 0, message: `No se pudo listar Google Drive (C\xF3digo ${res.status}).` };
+      }
+      for (const f of res.json.files || []) {
+        if (f && typeof f.id === "string" && typeof f.name === "string") files.push(f);
+      }
+      pageToken = res.json.nextPageToken || "";
+    } while (pageToken);
+    let deleted = 0;
+    let failed = 0;
+    for (const file of selectBackupsToDelete(files, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`,
+          method: "PATCH",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ trashed: true })
+        });
+        if (res.status === 200 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
+  }
 };
 
 // src/backup/cloud/onedrive.ts
@@ -8450,6 +8596,43 @@ var OneDriveProvider = class {
         message: `Error de red al subir a OneDrive: ${err2?.message || String(err2)}`
       };
     }
+  }
+  /**
+   * OneDrive sends deleted items to the recycle bin (recoverable).
+   */
+  async pruneBackups(filenamePrefix, keep) {
+    if (!this.accessToken) return { deleted: 0, failed: 0, message: "Token de acceso no configurado." };
+    const auth = { Authorization: `Bearer ${this.accessToken}`, Accept: "application/json" };
+    const safeFolder = encodeURIComponent(this.folderPath).replace(/%2F/g, "/");
+    const items = [];
+    let url = `https://graph.microsoft.com/v1.0/me/drive/root:/${safeFolder}:/children?$select=id,name&$top=200`;
+    while (url) {
+      const res = await requestHttp({ url, method: "GET", headers: auth });
+      if (res.status !== 200 || !res.json) {
+        return { deleted: 0, failed: 0, message: `No se pudo listar OneDrive (C\xF3digo ${res.status}).` };
+      }
+      for (const f of res.json.value || []) {
+        if (f && typeof f.id === "string" && typeof f.name === "string") items.push(f);
+      }
+      const next = res.json["@odata.nextLink"];
+      url = typeof next === "string" && next.startsWith("https://graph.microsoft.com/") ? next : null;
+    }
+    let deleted = 0;
+    let failed = 0;
+    for (const item of selectBackupsToDelete(items, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(item.id)}`,
+          method: "DELETE",
+          headers: auth
+        });
+        if (res.status === 204 || res.status === 200 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 };
 
@@ -8558,14 +8741,17 @@ var WebDAVProvider = class {
       };
       const auth = this.getAuthHeader();
       if (auth) headers["Authorization"] = auth;
-      const targetDirUrl = `${this.serverUrl}/${encodeURIComponent(this.remotePath)}`;
-      try {
-        await requestHttp({
-          url: targetDirUrl,
-          method: "MKCOL",
-          headers: auth ? { Authorization: auth } : {}
-        });
-      } catch {
+      let targetDirUrl = this.serverUrl;
+      for (const segment of this.remotePath.split("/").filter((s) => s.length > 0)) {
+        targetDirUrl = `${targetDirUrl}/${encodeURIComponent(segment)}`;
+        try {
+          await requestHttp({
+            url: targetDirUrl,
+            method: "MKCOL",
+            headers: auth ? { Authorization: auth } : {}
+          });
+        } catch {
+        }
       }
       const fileUrl = `${targetDirUrl}/${encodeURIComponent(filename)}`;
       const response = await requestHttp({
@@ -8593,6 +8779,54 @@ var WebDAVProvider = class {
         message: `Error de red al subir a WebDAV: ${err2?.message || String(err2)}`
       };
     }
+  }
+  /** URL of the collection that holds the backups (one segment per level). */
+  getTargetDirUrl() {
+    let url = this.serverUrl;
+    for (const segment of this.remotePath.split("/").filter((s) => s.length > 0)) {
+      url = `${url}/${encodeURIComponent(segment)}`;
+    }
+    return url;
+  }
+  async pruneBackups(filenamePrefix, keep) {
+    this.assertSecureTransport();
+    const auth = this.getAuthHeader();
+    const headers = auth ? { Authorization: auth } : {};
+    const dirUrl = this.getTargetDirUrl();
+    const listing = await requestHttp({
+      url: dirUrl,
+      method: "PROPFIND",
+      headers: { ...headers, Depth: "1", "Content-Type": "application/xml" }
+    });
+    if (listing.status !== 207 && listing.status !== 200) {
+      return { deleted: 0, failed: 0, message: `No se pudo listar la carpeta WebDAV (C\xF3digo ${listing.status}).` };
+    }
+    const names = [];
+    const hrefRe = /<(?:[A-Za-z0-9_-]+:)?href[^>]*>([^<]*)<\/(?:[A-Za-z0-9_-]+:)?href>/gi;
+    let match;
+    while ((match = hrefRe.exec(listing.text)) !== null) {
+      try {
+        const last = decodeURIComponent(match[1].trim()).replace(/\/+$/, "").split("/").pop();
+        if (last) names.push({ name: last });
+      } catch {
+      }
+    }
+    let deleted = 0;
+    let failed = 0;
+    for (const entry of selectBackupsToDelete(names, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `${dirUrl}/${encodeURIComponent(entry.name)}`,
+          method: "DELETE",
+          headers
+        });
+        if (res.status >= 200 && res.status < 300 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 };
 
@@ -8690,6 +8924,26 @@ var LocalSyncProvider = class {
         message: `Error al escribir en la carpeta local: ${err2?.message || String(err2)}`
       };
     }
+  }
+  async pruneBackups(filenamePrefix, keep) {
+    const fs = this.getFs();
+    if (!this.destinationPath || !fs || !fs.existsSync(this.destinationPath)) {
+      return { deleted: 0, failed: 0, message: "Carpeta de destino no disponible." };
+    }
+    const pathMod = this.getPathModule();
+    const names = fs.readdirSync(this.destinationPath);
+    let deleted = 0;
+    let failed = 0;
+    for (const entry of selectBackupsToDelete(names.map((name) => ({ name })), filenamePrefix, keep)) {
+      try {
+        const target = pathMod ? pathMod.join(this.destinationPath, entry.name) : `${this.destinationPath}/${entry.name}`;
+        fs.unlinkSync(target);
+        deleted++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 };
 
@@ -8885,8 +9139,13 @@ var CloudBackupModal = class extends import_obsidian5.Modal {
       this.plugin.openLockScreen();
       return;
     }
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+    this.backupBtn.disabled = true;
     const provider = await this.getProvider();
     if (!provider) {
+      this.isProcessing = false;
+      this.backupBtn.disabled = false;
       new import_obsidian5.Notice(t("cloudBackup.providerNone"));
       return;
     }
@@ -8929,16 +9188,15 @@ var CloudBackupModal = class extends import_obsidian5.Modal {
         }
       );
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || "Upload failed");
+        throw new Error(uploadResult.message || "Upload failed");
       }
       setCssStyles2(this.progressBar, { width: "100%" });
       this.progressPercentEl.setText("100%");
       this.progressStatusEl.setText(`\u2705 ${t("notices.backupSuccess")}`);
       this.currentFileEl.setText(zipResult.filename);
-      try {
-        await provider.pruneBackups(this.plugin.settings.backup.retentionCount || 5);
-      } catch (pruneErr) {
-        console.warn("[MySecret] Prune failed:", pruneErr);
+      const pruned = await pruneAfterUpload(provider, zipResult.filename, this.plugin.settings.backup.retentionCount);
+      if (pruned && pruned.failed > 0) {
+        new import_obsidian5.Notice(`\u26A0\uFE0F MySecret: no se pudieron eliminar ${pruned.failed} copia(s) antigua(s).`);
       }
       this.plugin.settings.backup.lastBackupTimestamp = Date.now();
       await this.plugin.saveSettings();
@@ -8971,6 +9229,8 @@ var RestoreModal = class extends import_obsidian6.Modal {
   constructor(app, plugin) {
     super(app);
     this.selectedZipBytes = null;
+    /** Identifies the latest file selection so a slow earlier one cannot overwrite it. */
+    this.loadSeq = 0;
     this.selectedFilename = "";
     this.parsedManifest = null;
     this.isProcessing = false;
@@ -9073,6 +9333,11 @@ var RestoreModal = class extends import_obsidian6.Modal {
     });
   }
   async loadFile(file) {
+    const seq = ++this.loadSeq;
+    this.selectedZipBytes = null;
+    this.parsedManifest = null;
+    this.restoreBtn.disabled = true;
+    this.infoBox.hide();
     try {
       this.selectedFilename = file.name;
       if (file.size > MAX_RESTORE_ARCHIVE_BYTES) {
@@ -9080,10 +9345,11 @@ var RestoreModal = class extends import_obsidian6.Modal {
         return;
       }
       const arrayBuffer = await file.arrayBuffer();
-      this.selectedZipBytes = new Uint8Array(arrayBuffer);
+      if (seq !== this.loadSeq) return;
+      const zipBytes = new Uint8Array(arrayBuffer);
       let declaredTotal = 0;
       let entryCount = 0;
-      const unzipped = unzipSync(this.selectedZipBytes, {
+      const unzipped = unzipSync(zipBytes, {
         filter: (entry) => {
           entryCount++;
           declaredTotal += Number(entry.originalSize ?? 0);
@@ -9103,6 +9369,8 @@ var RestoreModal = class extends import_obsidian6.Modal {
         } catch {
         }
       }
+      if (seq !== this.loadSeq) return;
+      this.selectedZipBytes = zipBytes;
       this.renderBackupInfo(Object.keys(unzipped).length, manifest);
       this.restoreBtn.disabled = false;
     } catch (err2) {
@@ -9752,6 +10020,8 @@ var LockScreenModal = class extends import_obsidian9.Modal {
     super(app);
     this.isRecoveryMode = false;
     this.isBusy = false;
+    /** A biometric ceremony is pending in the external browser (password path stays usable). */
+    this.isBiometricWaiting = false;
     this.isClosed = false;
     this.allowClose = false;
     this.plugin = plugin;
@@ -10083,7 +10353,7 @@ var LockScreenModal = class extends import_obsidian9.Modal {
    */
   setBiometricWaiting(waiting) {
     if (this.isClosed) return;
-    this.isBusy = waiting;
+    this.isBiometricWaiting = waiting;
     this.passwordInput.disabled = false;
     this.recoveryInput.disabled = false;
     this.visibilityBtn.disabled = false;
@@ -10092,8 +10362,17 @@ var LockScreenModal = class extends import_obsidian9.Modal {
       this.biometricBtn.disabled = waiting;
     }
   }
+  /**
+   * The user chose to type a credential: stop waiting for the browser so the
+   * pending biometric call settles instead of racing the typed unlock.
+   */
+  cancelPendingBiometrics() {
+    if (this.isBiometricWaiting) {
+      this.plugin.biometricManager.cancelPendingSession();
+    }
+  }
   async handleBiometricUnlock() {
-    if (this.isBusy || this.isClosed) return;
+    if (this.isBusy || this.isBiometricWaiting || this.isClosed) return;
     this.clearError();
     this.setBiometricWaiting(true);
     this.setStatus("working", t("lockScreen.bioWaiting"));
@@ -10154,6 +10433,7 @@ var LockScreenModal = class extends import_obsidian9.Modal {
       return;
     }
     this.clearError();
+    this.cancelPendingBiometrics();
     this.setBusy(true);
     try {
       const success = await this.plugin.keyManager.unlockWithPassword(password);
@@ -10193,6 +10473,7 @@ var LockScreenModal = class extends import_obsidian9.Modal {
       return;
     }
     this.clearError();
+    this.cancelPendingBiometrics();
     this.setBusy(true);
     try {
       const success = await this.plugin.keyManager.unlockWithRecoveryPhrase(phrase);
@@ -10934,7 +11215,11 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
         try {
           const success = await this.plugin.biometricManager.enrollBiometrics(rawVaultKey, vaultId);
           if (success) {
-            this.plugin.settings.biometrics = { enabled: true, autoPrompt: true };
+            this.plugin.settings.biometrics = {
+              ...this.plugin.settings.biometrics,
+              enabled: true,
+              autoPrompt: true
+            };
             await this.plugin.saveSettings();
             feedback.setText("\u2713 Huella digital activada correctamente en este equipo");
             feedback.removeClass("is-error");
@@ -11590,15 +11875,9 @@ var RecoveryPhraseModal = class extends import_obsidian13.Modal {
         new import_obsidian13.Notice(t("common.copied"));
         if (this.clearTimer !== null) window.clearTimeout(this.clearTimer);
         this.clearTimer = window.setTimeout(async () => {
-          try {
-            const current = await navigator.clipboard.readText();
-            if (current === this.mnemonic) {
-              await navigator.clipboard.writeText("");
-            }
-            copyBtn.setText(`\u{1F4CB} ${t("recoveryPhraseModal.copyMnemonic")}`);
-          } catch {
-            copyBtn.setText(`\u{1F4CB} ${t("recoveryPhraseModal.copyMnemonic")}`);
-          }
+          this.clearTimer = null;
+          await this.wipeClipboard();
+          copyBtn.setText(`\u{1F4CB} ${t("recoveryPhraseModal.copyMnemonic")}`);
         }, 3e4);
       } catch {
         new import_obsidian13.Notice(t("common.error"));
@@ -11616,10 +11895,29 @@ var RecoveryPhraseModal = class extends import_obsidian13.Modal {
     });
     closeBtn.addEventListener("click", () => this.close());
   }
+  /**
+   * Removes the phrase from the clipboard. When the clipboard cannot be read
+   * (permission, focus) it is cleared blindly: leaving 24 words behind is the
+   * worse outcome.
+   */
+  async wipeClipboard() {
+    try {
+      const current = await navigator.clipboard.readText();
+      if (current === this.mnemonic) {
+        await navigator.clipboard.writeText("");
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText("");
+      } catch {
+      }
+    }
+  }
   onClose() {
     if (this.clearTimer !== null) {
       window.clearTimeout(this.clearTimer);
       this.clearTimer = null;
+      void this.wipeClipboard();
     }
     const { contentEl } = this;
     contentEl.empty();
@@ -12943,6 +13241,14 @@ function decodeBase642(base64) {
     return new Uint8Array(0);
   }
 }
+function getRegistrationPublicKey(response) {
+  if (!response) return null;
+  if (typeof response.getPublicKey === "function") {
+    const viaMethod = response.getPublicKey();
+    if (viaMethod) return viaMethod;
+  }
+  return response.publicKey ?? null;
+}
 
 // src/biometrics/webauthn-provider.ts
 var WebAuthnProvider = class {
@@ -13099,11 +13405,11 @@ var WebAuthnProvider = class {
       );
     }
     const prfSecret = prfResult.prfSecret;
-    const credentialSpki = credential.response?.publicKey;
+    const credentialSpki = getRegistrationPublicKey(credential.response);
     if (!credentialSpki) {
       throw new Error("La credencial biom\xE9trica no expuso su clave p\xFAblica.");
     }
-    const credentialPublicKey = bytesToBase64(new Uint8Array(credentialSpki));
+    const credentialPublicKey = bytesToBase64(toUint8Array(credentialSpki));
     await verifyWebAuthnAssertion(
       {
         id: credential.id,
@@ -14389,7 +14695,9 @@ var MySecretPlugin = class extends import_obsidian16.Plugin {
     if (this.isAutoBackupRunning) return;
     if (!this.settings.backup.autoBackup || this.settings.backup.provider === "none") return;
     if (triggerReason === "interval") {
-      const minIntervalMs = this.settings.backup.autoBackupIntervalHours * 60 * 60 * 1e3;
+      const configuredHours = Number(this.settings.backup.autoBackupIntervalHours);
+      const intervalHours = Number.isFinite(configuredHours) && configuredHours > 0 ? configuredHours : 24;
+      const minIntervalMs = intervalHours * 60 * 60 * 1e3;
       const elapsed = Date.now() - (this.settings.backup.lastBackupTimestamp || 0);
       if (elapsed < minIntervalMs) {
         return;
@@ -14421,6 +14729,7 @@ var MySecretPlugin = class extends import_obsidian16.Plugin {
       }
       const uploadResult = await provider.uploadBackup(result.filename, result.zipBytes);
       if (uploadResult.success) {
+        await pruneAfterUpload(provider, result.filename, this.settings.backup.retentionCount);
         this.settings.backup.lastBackupTimestamp = Date.now();
         await this.saveSettings();
         console.log(`[MySecret] Auto-backup succeeded: ${result.filename}`);
@@ -14493,6 +14802,7 @@ var MySecretPlugin = class extends import_obsidian16.Plugin {
     }
     this.dropPlaintextCaches();
     this.keyManager.lock();
+    this.reauthValidUntil = 0;
     this.updateRibbonIcon();
     new import_obsidian16.Notice(`\u{1F512} ${t("notices.vaultLocked")}`);
     this.openLockScreen();
@@ -14691,8 +15001,14 @@ Lo correcto es restaurar vault-envelope.json (o su copia .bak) desde un respaldo
       return null;
     }
     if (!await this.requireReauth()) return null;
+    const snapshot = this.keyManager.snapshotRecoveryState();
     const result = await this.keyManager.addRecoveryPhrase();
-    await this.saveVaultEnvelope(result.envelope);
+    try {
+      await this.saveVaultEnvelope(result.envelope);
+    } catch (err2) {
+      this.keyManager.restoreRecoveryState(snapshot);
+      throw err2;
+    }
     new import_obsidian16.Notice("\u2705 Frase de recuperaci\xF3n activada.");
     return result.mnemonic;
   }
@@ -14703,8 +15019,14 @@ Lo correcto es restaurar vault-envelope.json (o su copia .bak) desde un respaldo
       return false;
     }
     if (!await this.requireReauth()) return false;
+    const snapshot = this.keyManager.snapshotRecoveryState();
     const updatedEnvelope = this.keyManager.removeRecoveryPhrase();
-    await this.saveVaultEnvelope(updatedEnvelope);
+    try {
+      await this.saveVaultEnvelope(updatedEnvelope);
+    } catch (err2) {
+      this.keyManager.restoreRecoveryState(snapshot);
+      throw err2;
+    }
     new import_obsidian16.Notice("\u{1F6E1}\uFE0F Frase de recuperaci\xF3n eliminada. Solo podr\xE1s acceder con tu contrase\xF1a.");
     return true;
   }

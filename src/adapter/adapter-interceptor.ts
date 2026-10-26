@@ -16,7 +16,7 @@ import {
   serializeBinary,
   deserializeBinary
 } from '../crypto/envelope';
-import { stringToBytes, bytesToString } from '../utils/buffer';
+import { stringToBytes, bytesToString, decodeUtf8Strict } from '../utils/buffer';
 import {
   detectContainerFormat,
   decryptContainer,
@@ -288,7 +288,13 @@ export class AdapterInterceptor {
 
       const rawContent = await self.origRead(path);
 
-      if (!isArmoredEncrypted(rawContent)) {
+      // A text note can also be stored as a BINARY container (written through
+      // `writeBinary` by an older version or by another plugin). Its first
+      // bytes are the ASCII magic "MYSE", so the decoded text starts with it.
+      const armored = isArmoredEncrypted(rawContent);
+      const maybeBinaryContainer = !armored && rawContent.startsWith('MYSE');
+
+      if (!armored && !maybeBinaryContainer) {
         // File is not encrypted yet (e.g. before initial migration)
         return rawContent;
       }
@@ -299,6 +305,19 @@ export class AdapterInterceptor {
       }
 
       try {
+        if (maybeBinaryContainer) {
+          const rawBytes = new Uint8Array(await self.origReadBinary(path));
+          if (!isBinaryEncrypted(rawBytes)) {
+            return rawContent; // a plain note that merely starts with "MYSE"
+          }
+          const outcome = await decryptContainer(
+            rawBytes,
+            self.pathFilter.normalizePath(path),
+            self.keyManager
+          );
+          return bytesToString(outcome.bytes);
+        }
+
         const payload = deserializeArmored(rawContent);
         const decryptedBytes = await decryptAesGcm(
           payload.ciphertext,
@@ -315,11 +334,11 @@ export class AdapterInterceptor {
     };
 
     // 2. Hook write
-    a.write = async function (path: string, data: string, options?: any): Promise<void> {
-      if (!self.pathFilter.shouldEncrypt(path)) {
-        return await self.origWrite(path, data, options);
-      }
-
+    //
+    // The encrypting body lives in `writeEncrypted` so the compound operations
+    // (`process`, `append`), which already hold the path lock, can call it
+    // without waiting on themselves.
+    const writeEncrypted = async (path: string, data: string, options?: any): Promise<void> => {
       if (self.keyManager.isLocked) {
         throw new Error(`[MySecret] Cannot write while vault is locked (${path})`);
       }
@@ -362,6 +381,14 @@ export class AdapterInterceptor {
       return await self.origWrite(path, armored, options);
     };
 
+    a.write = function (path: string, data: string, options?: any): Promise<void> {
+      if (!self.pathFilter.shouldEncrypt(path)) {
+        return self.origWrite(path, data, options);
+      }
+      // Serialized with `rebindAad`, `process` and `append` on the same path.
+      return self.withPathLock(path, () => writeEncrypted(path, data, options));
+    };
+
     // 3. Hook readBinary
     //
     // SECURITY (confidentiality): this hook returns the RAW ON-DISK BYTES.
@@ -394,11 +421,7 @@ export class AdapterInterceptor {
     };
 
     // 4. Hook writeBinary
-    a.writeBinary = async function (path: string, data: ArrayBuffer, options?: any): Promise<void> {
-      if (!self.pathFilter.shouldEncrypt(path)) {
-        return await self.origWriteBinary(path, data, options);
-      }
-
+    const writeBinaryEncrypted = async (path: string, data: ArrayBuffer, options?: any): Promise<void> => {
       if (self.keyManager.isLocked) {
         throw new Error(`[MySecret] Cannot write binary while vault is locked (${path})`);
       }
@@ -430,7 +453,24 @@ export class AdapterInterceptor {
           self.keyManager
         )
       ) {
-        return await self.origWriteBinary(path, toArrayBuffer(plainBytes), options);
+        const written = await self.origWriteBinary(path, toArrayBuffer(plainBytes), options);
+        // The bytes changed behind our back (e.g. Sync): a cached Blob URL
+        // would keep showing the previous version of the attachment.
+        self.mediaManager?.invalidate(path);
+        return written;
+      }
+
+      // DATA INTEGRITY: text notes are stored as ARMORED text everywhere else
+      // (`write`, re-bind, backup restore) and `read()` expects that format.
+      // A note written through `writeBinary` (a dropped .md, another plugin)
+      // would otherwise become a binary container that `read()` returns as
+      // garbage. Valid UTF-8 is routed through the text path; anything else
+      // keeps the binary container so no byte is altered.
+      if (self.pathFilter.isTextNote(path)) {
+        const text = decodeUtf8Strict(plainBytes);
+        if (text !== null) {
+          return await writeEncrypted(path, text, options);
+        }
       }
 
       // Immediately cache plaintext media so pasted attachments display instantaneously
@@ -452,6 +492,13 @@ export class AdapterInterceptor {
       });
 
       return await self.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
+    };
+
+    a.writeBinary = function (path: string, data: ArrayBuffer, options?: any): Promise<void> {
+      if (!self.pathFilter.shouldEncrypt(path)) {
+        return self.origWriteBinary(path, data, options);
+      }
+      return self.withPathLock(path, () => writeBinaryEncrypted(path, data, options));
     };
 
     // 5. Hook append
@@ -485,7 +532,7 @@ export class AdapterInterceptor {
           }
           existing = '';
         }
-        await a.write(path, existing + data, options);
+        await writeEncrypted(path, existing + data, options);
       };
 
       a.append = function (path: string, data: string, options?: any): Promise<void> {
@@ -638,7 +685,7 @@ export class AdapterInterceptor {
       }
 
       const processed = fn(currentText);
-      await a.write(path, processed, options);
+      await writeEncrypted(path, processed, options);
       return processed;
     };
 
@@ -917,7 +964,13 @@ export class AdapterInterceptor {
    * rewritten through the raw (unintercepted) adapter so that no double
    * encryption happens.
    */
-  private async rebindAad(fromAbs: string, toAbs: string): Promise<void> {
+  private rebindAad(fromAbs: string, toAbs: string): Promise<void> {
+    // Serialized with the write hooks: a save that lands while the file is
+    // being re-bound must not be overwritten with the stale content.
+    return this.withPathLock(toAbs, () => this.rebindAadLocked(fromAbs, toAbs));
+  }
+
+  private async rebindAadLocked(fromAbs: string, toAbs: string): Promise<void> {
     const shouldEncryptOld = this.pathFilter.shouldEncrypt(fromAbs);
     const shouldEncryptNew = this.pathFilter.shouldEncrypt(toAbs);
 

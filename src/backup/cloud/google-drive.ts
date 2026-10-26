@@ -4,7 +4,8 @@
  */
 
 import { requestHttp, toExactArrayBuffer } from '../../utils/http';
-import { CloudProvider, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { CloudProvider, CloudPruneResult, CloudTestResult, CloudUploadResult } from './provider-interface';
+import { selectBackupsToDelete } from './retention';
 
 /**
  * Generates a cryptographically random multipart boundary.
@@ -142,5 +143,51 @@ export class GoogleDriveProvider implements CloudProvider {
         message: `Error de red al subir a Google Drive: ${err?.message || String(err)}`
       };
     }
+  }
+
+  /**
+   * Old backups are moved to the Drive trash (recoverable), not erased.
+   */
+  public async pruneBackups(filenamePrefix: string, keep: number): Promise<CloudPruneResult> {
+    if (!this.accessToken) return { deleted: 0, failed: 0, message: 'Token de acceso no configurado.' };
+    const auth = { Authorization: `Bearer ${this.accessToken}`, Accept: 'application/json' };
+    const parent = this.folderId.replace(/['\\]/g, '');
+    const query = `mimeType = 'application/zip' and trashed = false and '${parent || 'root'}' in parents`;
+
+    const files: Array<{ id: string; name: string }> = [];
+    let pageToken = '';
+    do {
+      const url =
+        'https://www.googleapis.com/drive/v3/files?pageSize=1000' +
+        `&q=${encodeURIComponent(query)}` +
+        `&fields=${encodeURIComponent('nextPageToken,files(id,name)')}` +
+        (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
+      const res = await requestHttp({ url, method: 'GET', headers: auth });
+      if (res.status !== 200 || !res.json) {
+        return { deleted: 0, failed: 0, message: `No se pudo listar Google Drive (Código ${res.status}).` };
+      }
+      for (const f of res.json.files || []) {
+        if (f && typeof f.id === 'string' && typeof f.name === 'string') files.push(f);
+      }
+      pageToken = res.json.nextPageToken || '';
+    } while (pageToken);
+
+    let deleted = 0;
+    let failed = 0;
+    for (const file of selectBackupsToDelete(files, filenamePrefix, keep)) {
+      try {
+        const res = await requestHttp({
+          url: `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`,
+          method: 'PATCH',
+          headers: { ...auth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trashed: true })
+        });
+        if (res.status === 200 || res.status === 404) deleted++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { deleted, failed };
   }
 }
