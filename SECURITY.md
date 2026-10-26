@@ -151,7 +151,7 @@ Every security defense is continuously validated through automated unit, cryptog
 
 ## 4. Comprehensive Security Audit, Supply Chain & Code Hardening (Grade A+)
 
-The MySecret codebase underwent an exhaustive technical security audit, code inspection, and supply-chain review, fully documented in the [Security Audit & Hardening Report](SECURITY_AUDIT_AND_PATCHES.md).
+The MySecret codebase underwent an exhaustive technical security audit, code inspection, and supply-chain review, fully documented in the [Security Audit & Hardening Report](SECURITY_AUDIT.md).
 
 ### 🔍 Supply Chain Vulnerability Remediated (`GHSA-67mh-4wv8-2f99` / CWE-346)
 - **Vulnerability Details**: `esbuild@0.20.2` (affected `<= 0.24.2`) had a Moderate severity advisory (CVSS 5.3) where `esbuild.serve()` configured `Access-Control-Allow-Origin: *`, allowing arbitrary external websites to query a local development server and read responses.

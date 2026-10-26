@@ -151,7 +151,7 @@ La integridad de todas estas protecciones se valida continuamente mediante una s
 
 ## 4. Auditoría Integral de Seguridad, Cadena de Suministro y Endurecimiento de Código (Calificación A+)
 
-El código fuente de MySecret fue sometido a una auditoría técnica profunda, inspección manual y revisión de cadena de suministro, detallada exhaustivamente en el [Informe de Auditoría y Parches de Seguridad](SECURITY_AUDIT_AND_PATCHES.md).
+El código fuente de MySecret fue sometido a una auditoría técnica profunda, inspección manual y revisión de cadena de suministro, detallada exhaustivamente en el [Informe de Auditoría y Parches de Seguridad](SECURITY_AUDIT.es.md).
 
 ### 🔍 Vulnerabilidad en Cadena de Suministro Mitigada (`GHSA-67mh-4wv8-2f99` / CWE-346)
 - **Detalle de la Vulnerabilidad**: `esbuild@0.20.2` (afectaba versiones `<= 0.24.2`) presentaba un advisory de severidad Moderada (CVSS 5.3) en el cual `esbuild.serve()` configuraba por defecto la cabecera `Access-Control-Allow-Origin: *`, permitiendo a sitios web externos no autorizados enviar peticiones y leer respuestas del servidor local de desarrollo.

@@ -35,21 +35,14 @@ En disco, todos tus archivos permanecen fuertemente cifrados en reposo. Al desbl
 
 ---
 
-## 🎬 Demostración en Video y Explicación del Sistema
+## 🎬 Demostración en Video y Guía Interactiva
 
-Mira la demostración completa en video de MySecret explicando cómo el cifrado transparente en reposo protege tu bóveda de Obsidian:
+Explora la arquitectura técnica y las guías interactivas impulsadas por Google NotebookLM:
 
-| 🇬🇧 Demostración en Inglés | 🇪🇸 Explicación en Español |
+| 🇬🇧 Recursos en Inglés | 🇪🇸 Recursos en Español |
 | :---: | :---: |
-| 🌐 [**Ver Online sin Descargar (Streaming Web)**](https://abismalmx.github.io/MySecret/docs/interactive-infographic.html) | 🌐 [**Ver Online sin Descargar (Streaming Web)**](https://abismalmx.github.io/MySecret/docs/interactive-infographic.html) |
-| 🧠 [**Ver en Google NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/ef0d6ffc-dc85-48e2-b52d-11fdbaf5e533) | 🧠 [**Ver en Google NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/e06b57d7-18c5-4e3a-8e99-a25dc10c2804) |
-| 💾 [Descargar Archivo MP4](media/MySecret_en.mp4) | 💾 [Descargar Archivo MP4](media/MySecret_es.mp4) |
-
-> [!TIP]
-> 🌐 **Infografía de Seguridad Interactiva (Web)**: Explora la arquitectura interactiva, reproduce videos y prueba el simulador en **[abismalmx.github.io/MySecret](https://abismalmx.github.io/MySecret/docs/interactive-infographic.html)**.  
-> 🧠 **Guía Interactiva en NotebookLM**:
-> - 🇪🇸 [Explorar en NotebookLM (Español)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c)
-> - 🇬🇧 [Explore on NotebookLM (English)](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b)
+| 🧠 [**Ver Video en NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/ef0d6ffc-dc85-48e2-b52d-11fdbaf5e533) | 🧠 [**Ver Video en NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/e06b57d7-18c5-4e3a-8e99-a25dc10c2804) |
+| 📘 [**Guía Interactiva y Consultas**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b) | 📘 [**Guía Interactiva y Consultas**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c) |
 
 ---
 
