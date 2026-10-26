@@ -41,6 +41,8 @@ export class PublishGuard {
   private publishInstance: any = null;
   private origApiUploadFile?: (file: TFile) => Promise<unknown>;
   private installed: boolean = false;
+  private wrapper: ((file: TFile) => Promise<unknown>) | null = null;
+  private noticeShown: boolean = false;
 
   constructor(app: App) {
     this.app = app;
@@ -80,7 +82,7 @@ export class PublishGuard {
     // eslint-disable-next-line @typescript-eslint/no-this-alias -- Preserve the guard instance across the patched method
     const self = this;
 
-    instance.apiUploadFile = async function (file: TFile): Promise<unknown> {
+    const wrapper = async function (file: TFile): Promise<unknown> {
       const blocked = await self.assertPublishable(file);
       if (!blocked) {
         return await self.origApiUploadFile!(file);
@@ -93,6 +95,8 @@ export class PublishGuard {
         'publicar, o excluye la nota de la publicación.'
       );
     };
+    instance.apiUploadFile = wrapper;
+    this.wrapper = wrapper;
 
     this.installed = true;
 
@@ -100,6 +104,9 @@ export class PublishGuard {
       '[MySecret] Obsidian Publish is enabled: the upload of encrypted notes ' +
       'has been blocked to avoid publishing their cleartext.'
     );
+
+    if (this.noticeShown) return true;
+    this.noticeShown = true;
 
     try {
       new Notice(
@@ -113,6 +120,44 @@ export class PublishGuard {
     }
 
     return true;
+  }
+
+  /**
+   * Re-checks the Publish plugin and (re)installs the guard when needed.
+   *
+   * Publish can be enabled AFTER MySecret has loaded, or disabled and enabled
+   * again (which creates a NEW instance whose `apiUploadFile` is not wrapped).
+   * Without this check the cleartext of the encrypted notes could be uploaded
+   * to a public website in those cases.
+   */
+  public refresh(): void {
+    let instance: any = null;
+    try {
+      const internalPlugins = (this.app as any).internalPlugins;
+      instance = internalPlugins?.getEnabledPluginById?.(PUBLISH_PLUGIN_ID) ?? null;
+    } catch {
+      instance = null;
+    }
+
+    if (!instance) {
+      // Publish was disabled: forget the stale instance.
+      this.publishInstance = null;
+      this.origApiUploadFile = undefined;
+      this.wrapper = null;
+      this.installed = false;
+      return;
+    }
+
+    if (
+      this.installed &&
+      instance === this.publishInstance &&
+      instance.apiUploadFile === this.wrapper
+    ) {
+      return;
+    }
+
+    this.installed = false;
+    this.install();
   }
 
   /**

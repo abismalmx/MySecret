@@ -5,6 +5,16 @@
 
 export interface VaultEnvelopeConfig {
   version: number;
+  /**
+   * Stable identifier of the vault (hex). It is used to scope device-local
+   * secrets (biometric envelopes, keyring entries). It MUST NOT change when
+   * the master password changes (the Argon2 salt does), otherwise the
+   * biometric enrollment would be silently orphaned.
+   *
+   * Envelopes created before this field existed fall back to the Argon2
+   * salt that was current when the field was first introduced.
+   */
+  vaultId?: string;
   argon2: {
     memory: number;
     iterations: number;
@@ -81,7 +91,14 @@ export interface BackupManifest {
   }>;
 }
 
+export interface BackupSkippedFile {
+  path: string;
+  reason: string;
+}
+
 export interface BackupStats {
+  /** Files that could NOT be included in the archive, with the reason. */
+  skippedFiles?: BackupSkippedFile[];
   totalFiles: number;
   totalBytes: number;
   textNotesCount: number;
@@ -103,6 +120,12 @@ export interface PluginSettings {
   isInitialized: boolean;
   language?: 'auto' | 'en' | 'es' | 'ru' | 'zh';
   backup: CloudBackupSettings;
+  /**
+   * Renames/copies whose AAD re-binding could not be completed (vault locked,
+   * crash...). They are replayed on the next unlock so no note stays bound to
+   * a path it no longer has.
+   */
+  pendingRebinds?: Array<{ from: string; to: string }>;
   biometrics?: {
     enabled: boolean;
     autoPrompt: boolean;

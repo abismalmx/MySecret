@@ -36,3 +36,5 @@ El puente biométrico implementa una arquitectura de autenticación de alta segu
 | **Anonimización del Identificador de Bóveda** | El ID real de la bóveda nunca sale de Obsidian; solo viaja un enlace unidireccional SHA-256 (`vb`) en el fragmento de la URL. |
 | **CSP Estricta y Política de Referrer** | La política `Content-Security-Policy: default-src 'self'` y `Referrer-Policy: no-referrer` bloquea inyecciones de scripts y exfiltración de datos. |
 | **Aislamiento por Subdominio (`pages.dev`)** | Al estar `pages.dev` en la *Public Suffix List*, cada proyecto obtiene un límite de seguridad y credencial WebAuthn completamente aislado. |
+
+> **Cabeceras de seguridad:** el archivo `_headers` de esta carpeta (Cloudflare Pages lo aplica solo) añade `frame-ancestors`/`X-Frame-Options` contra clickjacking; esos valores no funcionan dentro de un `<meta>`. Despliega la carpeta completa.

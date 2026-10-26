@@ -137,3 +137,19 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   }
   return c === 0;
 }
+
+/**
+ * Decodes bytes as UTF-8 only when the round trip is lossless.
+ *
+ * Text notes are handled as JS strings; a file in another encoding would be
+ * silently altered (invalid bytes become U+FFFD) the moment it is encrypted.
+ *
+ * @returns the string, or null when the bytes are not valid UTF-8.
+ */
+export function decodeUtf8Strict(bytes: Uint8Array): string | null {
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}

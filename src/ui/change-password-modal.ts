@@ -16,6 +16,7 @@ import { t } from '../i18n';
 export class ChangePasswordModal extends Modal {
   private plugin: MySecretPlugin;
 
+  private currentInput!: HTMLInputElement;
   private passwordInput!: HTMLInputElement;
   private confirmInput!: HTMLInputElement;
   private errorEl!: HTMLElement;
@@ -56,7 +57,26 @@ export class ChangePasswordModal extends Modal {
     this.errorEl = contentEl.createDiv({ cls: 'mysecret-error-banner' });
     this.errorEl.hide();
 
+    const warning = contentEl.createDiv({ cls: 'mysecret-migration-warning' });
+    warning.setText(t('changePassword.keyNotRotatedWarning'));
+
     const form = contentEl.createDiv({ cls: 'mysecret-wizard-form' });
+
+    const cGroup = form.createDiv({ cls: 'mysecret-input-group' });
+    cGroup.createEl('label', {
+      cls: 'mysecret-input-label',
+      text: t('changePassword.currentPasswordLabel')
+    });
+    this.currentInput = cGroup.createEl('input', {
+      type: 'password',
+      cls: 'mysecret-password-input',
+      attr: {
+        spellcheck: 'false',
+        autocomplete: 'current-password',
+        'aria-label': t('changePassword.currentPasswordLabel'),
+        'data-mysecret-testid': 'change-password-current'
+      }
+    });
 
     const p1Group = form.createDiv({ cls: 'mysecret-input-group' });
     p1Group.createEl('label', {
@@ -120,7 +140,7 @@ export class ChangePasswordModal extends Modal {
       }
     });
 
-    window.setTimeout(() => this.passwordInput.focus(), 60);
+    window.setTimeout(() => this.currentInput.focus(), 60);
   }
 
   private showError(message: string): void {
@@ -137,13 +157,21 @@ export class ChangePasswordModal extends Modal {
    * Wipes the sensitive inputs from the DOM.
    */
   private wipeInputs(): void {
+    if (this.currentInput) this.currentInput.value = '';
     if (this.passwordInput) this.passwordInput.value = '';
     if (this.confirmInput) this.confirmInput.value = '';
   }
 
   private async handleSubmit(): Promise<void> {
+    const currentPass = this.currentInput.value;
     const newPass = this.passwordInput.value;
     const confirmPass = this.confirmInput.value;
+
+    if (!currentPass) {
+      this.showError(t('changePassword.wrongCurrentPassword'));
+      this.currentInput.focus();
+      return;
+    }
 
     if (!newPass || newPass.length < MIN_MASTER_PASSWORD_LENGTH) {
       this.showError(t('notices.passwordTooShort'));
@@ -169,9 +197,25 @@ export class ChangePasswordModal extends Modal {
     this.submitBtn.disabled = true;
     this.submitBtn.setText(t('changePassword.updating'));
 
+    // Snapshot of the envelope so the in-memory state can be rolled back if
+    // the new one cannot be persisted: memory and disk must never diverge.
+    const currentEnvelope = this.plugin.keyManager.getEnvelope();
+    const snapshot = currentEnvelope ? JSON.parse(JSON.stringify(currentEnvelope)) : null;
+
     try {
-      const updatedEnvelope = await this.plugin.keyManager.changeMasterPassword(newPass);
-      await this.plugin.saveVaultEnvelope(updatedEnvelope);
+      if (!(await this.plugin.keyManager.verifyPassword(currentPass))) {
+        this.showError(t('changePassword.wrongCurrentPassword'));
+        this.currentInput.value = '';
+        this.currentInput.focus();
+        return;
+      }
+      const updatedEnvelope = await this.plugin.keyManager.changeMasterPassword(newPass, currentPass);
+      try {
+        await this.plugin.saveVaultEnvelope(updatedEnvelope);
+      } catch (saveErr) {
+        if (snapshot) this.plugin.keyManager.setEnvelope(snapshot);
+        throw saveErr;
+      }
       new Notice(`✅ ${t('changePassword.success')}`);
       this.close();
     } catch (err: any) {

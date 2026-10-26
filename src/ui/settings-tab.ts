@@ -15,6 +15,21 @@ import { zeroize } from '../utils/zeroize';
 import { validateBridgeUrl } from '../biometrics/bridge-url';
 import { t, setI18nLanguage } from '../i18n';
 
+/**
+ * Delays a function until the user stops typing. Credential fields used to
+ * encrypt and write `data.json` on every single keystroke.
+ */
+function debounce<A extends unknown[]>(fn: (...args: A) => void | Promise<void>, ms: number): (...args: A) => void {
+  let timer: number | null = null;
+  return (...args: A) => {
+    if (timer !== null) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = null;
+      void fn(...args);
+    }, ms);
+  };
+}
+
 export class MySecretSettingTab extends PluginSettingTab {
   private plugin: MySecretPlugin;
 
@@ -99,12 +114,13 @@ export class MySecretSettingTab extends PluginSettingTab {
         toggle
           .setValue(this.plugin.settings.encryptAttachments)
           .onChange(async value => {
-            this.plugin.settings.encryptAttachments = value;
-            await this.plugin.saveSettings();
-            this.plugin.pathFilter.updateConfig(
-              this.plugin.settings.excludedFolders,
-              this.plugin.settings.encryptAttachments
-            );
+            // Turning attachment encryption OFF first converts the already
+            // encrypted attachments back to plaintext, otherwise they would be
+            // served as raw ciphertext and corrupted by the next save.
+            const applied = await this.plugin.setEncryptAttachments(value);
+            if (!applied) {
+              toggle.setValue(!value);
+            }
           });
       });
 
@@ -188,7 +204,12 @@ export class MySecretSettingTab extends PluginSettingTab {
                 return;
               }
             }
-            // Enable / enroll
+            // Enable / enroll: the master password is asked again, because
+            // enrolling hands the vault key to a device-local unlock path.
+            if (!(await this.plugin.requireReauth())) {
+              toggle.setValue(false);
+              return;
+            }
             const rawKey = this.plugin.keyManager.getRawVaultKey();
             if (!rawKey) {
               new Notice(t('notices.vaultNotInitialized'));
@@ -417,7 +438,7 @@ export class MySecretSettingTab extends PluginSettingTab {
           button
             .setButtonText(t('settings.showPhraseBtn'))
             .onClick(() => {
-              this.plugin.promptShowRecoveryPhrase();
+              void this.plugin.promptShowRecoveryPhrase();
             });
         });
 
@@ -448,7 +469,7 @@ export class MySecretSettingTab extends PluginSettingTab {
               const mnemonic = await this.plugin.enableRecoveryPhrase();
               this.display();
               if (mnemonic) {
-                this.plugin.promptShowRecoveryPhrase();
+                void this.plugin.promptShowRecoveryPhrase();
               }
             });
         });
@@ -493,9 +514,9 @@ export class MySecretSettingTab extends PluginSettingTab {
           text
             .setPlaceholder('ya29.a0AfH6SM...')
             .setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.googleDrive.accessToken))
-            .onChange(async val => {
+            .onChange(debounce(async (val: string) => {
               await this.plugin.setEncryptedCredential('googleDriveAccessToken', val);
-            });
+            }, 600));
           text.inputEl.type = 'password';
         });
 
@@ -519,9 +540,9 @@ export class MySecretSettingTab extends PluginSettingTab {
           text
             .setPlaceholder('EwBoA8l6BAAU...')
             .setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.oneDrive.accessToken))
-            .onChange(async val => {
+            .onChange(debounce(async (val: string) => {
               await this.plugin.setEncryptedCredential('oneDriveAccessToken', val);
-            });
+            }, 600));
           text.inputEl.type = 'password';
         });
 
@@ -571,9 +592,9 @@ export class MySecretSettingTab extends PluginSettingTab {
           text
             .setPlaceholder('••••••••••••')
             .setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.webdav.password))
-            .onChange(async val => {
+            .onChange(debounce(async (val: string) => {
               await this.plugin.setEncryptedCredential('webdavPassword', val);
-            });
+            }, 600));
           text.inputEl.type = 'password';
         });
 

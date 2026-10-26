@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Nothing is loaded from the network and nothing is sent anywhere. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <title>MySecret — Recuperador de Notas Offline</title>
   <style>
     :root {
@@ -13,7 +16,6 @@
       --accent: #6366f1;
       --accent-hover: #4f46e5;
       --border: rgba(255, 255, 255, 0.1);
-      --success: #10b981;
       --error: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,7 +49,7 @@
       margin-bottom: 1rem;
     }
     label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
-    textarea, input[type="text"] {
+    textarea, input[type="text"], input[type="file"] {
       width: 100%;
       background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--border);
@@ -58,10 +60,7 @@
       font-size: 0.9rem;
       margin-bottom: 1.25rem;
     }
-    textarea:focus, input[type="text"]:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    textarea:focus, input[type="text"]:focus { outline: none; border-color: var(--accent); }
     button {
       background: var(--accent);
       color: #fff;
@@ -71,21 +70,13 @@
       font-size: 0.95rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      margin-right: 0.5rem;
     }
     button:hover { background: var(--accent-hover); }
-    .result-box {
-      margin-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      padding-top: 1.5rem;
-    }
-    #output {
-      min-height: 150px;
-      white-space: pre-wrap;
-      background: #000;
-      color: #10b981;
-    }
+    .result-box { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+    #output { min-height: 150px; white-space: pre-wrap; background: #000; color: #10b981; }
     .error { color: var(--error); margin-top: 0.5rem; font-size: 0.9rem; font-weight: 600; }
+    .note { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -93,20 +84,35 @@
     <span class="badge">100% Offline · Web Crypto API</span>
     <h1>MySecret — Recuperador de Notas sin Obsidian</h1>
     <p class="desc">
-      Esta herramienta ejecuta criptografía nativa (AES-256-GCM y PBKDF2) directamente en tu navegador.
-      No requiere internet ni enviar datos a ningún servidor.
+      Descifra una nota o un adjunto con tu frase de rescate de 24 palabras, directamente en el navegador.
+      No requiere internet ni envía datos a ningún servidor. Para bóvedas completas o para usar la contraseña
+      maestra, usa <code>tools/standalone-decryptor.py</code>.
     </p>
 
-    <label for="mnemonic">1. Frase de Rescate BIP-39 (24 palabras):</label>
-    <textarea id="mnemonic" rows="2" placeholder="ejemplo: word1 word2 word3 ... word24"></textarea>
+    <label for="envelope">1. Contenido de <code>vault-envelope.json</code>:</label>
+    <textarea id="envelope" rows="5" spellcheck="false"
+      placeholder='Está en  .obsidian/plugins/mysecret/vault-envelope.json  (ábrelo con un editor de texto y pega todo su contenido)'></textarea>
 
-    <label for="relPath">2. Ruta relativa de la nota en la bóveda (AAD):</label>
-    <input type="text" id="relPath" placeholder="ejemplo: Notas/Diario.md (o dejar en blanco para raíz)">
+    <label for="mnemonic">2. Frase de Rescate BIP-39 (24 palabras):</label>
+    <textarea id="mnemonic" rows="2" spellcheck="false" autocomplete="off"
+      placeholder="ejemplo: word1 word2 word3 ... word24"></textarea>
 
-    <label for="armoredText">3. Contenido cifrado de la nota (.md):</label>
-    <textarea id="armoredText" rows="6" placeholder="Pega el contenido que empieza con -----BEGIN MYSECRET ENCRYPTED FILE-----"></textarea>
+    <label for="relPath">3. Ruta relativa del archivo dentro de la bóveda:</label>
+    <input type="text" id="relPath" spellcheck="false" placeholder="ejemplo: Notas/Diario.md">
+    <p class="note">
+      La ruta forma parte de los datos autenticados: debe ser <b>exactamente</b> la ruta que el archivo tenía en la
+      bóveda (mayúsculas y carpetas incluidas). Si el archivo se movió fuera de la bóveda, escribe la ruta original.
+    </p>
 
-    <button onclick="decryptNote()">Descifrar Nota Ahora</button>
+    <label for="armoredText">4a. Contenido cifrado de la nota (.md):</label>
+    <textarea id="armoredText" rows="6" spellcheck="false"
+      placeholder="Pega el contenido que empieza con -----BEGIN MYSECRET ENCRYPTED FILE-----"></textarea>
+
+    <label for="binaryFile">4b. …o un adjunto cifrado (imagen, PDF…):</label>
+    <input type="file" id="binaryFile">
+
+    <button id="decryptBtn" type="button">Descifrar Ahora</button>
+    <button id="saveBtn" type="button" style="display:none">Guardar archivo descifrado</button>
     <div id="errorMsg" class="error"></div>
 
     <div class="result-box">
@@ -116,98 +122,185 @@
   </div>
 
   <script>
-    async function deriveKeyFromBip39(mnemonic) {
-      const cleanMnemonic = mnemonic.trim().toLowerCase().normalize('NFKD');
-      const enc = new TextEncoder();
-      const salt = enc.encode('mnemonic'.normalize('NFKD'));
-      
-      const baseKey = await window.crypto.subtle.importKey(
-        'raw',
-        enc.encode(cleanMnemonic),
-        'PBKDF2',
-        false,
-        ['deriveBits']
-      );
+    /*
+     * Implements the REAL MySecret format:
+     *   recoveryKey = PBKDF2-HMAC-SHA512(phrase, salt = recoveryEnvelope.salt, 2048) -> 32 bytes
+     *   vaultKey    = AES-GCM-decrypt(recoveryEnvelope, recoveryKey, AAD "recovery-envelope")
+     *   note        = AES-GCM-decrypt(armored | "MYSE" container, vaultKey, AAD = NFC vault path)
+     */
+    const ARMOR_START = '-----BEGIN MYSECRET ENCRYPTED FILE-----';
+    const ARMOR_END = '-----END MYSECRET ENCRYPTED FILE-----';
+    const textEncoder = new TextEncoder();
 
-      const derivedBits = await window.crypto.subtle.deriveBits(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 2048,
-          hash: 'SHA-512'
-        },
-        baseKey,
-        256
-      );
-
-      return window.crypto.subtle.importKey(
-        'raw',
-        derivedBits,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['decrypt']
-      );
+    function hexToBytes(hex, expectedLength, what) {
+      if (typeof hex !== 'string' || !/^([0-9a-fA-F]{2})*$/.test(hex)) {
+        throw new Error('El campo "' + what + '" del sobre no es hexadecimal válido.');
+      }
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+      if (expectedLength !== undefined && bytes.length !== expectedLength) {
+        throw new Error('El campo "' + what + '" del sobre tiene una longitud inesperada.');
+      }
+      return bytes;
     }
 
     function base64ToBytes(b64) {
-      const bin = atob(b64.trim());
+      const bin = atob(b64.replace(/\s+/g, ''));
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       return bytes;
     }
 
-    async function decryptNote() {
+    function concat(a, b) {
+      const out = new Uint8Array(a.length + b.length);
+      out.set(a, 0);
+      out.set(b, a.length);
+      return out;
+    }
+
+    async function aesGcmDecrypt(rawKey, iv, ciphertext, tag, aad) {
+      const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
+      return new Uint8Array(await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, additionalData: aad, tagLength: 128 },
+        key,
+        concat(ciphertext, tag) // WebCrypto expects ciphertext || tag
+      ));
+    }
+
+    async function recoverVaultKey(envelopeJson, mnemonic) {
+      let envelope;
+      try { envelope = JSON.parse(envelopeJson); }
+      catch (e) { throw new Error('El contenido pegado de vault-envelope.json no es JSON válido.'); }
+
+      const rec = envelope && envelope.recoveryEnvelope;
+      if (!rec) {
+        throw new Error('Esta bóveda no tiene frase de recuperación (modo solo contraseña). Usa standalone-decryptor.py con --password.');
+      }
+      const words = mnemonic.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (words.length !== 24) throw new Error('La frase de rescate debe tener exactamente 24 palabras.');
+
+      const baseKey = await crypto.subtle.importKey('raw', textEncoder.encode(words.join(' ')), 'PBKDF2', false, ['deriveBits']);
+      const recoveryKeyBits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: hexToBytes(rec.salt, 16, 'recoveryEnvelope.salt'), iterations: 2048, hash: 'SHA-512' },
+        baseKey,
+        256
+      );
+      try {
+        return await aesGcmDecrypt(
+          new Uint8Array(recoveryKeyBits),
+          hexToBytes(rec.iv, 12, 'recoveryEnvelope.iv'),
+          hexToBytes(rec.ciphertext, 32, 'recoveryEnvelope.ciphertext'),
+          hexToBytes(rec.tag, 16, 'recoveryEnvelope.tag'),
+          textEncoder.encode('recovery-envelope')
+        );
+      } catch (e) {
+        throw new Error('Frase de rescate incorrecta (o el sobre fue modificado).');
+      }
+    }
+
+    function parseArmored(text) {
+      const start = text.indexOf(ARMOR_START);
+      const end = text.indexOf(ARMOR_END);
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error('El texto no contiene el encabezado y pie válidos de MySecret.');
+      }
+      const lines = text.substring(start + ARMOR_START.length, end).split(/\r?\n/);
+      let iv = '', tag = '';
+      const body = [];
+      let inBody = false;
+      for (const raw of lines) {
+        const line = raw.trim();
+        if (!inBody) {
+          if (line === '') { if (iv && tag) inBody = true; continue; }
+          const idx = line.indexOf(':');
+          if (idx === -1) continue;
+          const k = line.substring(0, idx).trim().toLowerCase();
+          const v = line.substring(idx + 1).trim();
+          if (k === 'iv') iv = v; else if (k === 'tag') tag = v;
+        } else if (line) {
+          body.push(line);
+        }
+      }
+      if (!iv || !tag) throw new Error('No se pudieron extraer IV y Tag de la nota.');
+      return { iv: base64ToBytes(iv), tag: base64ToBytes(tag), ciphertext: body.length ? base64ToBytes(body.join('')) : new Uint8Array(0) };
+    }
+
+    function parseBinary(bytes) {
+      // "MYSE" | version(1) | iv(12) | tag(16) | ciphertext
+      if (bytes.length < 33 || bytes[0] !== 0x4d || bytes[1] !== 0x59 || bytes[2] !== 0x53 || bytes[3] !== 0x45) {
+        throw new Error('El archivo no es un adjunto cifrado de MySecret (falta la cabecera MYSE).');
+      }
+      return { iv: bytes.slice(5, 17), tag: bytes.slice(17, 33), ciphertext: bytes.slice(33) };
+    }
+
+    /** Decrypts either container with the vault key; returns the plaintext bytes. */
+    async function decryptContainer(vaultKey, relPath, payload) {
+      const aad = textEncoder.encode(relPath.normalize('NFC').replace(/\\/g, '/').replace(/^\/+/, ''));
+      try {
+        return await aesGcmDecrypt(vaultKey, payload.iv, payload.ciphertext, payload.tag, aad);
+      } catch (e) {
+        throw new Error('Falló la autenticación: la ruta indicada no coincide con la que tenía el archivo en la bóveda, o el archivo fue alterado.');
+      }
+    }
+
+    // ---- UI -------------------------------------------------------------
+    let lastResult = null;
+
+    async function decryptNow() {
       const errorEl = document.getElementById('errorMsg');
       const outputEl = document.getElementById('output');
-      errorEl.innerText = '';
+      const saveBtn = document.getElementById('saveBtn');
+      errorEl.textContent = '';
       outputEl.value = '';
+      saveBtn.style.display = 'none';
+      lastResult = null;
 
       try {
-        const mnemonic = document.getElementById('mnemonic').value.trim();
-        const relPath = (document.getElementById('relPath').value.trim() || 'note.md').normalize('NFC').replace(/\\/g, '/');
-        const text = document.getElementById('armoredText').value.trim();
+        const relPath = document.getElementById('relPath').value.trim();
+        if (!relPath) throw new Error('Indica la ruta relativa del archivo dentro de la bóveda.');
 
-        if (!mnemonic) throw new Error('Debes ingresar tu frase mnemónica de 24 palabras.');
-        if (!text.includes('-----BEGIN MYSECRET ENCRYPTED FILE-----')) throw new Error('El texto no contiene el encabezado válido de MySecret.');
-
-        // Extraer IV, Tag y Ciphertext
-        const lines = text.split('\n');
-        let ivB64 = '', tagB64 = '', cipherB64 = '';
-        let inCipher = false;
-
-        for (const line of lines) {
-          const l = line.trim();
-          if (l.startsWith('IV:')) ivB64 = l.substring(3).trim();
-          else if (l.startsWith('Tag:')) tagB64 = l.substring(4).trim();
-          else if (l === '' && (ivB64 || tagB64)) inCipher = true;
-          else if (l.startsWith('-----END')) inCipher = false;
-          else if (inCipher && l) cipherB64 += l;
+        const file = document.getElementById('binaryFile').files[0];
+        const text = document.getElementById('armoredText').value;
+        if (!file && !text.includes(ARMOR_START)) {
+          throw new Error('Pega una nota cifrada o elige un adjunto cifrado.');
         }
 
-        if (!ivB64 || !tagB64 || !cipherB64) throw new Error('No se pudieron extraer IV, Tag o Ciphertext de la nota.');
-
-        const iv = base64ToBytes(ivB64);
-        const tag = base64ToBytes(tagB64);
-        const cipher = base64ToBytes(cipherB64);
-
-        // Web Crypto AES-GCM espera [Ciphertext + Tag] concatenados
-        const combined = new Uint8Array(cipher.length + tag.length);
-        combined.set(cipher, 0);
-        combined.set(tag, cipher.length);
-
-        const key = await deriveKeyFromBip39(mnemonic);
-        const aad = new TextEncoder().encode(relPath);
-
-        const decrypted = await window.crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: iv, additionalData: aad, tagLength: 128 },
-          key,
-          combined
+        const vaultKey = await recoverVaultKey(
+          document.getElementById('envelope').value,
+          document.getElementById('mnemonic').value
         );
 
-        outputEl.value = new TextDecoder().decode(decrypted);
+        let plain;
+        if (file) {
+          plain = await decryptContainer(vaultKey, relPath, parseBinary(new Uint8Array(await file.arrayBuffer())));
+        } else {
+          plain = await decryptContainer(vaultKey, relPath, parseArmored(text));
+        }
+
+        lastResult = { bytes: plain, name: relPath.split('/').pop() || 'descifrado' };
+        saveBtn.style.display = 'inline-block';
+        outputEl.value = file
+          ? '(' + plain.length + ' bytes descifrados — usa "Guardar archivo descifrado")'
+          : new TextDecoder().decode(plain);
       } catch (err) {
-        errorEl.innerText = '❌ Error: ' + err.message;
+        errorEl.textContent = '❌ Error: ' + err.message;
       }
+    }
+
+    function saveResult() {
+      if (!lastResult) return;
+      const url = URL.createObjectURL(new Blob([lastResult.bytes]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = lastResult.name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    }
+
+    if (typeof document !== 'undefined' && document.getElementById('decryptBtn')) {
+      document.getElementById('decryptBtn').addEventListener('click', decryptNow);
+      document.getElementById('saveBtn').addEventListener('click', saveResult);
     }
   </script>
 </body>

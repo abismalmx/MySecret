@@ -188,6 +188,12 @@ export class ExportModal extends Modal {
       return;
     }
 
+    // A plaintext export leaves the protection of the vault: ask for the
+    // master password again.
+    if (this.mode === 'decrypted' && !(await this.plugin.requireReauth())) {
+      return;
+    }
+
     this.isProcessing = true;
     this.exportBtn.disabled = true;
     this.cancelBtn.disabled = true;
@@ -218,6 +224,14 @@ export class ExportModal extends Modal {
         `${t('common.success')} ${(result.stats.totalBytes / (1024 * 1024)).toFixed(2)} MB (${result.stats.totalFiles})`
       );
       this.currentFileEl.setText('');
+      const skippedByBackup = result.stats.skippedFiles ?? [];
+      if (skippedByBackup.length > 0) {
+        console.warn('[MySecret] Backup skipped files:', skippedByBackup);
+        new Notice(
+          `⚠️ ${skippedByBackup.length} archivo(s) NO se incluyeron en la copia (p. ej. ${skippedByBackup[0].path}: ${skippedByBackup[0].reason}).`,
+          12000
+        );
+      }
 
       // Trigger automatic file download
       BackupEngine.triggerDownload(result.filename, result.zipBytes);

@@ -258,6 +258,8 @@ export const en: TranslationDictionary = {
     currentPasswordLabel: 'Current Master Password',
     newPasswordLabel: 'New Master Password (min 12 chars)',
     confirmNewPasswordLabel: 'Confirm New Master Password',
+    keyNotRotatedWarning: 'Heads up: changing the password does NOT rotate the vault key. Anyone holding an older copy of vault-envelope.json (cloud history, backups) together with the OLD password can still decrypt your notes.',
+    wrongCurrentPassword: 'The current master password is incorrect.',
     submitBtn: 'Update Password',
     updating: 'Re-deriving Argon2id keys...',
     success: 'Master password updated successfully.'
@@ -318,6 +320,12 @@ export const en: TranslationDictionary = {
     stopBtn: 'Cancel',
     processing: 'Processing {current} ({processed}/{total})...',
     complete: 'Operation completed successfully.'
+  },
+  reauth: {
+    title: 'Confirm your master password',
+    desc: 'This action is sensitive. Enter your master password to continue.',
+    confirmBtn: 'Confirm',
+    wrongPassword: 'Incorrect master password.'
   },
   recoveryPhraseModal: {
     title: 'Emergency Recovery Phrase',

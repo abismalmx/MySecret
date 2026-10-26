@@ -258,6 +258,8 @@ export interface TranslationDictionary {
     currentPasswordLabel: string;
     newPasswordLabel: string;
     confirmNewPasswordLabel: string;
+    keyNotRotatedWarning: string;
+    wrongCurrentPassword: string;
     submitBtn: string;
     updating: string;
     success: string;
@@ -318,6 +320,12 @@ export interface TranslationDictionary {
     stopBtn: string;
     processing: string;
     complete: string;
+  };
+  reauth: {
+    title: string;
+    desc: string;
+    confirmBtn: string;
+    wrongPassword: string;
   };
   recoveryPhraseModal: {
     title: string;

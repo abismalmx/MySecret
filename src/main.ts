@@ -7,11 +7,12 @@ import { Plugin, Notice, TFile, TFolder } from 'obsidian';
 import { PluginSettings, VaultEnvelopeConfig, CloudBackupSettings } from './types';
 import { PLUGIN_ID, VAULT_ENVELOPE_PATH, VAULT_ENVELOPE_FILENAME } from './constants';
 import { PathFilter } from './adapter/path-filter';
-import { KeyManager } from './crypto/key-manager';
+import { KeyManager, isValidEnvelopeShape } from './crypto/key-manager';
 import { AdapterInterceptor } from './adapter/adapter-interceptor';
 import { MetadataHashPatch } from './adapter/metadata-hash-patch';
 import { PublishGuard } from './adapter/publish-guard';
 import { MediaManager } from './adapter/media-manager';
+import { detectContainerFormat } from './adapter/decrypt';
 import { MySecretSettingTab } from './ui/settings-tab';
 import { LockScreenModal } from './ui/lock-screen';
 import { SetupWizardModal } from './ui/setup-wizard';
@@ -21,6 +22,7 @@ import { CloudBackupModal } from './ui/cloud-backup-modal';
 import { RestoreModal } from './ui/restore-modal';
 import { ChangePasswordModal } from './ui/change-password-modal';
 import { RecoveryPhraseModal } from './ui/recovery-phrase-modal';
+import { ReauthModal } from './ui/reauth-modal';
 import { BackupEngine } from './backup/backup-engine';
 import { createCloudProvider } from './backup/cloud';
 import {
@@ -31,6 +33,12 @@ import {
 import { BiometricManager } from './biometrics/biometric-manager';
 import { sha256HexSync } from './utils/sha256';
 import { initI18n, t } from './i18n';
+
+/** How often the Publish guard re-checks that it is installed (ms). */
+const PUBLISH_GUARD_REFRESH_MS = 15 * 1000;
+
+/** How long a successful re-authentication stays valid (ms). */
+const REAUTH_GRACE_MS = 2 * 60 * 1000;
 
 const DEFAULT_SETTINGS: PluginSettings = {
   autoLockMinutes: 5,
@@ -69,6 +77,7 @@ export default class MySecretPlugin extends Plugin {
   public publishGuard?: PublishGuard;
 
   private inactivityTimer: any = null;
+  private reauthValidUntil: number = 0;
   private autoBackupIntervalTimer: any = null;
   private isAutoBackupRunning: boolean = false;
   private ribbonIconEl!: HTMLElement;
@@ -118,6 +127,13 @@ export default class MySecretPlugin extends Plugin {
     );
     this.interceptor.install();
 
+    // Re-binds that could not be completed (vault locked, crash) are persisted
+    // and replayed on the next unlock.
+    this.interceptor.setPendingRebinds(this.settings.pendingRebinds, list => {
+      this.settings.pendingRebinds = list;
+      void this.saveSettings();
+    });
+
     // 3a. Install the Vault.readBinary() hook.
     //
     // SECURITY (confidentiality): the transparent decryption of the notes is
@@ -148,6 +164,11 @@ export default class MySecretPlugin extends Plugin {
     // this guard the encrypted notes would be published in cleartext.
     this.publishGuard = new PublishGuard(this.app);
     this.publishGuard.install();
+    // Publish may be enabled (or re-enabled, which creates a new instance)
+    // AFTER this plugin loaded: keep checking so it is never left unguarded.
+    this.registerInterval(
+      window.setInterval(() => this.publishGuard?.refresh(), PUBLISH_GUARD_REFRESH_MS)
+    );
 
     // 3c. Transparent media rendering in Reading View and markdown cards
     this.registerMarkdownPostProcessor((element) => {
@@ -292,8 +313,19 @@ export default class MySecretPlugin extends Plugin {
     // 9. Boot Evaluation: Setup Wizard vs Immediate Lock
     this.app.workspace.onLayoutReady(() => {
       if (!this.keyManager.isInitialized) {
+        if (this.envelopeLoadError) {
+          // An envelope exists but is unusable. Offering the wizard here would
+          // generate a NEW vault key and make every encrypted note unreadable.
+          console.error('[MySecret] Unusable vault envelope:', this.envelopeLoadError);
+          new Notice(
+            '⚠️ MySecret: vault-envelope.json existe pero está dañado o ha sido modificado. ' +
+            'No se creará una bóveda nueva. Restaura el archivo (o vault-envelope.json.bak) desde una copia.',
+            0
+          );
+          return;
+        }
         // Vault has never been initialized with MySecret
-        this.openSetupWizard();
+        void this.openSetupWizard();
       } else {
         // Vault is configured: strictly enforce lock screen at startup
         this.preserveAndCloseOpenNotes();
@@ -355,6 +387,12 @@ export default class MySecretPlugin extends Plugin {
    */
   public getVaultId(): string {
     const envelope = this.keyManager.getEnvelope();
+    // The stable `vaultId` survives a master password change (the Argon2 salt
+    // does not). Legacy envelopes fall back to the salt, which is exactly
+    // what their biometric enrollments were keyed with.
+    if (envelope && envelope.vaultId) {
+      return envelope.vaultId;
+    }
     if (envelope && envelope.argon2 && envelope.argon2.salt) {
       return envelope.argon2.salt;
     }
@@ -541,32 +579,95 @@ export default class MySecretPlugin extends Plugin {
     return resolved;
   }
 
-  public async loadVaultEnvelope(): Promise<boolean> {
-    try {
-      const rawAdapter = this.app.vault.adapter;
-      const candidatePaths = [VAULT_ENVELOPE_PATH];
-      if (this.manifest?.dir) {
-        const manifestEnvPath = `${this.manifest.dir}/${VAULT_ENVELOPE_FILENAME}`;
-        if (!candidatePaths.includes(manifestEnvPath)) {
-          candidatePaths.unshift(manifestEnvPath);
-        }
-      }
+  /**
+   * Set when an envelope file EXISTS but cannot be used (corrupt, tampered or
+   * truncated). In that case the setup wizard must NOT be offered: creating a
+   * new vault key over it would make every encrypted note unreadable forever.
+   */
+  public envelopeLoadError: string | null = null;
 
-      for (const envPath of candidatePaths) {
-        const exists = await rawAdapter.exists(envPath);
-        if (exists) {
-          const rawContent = await rawAdapter.read(envPath);
-          const parsed: VaultEnvelopeConfig = JSON.parse(rawContent);
-          this.keyManager.setEnvelope(parsed);
-          this.settings.isInitialized = true;
-          await this.saveSettings();
-          return true;
-        }
+  public async loadVaultEnvelope(): Promise<boolean> {
+    this.envelopeLoadError = null;
+    const rawAdapter = this.app.vault.adapter;
+    const candidatePaths = [VAULT_ENVELOPE_PATH];
+    if (this.manifest?.dir) {
+      const manifestEnvPath = `${this.manifest.dir}/${VAULT_ENVELOPE_FILENAME}`;
+      if (!candidatePaths.includes(manifestEnvPath)) {
+        candidatePaths.unshift(manifestEnvPath);
       }
-    } catch (err) {
-      console.warn('[MySecret] Could not load vault-envelope.json:', err);
+    }
+
+    let sawCandidate = false;
+    // For every location the main file is tried first, then the backup that
+    // `saveVaultEnvelope` keeps of the previous version.
+    const attempts = candidatePaths.flatMap(p => [p, `${p}.bak`]);
+
+    for (const envPath of attempts) {
+      try {
+        if (!(await rawAdapter.exists(envPath))) continue;
+        sawCandidate = true;
+
+        const parsed: VaultEnvelopeConfig = JSON.parse(await rawAdapter.read(envPath));
+        // The envelope lives inside the vault, so it is untrusted input.
+        if (!isValidEnvelopeShape(parsed)) {
+          throw new Error('invalid structure');
+        }
+        this.keyManager.setEnvelope(parsed);
+        this.settings.isInitialized = true;
+        if (envPath.endsWith('.bak')) {
+          new Notice('⚠️ MySecret: vault-envelope.json estaba dañado; se usó la copia anterior (.bak).');
+        }
+        await this.saveSettings();
+        return true;
+      } catch (err) {
+        console.warn(`[MySecret] Could not load ${envPath}:`, err);
+        this.envelopeLoadError = `${envPath}: ${(err as any)?.message || String(err)}`;
+      }
+    }
+
+    if (!sawCandidate) {
+      this.envelopeLoadError = null;
     }
     return false;
+  }
+
+  /**
+   * Writes a file atomically enough for a key file: the new content goes to a
+   * temporary file first, is read back and validated, the previous version is
+   * kept as `.bak`, and only then is the target replaced. A crash or a full
+   * disk can no longer leave the only copy of the wrapped vault key truncated.
+   */
+  private async writeEnvelopeFile(path: string, json: string): Promise<void> {
+    const rawAdapter = this.app.vault.adapter;
+    const tmpPath = `${path}.tmp`;
+
+    await rawAdapter.write(tmpPath, json);
+    const readBack = await rawAdapter.read(tmpPath);
+    if (readBack !== json) {
+      await rawAdapter.remove(tmpPath).catch(() => undefined);
+      throw new Error('[MySecret] El archivo del sobre no se escribió correctamente; se conserva la versión anterior.');
+    }
+
+    if (await rawAdapter.exists(path)) {
+      try {
+        await rawAdapter.write(`${path}.bak`, await rawAdapter.read(path));
+      } catch (err) {
+        console.warn('[MySecret] Could not refresh the envelope backup:', err);
+      }
+    }
+
+    try {
+      if (await rawAdapter.exists(path)) {
+        // Some platforms refuse to rename over an existing file.
+        await rawAdapter.remove(path);
+      }
+      await rawAdapter.rename(tmpPath, path);
+    } catch (err) {
+      // Last resort: write the target directly (the .bak and .tmp remain).
+      console.warn('[MySecret] Atomic rename failed, writing the envelope directly:', err);
+      await rawAdapter.write(path, json);
+      await rawAdapter.remove(tmpPath).catch(() => undefined);
+    }
   }
 
   public async saveVaultEnvelope(config?: VaultEnvelopeConfig): Promise<void> {
@@ -577,11 +678,12 @@ export default class MySecretPlugin extends Plugin {
     const rawAdapter = this.app.vault.adapter;
     const targetDir = this.manifest?.dir || `.obsidian/plugins/${PLUGIN_ID}`;
     const targetPath = `${targetDir}/${VAULT_ENVELOPE_FILENAME}`;
+    const json = JSON.stringify(envelopeToSave, null, 2);
 
     if (!(await rawAdapter.exists(targetDir))) {
       await rawAdapter.mkdir(targetDir);
     }
-    await rawAdapter.write(targetPath, JSON.stringify(envelopeToSave, null, 2));
+    await this.writeEnvelopeFile(targetPath, json);
 
     // Also keep fallback path in sync if targetDir is different
     if (targetPath !== VAULT_ENVELOPE_PATH) {
@@ -590,7 +692,7 @@ export default class MySecretPlugin extends Plugin {
         if (!(await rawAdapter.exists(fallbackDir))) {
           await rawAdapter.mkdir(fallbackDir);
         }
-        await rawAdapter.write(VAULT_ENVELOPE_PATH, JSON.stringify(envelopeToSave, null, 2));
+        await this.writeEnvelopeFile(VAULT_ENVELOPE_PATH, json);
       } catch {
         // Fallback sync is best effort
       }
@@ -598,6 +700,7 @@ export default class MySecretPlugin extends Plugin {
 
     this.keyManager.setEnvelope(envelopeToSave);
     this.settings.isInitialized = true;
+    this.envelopeLoadError = null;
     await this.saveSettings();
   }
 
@@ -620,9 +723,36 @@ export default class MySecretPlugin extends Plugin {
     }, 15 * 60 * 1000);
   }
 
+  /**
+   * Best-effort removal of the plaintext Obsidian keeps in memory for the
+   * encrypted notes (`TFile` content cache). Without it `vault.cachedRead()`
+   * would keep returning the note after the vault is locked.
+   *
+   * It does not reach everything (the metadata cache, other plugins' copies):
+   * the lock protects against casual access, not against a debugger.
+   */
+  private dropPlaintextCaches(): void {
+    try {
+      for (const file of this.app.vault.getFiles()) {
+        if (!this.pathFilter.shouldEncrypt(file.path)) continue;
+        const f = file as any;
+        if (typeof f.cache === 'function') {
+          try {
+            f.cache(null);
+          } catch {
+            // internal API: ignore
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[MySecret] Could not drop the in-memory note caches:', err);
+    }
+  }
+
   public async runBackgroundAutoBackup(
     triggerReason: 'on-lock' | 'interval',
-    preResolved?: CloudBackupSettings | null
+    preResolved?: CloudBackupSettings | null,
+    vaultKey?: CryptoKey | null
   ): Promise<void> {
     if (this.isAutoBackupRunning) return;
     if (!this.settings.backup.autoBackup || this.settings.backup.provider === 'none') return;
@@ -656,8 +786,18 @@ export default class MySecretPlugin extends Plugin {
       const result = await BackupEngine.createVaultZip(this, {
         mode: 'encrypted',
         includeAttachments: this.settings.encryptAttachments,
-        includeEnvelope: true
+        includeEnvelope: true,
+        vaultKey: vaultKey ?? undefined
       });
+
+      const skipped = result.stats.skippedFiles ?? [];
+      if (skipped.length > 0) {
+        console.warn('[MySecret] Auto-backup skipped files:', skipped);
+        new Notice(
+          `⚠️ MySecret: la copia automática omitió ${skipped.length} archivo(s) (p. ej. ${skipped[0].path}: ${skipped[0].reason}).`,
+          10000
+        );
+      }
 
       const uploadResult = await provider.uploadBackup(result.filename, result.zipBytes);
       if (uploadResult.success) {
@@ -744,14 +884,20 @@ export default class MySecretPlugin extends Plugin {
       (this.settings.backup.autoBackupTrigger === 'on-lock' ||
         this.settings.backup.autoBackupTrigger === 'both');
 
+    // The vault key is captured BEFORE it is wiped: the backup needs it to
+    // encrypt files that are still plaintext on disk (otherwise they would be
+    // silently left out of the archive).
+    const keyForBackup = needsBackupOnLock ? this.keyManager.getVaultKey() : null;
+
     let pendingBackup: Promise<void> | null = null;
     if (needsBackupOnLock) {
       pendingBackup = (async () => {
         const resolved = await this.getDecryptedBackupSettings();
-        await this.runBackgroundAutoBackup('on-lock', resolved);
+        await this.runBackgroundAutoBackup('on-lock', resolved, keyForBackup);
       })();
     }
 
+    this.dropPlaintextCaches();
     this.keyManager.lock();
     this.updateRibbonIcon();
     new Notice(`🔒 ${t('notices.vaultLocked')}`);
@@ -774,6 +920,10 @@ export default class MySecretPlugin extends Plugin {
       this.currentLockModal = null;
       modal.forceClose();
     }
+    // Replay the renames/copies whose encryption binding could not be fixed
+    // while the vault was locked.
+    void this.interceptor.processPendingRebinds();
+
     // Restore notes that were open before locking
     void this.restoreSavedOpenNotes();
 
@@ -850,9 +1000,48 @@ export default class MySecretPlugin extends Plugin {
     this.currentLockModal.open();
   }
 
-  public openSetupWizard(): void {
+  public async openSetupWizard(): Promise<void> {
+    // SECURITY / DATA INTEGRITY: a new setup generates a NEW random vault key.
+    // If notes are already encrypted (the envelope was lost or deleted), that
+    // key can never decrypt them.
+    const encryptedCount = await this.countEncryptedFiles(500);
+    if (encryptedCount > 0) {
+      const proceed = window.confirm(
+        `MySecret ha encontrado ${encryptedCount} archivo(s) cifrado(s) pero no hay vault-envelope.json.\n\n` +
+        'Crear una bóveda nueva generará una clave distinta y esos archivos quedarán ILEGIBLES para siempre.\n\n' +
+        'Lo correcto es restaurar vault-envelope.json (o su copia .bak) desde un respaldo.\n\n' +
+        '¿Crear una bóveda nueva de todos modos?'
+      );
+      if (!proceed) return;
+    }
     const wizard = new SetupWizardModal(this.app, this);
     wizard.open();
+  }
+
+  /**
+   * Counts files that are encrypted ON DISK (stops early at `limit` files
+   * scanned or at the first hit for cheap "is there anything encrypted?"
+   * checks).
+   */
+  public async countEncryptedFiles(maxScanned: number = 500): Promise<number> {
+    const raw = this.interceptor.getRawAdapter();
+    let scanned = 0;
+    let found = 0;
+    for (const file of this.app.vault.getFiles()) {
+      if (scanned >= maxScanned) break;
+      if (this.pathFilter.isSystemExcluded(file.path)) continue;
+      scanned++;
+      try {
+        const bytes = new Uint8Array(await raw.readBinary(file.path));
+        if (detectContainerFormat(bytes) !== 'plain') {
+          found++;
+          break; // one is enough to know the vault holds encrypted data
+        }
+      } catch {
+        // unreadable file: ignore
+      }
+    }
+    return found;
   }
 
   public openMigrationModal(mode: 'encrypt' | 'decrypt'): void {
@@ -882,7 +1071,7 @@ export default class MySecretPlugin extends Plugin {
     return Boolean(this.keyManager.hasRecoveryEnvelope());
   }
 
-  public promptShowRecoveryPhrase(): void {
+  public async promptShowRecoveryPhrase(): Promise<void> {
     if (this.keyManager.isLocked) {
       new Notice('Debes desbloquear la bóveda primero.');
       this.openLockScreen();
@@ -894,6 +1083,8 @@ export default class MySecretPlugin extends Plugin {
       return;
     }
 
+    if (!(await this.requireReauth())) return;
+
     // The phrase is kept in RAM (never on disk) so the user can display it
     // again if the setup wizard was closed before it was written down.
     const mnemonic = this.keyManager.getRecoveryMnemonic();
@@ -904,12 +1095,40 @@ export default class MySecretPlugin extends Plugin {
     new RecoveryPhraseModal(this.app, mnemonic).open();
   }
 
+  /**
+   * Re-authentication gate for sensitive actions.
+   *
+   * Being unlocked is not enough: the master password is asked again. A
+   * successful check is remembered for a short grace period so a sequence of
+   * related actions does not nag the user.
+   *
+   * @returns true when the user proved knowledge of the master password.
+   */
+  public async requireReauth(): Promise<boolean> {
+    if (this.keyManager.isLocked) {
+      new Notice('Debes desbloquear la bóveda primero.');
+      this.openLockScreen();
+      return false;
+    }
+    if (Date.now() < this.reauthValidUntil) {
+      return true;
+    }
+    const ok = await new Promise<boolean>(resolve => {
+      new ReauthModal(this.app, this, resolve).open();
+    });
+    if (ok) {
+      this.reauthValidUntil = Date.now() + REAUTH_GRACE_MS;
+    }
+    return ok;
+  }
+
   public async enableRecoveryPhrase(): Promise<string | null> {
     if (this.keyManager.isLocked) {
       new Notice('Debes desbloquear la bóveda primero.');
       this.openLockScreen();
       return null;
     }
+    if (!(await this.requireReauth())) return null;
     const result = await this.keyManager.addRecoveryPhrase();
     await this.saveVaultEnvelope(result.envelope);
     new Notice('✅ Frase de recuperación activada.');
@@ -922,6 +1141,7 @@ export default class MySecretPlugin extends Plugin {
       this.openLockScreen();
       return false;
     }
+    if (!(await this.requireReauth())) return false;
     const updatedEnvelope = this.keyManager.removeRecoveryPhrase();
     await this.saveVaultEnvelope(updatedEnvelope);
     new Notice('🛡️ Frase de recuperación eliminada. Solo podrás acceder con tu contraseña.');
@@ -935,6 +1155,75 @@ export default class MySecretPlugin extends Plugin {
     return this.settings.excludedFolders.some(
       f => this.pathFilter.normalizePath(f) === normalized
     );
+  }
+
+  /**
+   * Decrypts, ON DISK, the given files that are currently encrypted.
+   *
+   * Must be called BEFORE a policy change stops the plugin from decrypting
+   * them. Requires an unlocked vault.
+   *
+   * @returns false (after telling the user) when the change must be aborted.
+   */
+  private async decryptBeforePolicyChange(paths: string[]): Promise<boolean> {
+    if (paths.length === 0) return true;
+
+    const raw = this.interceptor.getRawAdapter();
+    const encrypted: string[] = [];
+    for (const path of paths) {
+      try {
+        const bytes = new Uint8Array(await raw.readBinary(path));
+        if (detectContainerFormat(bytes) !== 'plain') encrypted.push(path);
+      } catch {
+        // unreadable: nothing to convert
+      }
+    }
+    if (encrypted.length === 0) return true;
+
+    if (this.keyManager.isLocked) {
+      new Notice(
+        `Desbloquea la bóveda: ${encrypted.length} archivo(s) cifrado(s) deben descifrarse antes de aplicar este cambio.`
+      );
+      this.openLockScreen();
+      return false;
+    }
+
+    const { converted, failed } = await this.interceptor.decryptFilesToPlain(encrypted);
+    if (failed.length > 0) {
+      console.error('[MySecret] Could not decrypt files before the policy change:', failed);
+      new Notice(
+        `No se aplicó el cambio: ${failed.length} archivo(s) no se pudieron descifrar (${failed[0].path}). ` +
+        'Los demás ya están en texto plano y siguen siendo legibles.',
+        10000
+      );
+      return false;
+    }
+    new Notice(`🔓 ${converted.length} archivo(s) descifrado(s) en disco por el cambio de política.`);
+    return true;
+  }
+
+  /**
+   * Enables/disables the encryption of attachments.
+   *
+   * Disabling it first converts the already encrypted attachments back to
+   * plaintext; otherwise they would be served as raw ciphertext.
+   *
+   * @returns whether the new value was applied.
+   */
+  public async setEncryptAttachments(value: boolean): Promise<boolean> {
+    if (!value) {
+      const attachments = this.app.vault
+        .getFiles()
+        .filter(f => !this.pathFilter.isTextNote(f.path) && this.pathFilter.shouldEncrypt(f.path))
+        .map(f => f.path);
+      if (!(await this.decryptBeforePolicyChange(attachments))) {
+        return false;
+      }
+    }
+    this.settings.encryptAttachments = value;
+    await this.saveSettings();
+    this.pathFilter.updateConfig(this.settings.excludedFolders, this.settings.encryptAttachments);
+    return true;
   }
 
   public async addExcludedFolder(folderPath: string): Promise<boolean> {
@@ -951,6 +1240,19 @@ export default class MySecretPlugin extends Plugin {
 
     if (this.pathFilter.isUserExcluded(normalized)) {
       new Notice(`La carpeta "${normalized}" ya está excluida por una carpeta superior.`);
+      return false;
+    }
+
+    // Files already encrypted in that folder must be decrypted first, or they
+    // would be served as raw ciphertext once the folder is excluded.
+    const affected = this.app.vault
+      .getFiles()
+      .filter(f => {
+        const p = this.pathFilter.normalizePath(f.path);
+        return (p === normalized || p.startsWith(normalized + '/')) && this.pathFilter.shouldEncrypt(f.path);
+      })
+      .map(f => f.path);
+    if (!(await this.decryptBeforePolicyChange(affected))) {
       return false;
     }
 

@@ -258,6 +258,8 @@ export const ru: TranslationDictionary = {
     currentPasswordLabel: 'Текущий мастер-пароль',
     newPasswordLabel: 'Новый мастер-пароль (мин. 12 символов)',
     confirmNewPasswordLabel: 'Подтвердите новый мастер-пароль',
+    keyNotRotatedWarning: 'Внимание: смена пароля НЕ меняет ключ хранилища. Тот, у кого есть старая копия vault-envelope.json (история облака, резервные копии) и СТАРЫЙ пароль, по-прежнему сможет расшифровать ваши заметки.',
+    wrongCurrentPassword: 'Текущий мастер-пароль неверен.',
     submitBtn: 'Обновить пароль',
     updating: 'Повторная деривация ключей Argon2id...',
     success: 'Мастер-пароль успешно обновлён.'
@@ -318,6 +320,12 @@ export const ru: TranslationDictionary = {
     stopBtn: 'Отмена',
     processing: 'Обработка {current} ({processed}/{total})...',
     complete: 'Операция успешно завершена.'
+  },
+  reauth: {
+    title: 'Подтвердите мастер-пароль',
+    desc: 'Это чувствительное действие. Введите мастер-пароль, чтобы продолжить.',
+    confirmBtn: 'Подтвердить',
+    wrongPassword: 'Неверный мастер-пароль.'
   },
   recoveryPhraseModal: {
     title: 'Аварийная мнемоническая фраза',

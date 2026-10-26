@@ -8,6 +8,7 @@ import MySecretPlugin from '../main';
 import { isArmoredEncrypted, isBinaryEncrypted } from '../crypto/envelope';
 import { MigrationProgress } from '../types';
 import { MYSECRET_LOGO_DATA_URL } from './assets';
+import { decodeUtf8Strict } from '../utils/buffer';
 import { t } from '../i18n';
 
 function setCssStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
@@ -234,8 +235,17 @@ export class MigrationModal extends Modal {
           if (isText) {
             const diskContent = await rawAdapter.read(path);
             if (!isArmoredEncrypted(diskContent)) {
-              await this.app.vault.adapter.write(path, diskContent);
-              modified++;
+              // Text notes are handled as UTF-8 strings: a file in another
+              // encoding would be silently altered by encrypting it.
+              if (decodeUtf8Strict(new Uint8Array(await rawAdapter.readBinary(path))) === null) {
+                this.progress.errors.push({
+                  path,
+                  error: 'No es UTF-8 válido: se omitió para no alterar su contenido.'
+                });
+              } else {
+                await this.app.vault.adapter.write(path, diskContent);
+                modified++;
+              }
             }
           } else {
             const diskBuffer = await rawAdapter.readBinary(path);

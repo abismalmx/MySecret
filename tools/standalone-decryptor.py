@@ -1,259 +1,351 @@
 #!/usr/bin/env python3
 """
-MySecret Standalone Vault Decryptor (Zero-Dependency Python Recovery Tool)
--------------------------------------------------------------------------
-This script allows you to recover and decrypt your Obsidian notes and attachments
-WITHOUT depending on the MySecret plugin or Obsidian itself.
+MySecret Standalone Vault Decryptor (recovery tool, works WITHOUT Obsidian)
+--------------------------------------------------------------------------
+Decrypts notes and attachments produced by the MySecret plugin using only
+what is stored in the vault plus your master password or your 24-word
+recovery phrase.
 
-Requirements:
-    pip install cryptography argon2-cffi
+It implements the REAL on-disk format of the plugin (see SECURITY.md):
+
+  vault-envelope.json  (.obsidian/plugins/mysecret/vault-envelope.json)
+      argon2{memory,iterations,parallelism,salt}   hex
+      vaultKeyEnvelope{iv,tag,ciphertext}          hex   AES-GCM, AAD "vault-envelope"
+      recoveryEnvelope{salt,iv,tag,ciphertext}     hex   AES-GCM, AAD "recovery-envelope"
+
+  master password --Argon2id(salt)--------------> passKey ----+
+                                                               +--> unwraps the 32-byte VAULT KEY
+  24 words --PBKDF2-HMAC-SHA512(2048, recSalt)--> recoveryKey -+
+
+  notes (.md/.canvas/.txt)  armored text, AES-256-GCM, AAD = NFC vault path
+  attachments               "MYSE" | ver | iv(12) | tag(16) | ciphertext
+
+Requirements (NOT stdlib-only: AES-GCM and Argon2id are not in the stdlib):
+    pip install cryptography            # always
+    pip install argon2-cffi             # only for --password
 
 Usage:
-    # 1. Decrypt using your 24-word BIP-39 recovery phrase:
-    python standalone-decryptor.py --vault /path/to/vault --mnemonic "word1 word2 ... word24" --output /path/to/decrypted_vault
+    # whole vault, using the recovery phrase
+    python standalone-decryptor.py --vault /path/to/vault --mnemonic "w1 w2 ... w24" --output /path/to/out
 
-    # 2. Decrypt using your Master Password and data.json:
-    python standalone-decryptor.py --vault /path/to/vault --password "MyMasterPassword" --output /path/to/decrypted_vault
+    # whole vault, using the master password (prompts if --password is omitted)
+    python standalone-decryptor.py --vault /path/to/vault --password --output /path/to/out
 
-    # 3. Decrypt a single file:
-    python standalone-decryptor.py --file /path/to/note.md --relative-path "Notes/note.md" --mnemonic "word1 ... word24"
+    # a single file
+    python standalone-decryptor.py --envelope vault-envelope.json --mnemonic "..." \\
+        --file note.md --relative-path "Notes/note.md"
 """
 
+import argparse
+import base64
+import getpass
+import json
 import os
 import sys
-import json
-import base64
 import unicodedata
-import argparse
 from pathlib import Path
 
 try:
+    from cryptography.exceptions import InvalidTag
+    from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-    from cryptography.hazmat.primitives import hashes
 except ImportError:
-    print("Error: Missing required library 'cryptography'.")
-    print("Install it with: pip install cryptography argon2-cffi")
+    print("Error: the 'cryptography' package is required.\n  pip install cryptography")
     sys.exit(1)
 
-ARMORED_START = "-----BEGIN MYSECRET ENCRYPTED FILE-----"
-ARMORED_END = "-----END MYSECRET ENCRYPTED FILE-----"
+ARMORED_START = b"-----BEGIN MYSECRET ENCRYPTED FILE-----"
+ARMORED_END = b"-----END MYSECRET ENCRYPTED FILE-----"
 BINARY_MAGIC = b"MYSE"
+BINARY_HEADER_LENGTH = 33  # 4 magic + 1 version + 12 iv + 16 tag
+TEXT_EXTENSIONS = (".md", ".canvas", ".txt")
+
+# Same bounds the plugin enforces (src/constants.ts): the envelope is untrusted.
+MIN_MEMORY_KIB, MAX_MEMORY_KIB = 65536, 1048576
+MIN_ITERATIONS, MAX_ITERATIONS = 3, 20
+MIN_PARALLELISM, MAX_PARALLELISM = 1, 16
 
 
-def derive_key_from_bip39(mnemonic: str, passphrase: str = "") -> bytes:
-    """Derives the 32-byte vault key from a 24-word BIP-39 mnemonic phrase."""
-    mnemonic_clean = unicodedata.normalize("NFKD", mnemonic.strip().lower())
-    salt = unicodedata.normalize("NFKD", "mnemonic" + passphrase).encode("utf-8")
-    
+class DecryptError(Exception):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Envelope / key unwrapping
+# ---------------------------------------------------------------------------
+
+def find_envelope(vault: Path, explicit: str = None) -> Path:
+    if explicit:
+        return Path(explicit)
+    for candidate in (
+        vault / ".obsidian" / "plugins" / "mysecret" / "vault-envelope.json",
+        vault / "vault-envelope.json",
+    ):
+        if candidate.is_file():
+            return candidate
+    raise DecryptError(
+        "vault-envelope.json not found. Pass it explicitly with --envelope "
+        "(it lives in .obsidian/plugins/mysecret/)."
+    )
+
+
+def load_envelope(path: Path) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            envelope = json.load(f)
+    except (OSError, ValueError) as exc:
+        raise DecryptError(f"Cannot read {path}: {exc}")
+    if not isinstance(envelope, dict) or "vaultKeyEnvelope" not in envelope or "argon2" not in envelope:
+        raise DecryptError(f"{path} is not a MySecret vault-envelope.json")
+    return envelope
+
+
+def _hex(value, expected_len, what):
+    try:
+        raw = bytes.fromhex(value)
+    except (TypeError, ValueError):
+        raise DecryptError(f"Invalid hex in envelope field '{what}'")
+    if expected_len is not None and len(raw) != expected_len:
+        raise DecryptError(f"Envelope field '{what}' has an unexpected length")
+    return raw
+
+
+def _unwrap(wrapped: dict, wrapping_key: bytes, aad: bytes, what: str) -> bytes:
+    iv = _hex(wrapped.get("iv"), 12, f"{what}.iv")
+    tag = _hex(wrapped.get("tag"), 16, f"{what}.tag")
+    ciphertext = _hex(wrapped.get("ciphertext"), 32, f"{what}.ciphertext")
+    try:
+        key = AESGCM(wrapping_key).decrypt(iv, ciphertext + tag, aad)
+    except InvalidTag:
+        raise DecryptError("Wrong password / recovery phrase (or the envelope was modified)")
+    if len(key) != 32:
+        raise DecryptError("Unexpected vault key length")
+    return key
+
+
+def key_from_password(envelope: dict, password: str) -> bytes:
+    """Master password -> Argon2id -> unwraps the vault key."""
+    try:
+        from argon2.low_level import Type, hash_secret_raw
+    except ImportError:
+        raise DecryptError("'argon2-cffi' is required for --password:\n  pip install argon2-cffi")
+
+    params = envelope["argon2"]
+    memory, iterations, parallelism = params["memory"], params["iterations"], params["parallelism"]
+    # Refuse downgraded / absurd parameters, exactly like the plugin.
+    if not (MIN_MEMORY_KIB <= memory <= MAX_MEMORY_KIB
+            and MIN_ITERATIONS <= iterations <= MAX_ITERATIONS
+            and MIN_PARALLELISM <= parallelism <= MAX_PARALLELISM):
+        raise DecryptError("The envelope has out-of-range Argon2id parameters (tampered?)")
+
+    pass_key = hash_secret_raw(
+        secret=password.encode("utf-8"),
+        salt=_hex(params["salt"], 16, "argon2.salt"),
+        time_cost=iterations,
+        memory_cost=memory,
+        parallelism=parallelism,
+        hash_len=32,
+        type=Type.ID,
+    )
+    return _unwrap(envelope["vaultKeyEnvelope"], pass_key, b"vault-envelope", "vaultKeyEnvelope")
+
+
+def key_from_mnemonic(envelope: dict, mnemonic: str) -> bytes:
+    """24 words -> PBKDF2(salt = recoveryEnvelope.salt) -> unwraps the vault key.
+
+    NOTE: the phrase is NOT the vault key. The plugin derives a *recovery key*
+    with a random per-vault salt (not the BIP-39 "mnemonic" salt) and uses it
+    to wrap the vault key in `recoveryEnvelope`.
+    """
+    recovery = envelope.get("recoveryEnvelope")
+    if not recovery:
+        raise DecryptError("This vault has no recovery phrase configured (password-only vault).")
+
+    clean = " ".join(mnemonic.strip().lower().split())
+    if len(clean.split(" ")) != 24:
+        raise DecryptError("The recovery phrase must have exactly 24 words")
+
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA512(),
         length=32,
-        salt=salt,
-        iterations=2048
+        salt=_hex(recovery["salt"], 16, "recoveryEnvelope.salt"),
+        iterations=2048,
     )
-    return kdf.derive(mnemonic_clean.encode("utf-8"))
+    recovery_key = kdf.derive(clean.encode("utf-8"))
+    return _unwrap(recovery, recovery_key, b"recovery-envelope", "recoveryEnvelope")
 
 
-def derive_key_from_password(password: str, data_json_path: str) -> bytes:
-    """Derives the vault key from master password and data.json envelope."""
-    try:
-        from argon2.low_level import hash_secret_raw, Type
-    except ImportError:
-        print("Error: 'argon2-cffi' is required to decrypt with master password.")
-        print("Install it with: pip install argon2-cffi")
-        sys.exit(1)
+# ---------------------------------------------------------------------------
+# File formats
+# ---------------------------------------------------------------------------
 
-    with open(data_json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    envelope = data.get("vaultEnvelope")
-    if not envelope:
-        raise ValueError("Invalid data.json: missing 'vaultEnvelope'")
-
-    salt = base64.b64decode(envelope["salt"])
-    iterations = envelope.get("iterations", 3)
-    memory_kib = envelope.get("memoryKib", 65536)
-    parallelism = envelope.get("parallelism", 1)
-
-    master_key = hash_secret_raw(
-        secret=password.encode("utf-8"),
-        salt=salt,
-        time_cost=iterations,
-        memory_cost=memory_kib,
-        parallelism=parallelism,
-        hash_len=32,
-        type=Type.ID
-    )
-
-    # Unwrap vaultKey
-    wrapped_key_b64 = envelope["wrappedVaultKey"]
-    wrapped_data = base64.b64decode(wrapped_key_b64)
-    iv = wrapped_data[:12]
-    tag = wrapped_data[12:28]
-    ciphertext = wrapped_data[28:]
-
-    aesgcm = AESGCM(master_key)
-    aad = b"mysecret-vault-envelope-v1"
-    vault_key = aesgcm.decrypt(iv, ciphertext + tag, aad)
-    return vault_key
+def _aad(relative_path: str) -> bytes:
+    return unicodedata.normalize("NFC", relative_path.replace("\\", "/").lstrip("/")).encode("utf-8")
 
 
-def decrypt_text_armored(armored_text: str, relative_path: str, vault_key: bytes) -> str:
-    """Decrypts an ASCII-armored Markdown file."""
-    start_idx = armored_text.find(ARMORED_START)
-    end_idx = armored_text.find(ARMORED_END)
-    if start_idx == -1 or end_idx == -1:
-        raise ValueError("Not a valid armored MySecret file.")
+def is_armored(raw: bytes) -> bool:
+    head = raw[:3]
+    body = raw[3:] if head == b"\xef\xbb\xbf" else raw
+    return body.lstrip(b" \t\r\n").startswith(ARMORED_START)
 
-    content = armored_text[start_idx + len(ARMORED_START):end_idx].strip()
-    lines = content.splitlines()
 
-    iv_b64 = ""
-    tag_b64 = ""
-    cipher_lines = []
+def decrypt_armored(raw: bytes, relative_path: str, vault_key: bytes) -> bytes:
+    start = raw.find(ARMORED_START)
+    end = raw.find(ARMORED_END)
+    if start == -1 or end == -1 or end <= start:
+        raise DecryptError("Not a valid armored MySecret file")
 
-    header_mode = True
+    lines = raw[start + len(ARMORED_START):end].decode("ascii", errors="strict").splitlines()
+    iv_b64 = tag_b64 = ""
+    body = []
+    in_body = False
     for line in lines:
-        line_str = line.strip()
-        if header_mode:
-            if line_str == "":
-                header_mode = False
+        text = line.strip()
+        if not in_body:
+            if text == "":
+                if iv_b64 and tag_b64:
+                    in_body = True
                 continue
-            if line_str.startswith("IV:"):
-                iv_b64 = line_str.split(":", 1)[1].strip()
-            elif line_str.startswith("Tag:"):
-                tag_b64 = line_str.split(":", 1)[1].strip()
+            key, _, value = text.partition(":")
+            key = key.strip().lower()
+            if key == "iv":
+                iv_b64 = value.strip()
+            elif key == "tag":
+                tag_b64 = value.strip()
         else:
-            if line_str:
-                cipher_lines.append(line_str)
+            body.append(text)
+
+    if not iv_b64 or not tag_b64:
+        raise DecryptError("Malformed armored file (missing IV or Tag)")
 
     iv = base64.b64decode(iv_b64)
     tag = base64.b64decode(tag_b64)
-    ciphertext = base64.b64decode("".join(cipher_lines))
-
-    # AAD is the NFC-normalized relative path with forward slashes
-    norm_path = unicodedata.normalize("NFC", relative_path.replace("\\", "/"))
-    aad = norm_path.encode("utf-8")
-
-    aesgcm = AESGCM(vault_key)
-    plaintext_bytes = aesgcm.decrypt(iv, ciphertext + tag, aad)
-    return plaintext_bytes.decode("utf-8")
-
-
-def decrypt_binary_attachment(raw_bytes: bytes, relative_path: str, vault_key: bytes) -> bytes:
-    """Decrypts a binary attachment (images, audio, PDFs)."""
-    if not raw_bytes.startswith(BINARY_MAGIC):
-        return raw_bytes  # Already plaintext
-
-    version = raw_bytes[4]
-    iv = raw_bytes[5:17]
-    tag = raw_bytes[17:33]
-    ciphertext = raw_bytes[33:]
-
-    norm_path = unicodedata.normalize("NFC", relative_path.replace("\\", "/"))
-    aad = norm_path.encode("utf-8")
-
-    aesgcm = AESGCM(vault_key)
-    return aesgcm.decrypt(iv, ciphertext + tag, aad)
+    ciphertext = base64.b64decode("".join(body)) if body else b""
+    try:
+        return AESGCM(vault_key).decrypt(iv, ciphertext + tag, _aad(relative_path))
+    except InvalidTag:
+        raise DecryptError(
+            "Authentication failed: wrong key or the --relative-path does not match the vault path "
+            "the file was encrypted for (the path is part of the authenticated data)"
+        )
 
 
-def process_vault(vault_dir: Path, output_dir: Path, vault_key: bytes):
-    """Batch decrypts an entire Obsidian vault into plaintext."""
-    print(f"\n[+] Starting vault decryption: {vault_dir} -> {output_dir}")
-    processed = 0
-    skipped = 0
+def is_binary_container(raw: bytes) -> bool:
+    return len(raw) >= BINARY_HEADER_LENGTH and raw[:4] == BINARY_MAGIC and raw[4] == 1
+
+
+def decrypt_binary(raw: bytes, relative_path: str, vault_key: bytes) -> bytes:
+    iv = raw[5:17]
+    tag = raw[17:33]
+    ciphertext = raw[33:]
+    try:
+        return AESGCM(vault_key).decrypt(iv, ciphertext + tag, _aad(relative_path))
+    except InvalidTag:
+        raise DecryptError("Authentication failed: wrong key or wrong --relative-path")
+
+
+def decrypt_bytes(raw: bytes, relative_path: str, vault_key: bytes):
+    """Returns (bytes, was_encrypted)."""
+    if is_binary_container(raw):
+        return decrypt_binary(raw, relative_path, vault_key), True
+    if is_armored(raw):
+        return decrypt_armored(raw, relative_path, vault_key), True
+    return raw, False
+
+
+# ---------------------------------------------------------------------------
+# Vault processing
+# ---------------------------------------------------------------------------
+
+def process_vault(vault_dir: Path, output_dir: Path, vault_key: bytes) -> int:
+    vault_dir = vault_dir.resolve()
+    output_dir = output_dir.resolve()
+    if output_dir == vault_dir or vault_dir in output_dir.parents:
+        raise DecryptError("--output must be OUTSIDE the vault directory")
+
+    print(f"\n[+] Decrypting {vault_dir} -> {output_dir}")
+    decrypted = copied = errors = 0
 
     for root, dirs, files in os.walk(vault_dir):
-        # Exclude hidden system and git directories
+        # Hidden directories (.obsidian, .git, .trash...) are never encrypted by the plugin.
         dirs[:] = [d for d in dirs if not d.startswith(".")]
-
-        for file_name in files:
-            full_path = Path(root) / file_name
-            rel_path = full_path.relative_to(vault_dir).as_posix()
-            out_file = output_dir / rel_path
-
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-
+        for name in files:
+            full = Path(root) / name
+            rel = full.relative_to(vault_dir).as_posix()
+            if name.startswith(".") and "/" not in rel:
+                continue  # root dotfiles are never encrypted
+            target = output_dir / rel
             try:
-                if file_name.endswith((".md", ".canvas", ".txt")):
-                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
-                        text = f.read()
-                    if ARMORED_START in text:
-                        decrypted = decrypt_text_armored(text, rel_path, vault_key)
-                        with open(out_file, "w", encoding="utf-8") as f:
-                            f.write(decrypted)
-                        processed += 1
-                    else:
-                        out_file.write_text(text, encoding="utf-8")
-                        skipped += 1
+                raw = full.read_bytes()
+                data, was_encrypted = decrypt_bytes(raw, rel, vault_key)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                if was_encrypted:
+                    decrypted += 1
                 else:
-                    # Binary attachment
-                    with open(full_path, "rb") as f:
-                        raw = f.read()
-                    if raw.startswith(BINARY_MAGIC):
-                        decrypted = decrypt_binary_attachment(raw, rel_path, vault_key)
-                        with open(out_file, "wb") as f:
-                            f.write(decrypted)
-                        processed += 1
-                    else:
-                        out_file.write_bytes(raw)
-                        skipped += 1
-            except Exception as e:
-                print(f"[-] Error decrypting {rel_path}: {e}")
+                    copied += 1
+            except (DecryptError, OSError, ValueError) as exc:
+                errors += 1
+                print(f"[-] {rel}: {exc}")
 
-    print(f"\n[✓] Decryption complete!")
-    print(f"    - Decrypted files: {processed}")
-    print(f"    - Unmodified plaintext files: {skipped}")
-    print(f"    - Destination: {output_dir}\n")
+    print("\n[✓] Done")
+    print(f"    - Decrypted files:        {decrypted}")
+    print(f"    - Copied (not encrypted): {copied}")
+    print(f"    - Errors:                 {errors}")
+    return 0 if errors == 0 else 2
 
 
-def main():
-    parser = argparse.ArgumentParser(description="MySecret Standalone Vault Decryptor")
-    parser.add_argument("--vault", type=str, help="Path to your Obsidian vault directory")
-    parser.add_argument("--output", type=str, help="Destination directory for decrypted files")
-    parser.add_argument("--mnemonic", type=str, help="24-word BIP-39 recovery phrase")
-    parser.add_argument("--password", type=str, help="Vault master password")
-    parser.add_argument("--data-json", type=str, help="Path to data.json (required if using --password)")
-    parser.add_argument("--file", type=str, help="Single file to decrypt")
-    parser.add_argument("--relative-path", type=str, help="Vault relative path of the single file")
-
+def main() -> int:
+    parser = argparse.ArgumentParser(description="MySecret standalone vault decryptor")
+    parser.add_argument("--vault", help="Path to your Obsidian vault directory")
+    parser.add_argument("--output", help="Destination directory (must be outside the vault)")
+    parser.add_argument("--envelope", help="Path to vault-envelope.json (default: autodetected in --vault)")
+    parser.add_argument("--mnemonic", help="24-word recovery phrase")
+    parser.add_argument(
+        "--password", nargs="?", const="", default=None,
+        help="Master password. Omit the value to be prompted (recommended: it stays out of shell history)",
+    )
+    parser.add_argument("--file", help="Decrypt a single file")
+    parser.add_argument("--relative-path", help="Vault-relative path of --file (REQUIRED for a single file)")
     args = parser.parse_args()
 
-    if not args.mnemonic and not args.password:
-        parser.error("You must provide either --mnemonic (24 words) or --password.")
+    if args.mnemonic is None and args.password is None:
+        parser.error("Provide --mnemonic or --password.")
+    if not args.vault and not args.envelope:
+        parser.error("Provide --vault (or --envelope together with --file).")
 
-    # 1. Derive key
-    if args.mnemonic:
-        print("[*] Deriving vault key from 24-word BIP-39 mnemonic...")
-        vault_key = derive_key_from_bip39(args.mnemonic)
-    else:
-        data_json = args.data_json
-        if not data_json and args.vault:
-            candidate = Path(args.vault) / ".obsidian" / "plugins" / "mysecret" / "data.json"
-            if candidate.exists():
-                data_json = str(candidate)
-        if not data_json or not os.path.exists(data_json):
-            parser.error("Could not find data.json. Specify it with --data-json.")
-        print("[*] Deriving vault key from master password and data.json via Argon2id...")
-        vault_key = derive_key_from_password(args.password, data_json)
+    try:
+        envelope = load_envelope(find_envelope(Path(args.vault) if args.vault else Path("."), args.envelope))
 
-    print("[+] Key derived successfully!")
+        if args.mnemonic is not None:
+            print("[*] Unwrapping the vault key with the recovery phrase...", file=sys.stderr)
+            vault_key = key_from_mnemonic(envelope, args.mnemonic)
+        else:
+            password = args.password or getpass.getpass("Master password: ")
+            print("[*] Deriving the key with Argon2id (a few hundred ms)...", file=sys.stderr)
+            vault_key = key_from_password(envelope, password)
+        print("[+] Vault key recovered.", file=sys.stderr)
 
-    # 2. Execute
-    if args.file:
-        rel = args.relative_path or os.path.basename(args.file)
-        with open(args.file, "r", encoding="utf-8") as f:
-            content = f.read()
-        print(f"\n--- Decrypted Content ({rel}) ---")
-        print(decrypt_text_armored(content, rel, vault_key))
-    elif args.vault:
+        if args.file:
+            if not args.relative_path:
+                parser.error("--relative-path is required with --file (it is part of the authenticated data).")
+            raw = Path(args.file).read_bytes()
+            data, was_encrypted = decrypt_bytes(raw, args.relative_path, vault_key)
+            if not was_encrypted:
+                print("[!] The file is not encrypted; printing it as is.", file=sys.stderr)
+            sys.stdout.buffer.write(data)
+            return 0
+
+        if not args.vault:
+            parser.error("--vault is required to decrypt a whole vault.")
         if not args.output:
-            parser.error("--output directory is required when decrypting a vault.")
-        process_vault(Path(args.vault), Path(args.output), vault_key)
-    else:
-        parser.print_help()
+            parser.error("--output is required when decrypting a vault.")
+        return process_vault(Path(args.vault), Path(args.output), vault_key)
+
+    except DecryptError as exc:
+        print(f"[-] {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

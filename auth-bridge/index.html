@@ -12,8 +12,12 @@
     `base-uri 'none'` block the classic injection vectors, and
     `form-action 'none'` prevents a hostile injected form from exfiltrating
     the session data.
+
+    NOTE: `frame-ancestors` is IGNORED when the policy is delivered through a
+    <meta> tag. Anti-clickjacking is therefore enforced by the HTTP headers in
+    the `_headers` file (Cloudflare Pages applies it automatically).
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
   <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="./style.css">
   <link rel="manifest" href="./manifest.json">

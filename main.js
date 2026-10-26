@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => MySecretPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // src/constants.ts
 var PLUGIN_ID = "mysecret";
@@ -90,9 +90,17 @@ var PathFilter = class {
         return true;
       }
     }
-    const baseName = normalized.split("/").pop() || "";
+    const segments = normalized.split("/");
+    const baseName = segments[segments.length - 1] || "";
+    for (let i = 0; i < segments.length - 1; i++) {
+      if (segments[i].startsWith(".")) {
+        return true;
+      }
+    }
     if (baseName.startsWith(".")) {
-      return true;
+      if (segments.length === 1 || !this.isTextNote(normalized)) {
+        return true;
+      }
     }
     return false;
   }
@@ -884,6 +892,13 @@ function constantTimeEqual(a, b) {
     c |= a[i] ^ b[i];
   }
   return c === 0;
+}
+function decodeUtf8Strict(bytes) {
+  try {
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 // src/crypto/aes.ts
@@ -3203,6 +3218,23 @@ function zeroize(buffer) {
 }
 
 // src/crypto/key-manager.ts
+function isValidEnvelopeShape(value) {
+  const isHex = (v, bytes) => typeof v === "string" && /^[0-9a-fA-F]*$/.test(v) && v.length % 2 === 0 && (bytes === void 0 || v.length === bytes * 2);
+  if (!value || typeof value !== "object") return false;
+  const a = value.argon2;
+  const k = value.vaultKeyEnvelope;
+  if (!a || typeof a !== "object" || !k || typeof k !== "object") return false;
+  if (![a.memory, a.iterations, a.parallelism].every((n) => typeof n === "number")) return false;
+  if (!isHex(a.salt, 16)) return false;
+  if (!isHex(k.iv, 12) || !isHex(k.tag, 16) || !isHex(k.ciphertext, 32)) return false;
+  const r = value.recoveryEnvelope;
+  if (r !== void 0) {
+    if (!r || typeof r !== "object") return false;
+    if (!isHex(r.salt, 16) || !isHex(r.iv, 12) || !isHex(r.tag, 16) || !isHex(r.ciphertext, 32)) return false;
+  }
+  if (value.vaultId !== void 0 && typeof value.vaultId !== "string") return false;
+  return true;
+}
 var KeyManager = class {
   constructor() {
     this._isLocked = true;
@@ -3289,6 +3321,10 @@ var KeyManager = class {
       const now = Date.now();
       const newEnvelope = {
         version: CURRENT_ENVELOPE_VERSION,
+        // Stable vault identifier: unlike the Argon2 salt it survives a
+        // master password change, so device-local biometric enrollments keep
+        // pointing at the same slot.
+        vaultId: bytesToHex(salt),
         argon2: {
           memory: ARGON2_MEMORY_KIB,
           iterations: ARGON2_ITERATIONS,
@@ -3461,11 +3497,62 @@ var KeyManager = class {
     }
   }
   /**
-   * Instant O(1) Master Password change without touching note files on disk
+   * Checks a master password against the envelope WITHOUT touching the
+   * lock state or the key material held in memory.
+   *
+   * It is the re-authentication primitive for sensitive actions (change the
+   * password, reveal the recovery phrase, enroll biometrics...): being
+   * unlocked is not enough to perform them.
    */
-  async changeMasterPassword(newPassword) {
+  async verifyPassword(masterPassword) {
+    if (!this.envelope || !masterPassword) return false;
+    let passKeyBytes = null;
+    try {
+      assertArgon2CostParams({
+        memoryKib: this.envelope.argon2.memory,
+        iterations: this.envelope.argon2.iterations,
+        parallelism: this.envelope.argon2.parallelism
+      });
+      passKeyBytes = await deriveKeyArgon2id(
+        masterPassword,
+        hexToBytes(this.envelope.argon2.salt),
+        this.envelope.argon2.memory,
+        this.envelope.argon2.iterations,
+        this.envelope.argon2.parallelism
+      );
+      const passKey = await importAesKey(passKeyBytes);
+      const decrypted = await decryptAesGcm(
+        hexToBytes(this.envelope.vaultKeyEnvelope.ciphertext),
+        passKey,
+        hexToBytes(this.envelope.vaultKeyEnvelope.iv),
+        hexToBytes(this.envelope.vaultKeyEnvelope.tag),
+        "vault-envelope"
+      );
+      zeroize(decrypted);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      zeroize(passKeyBytes);
+    }
+  }
+  /**
+   * Instant O(1) Master Password change without touching note files on disk.
+   *
+   * SECURITY: the CURRENT password is required. Being unlocked (for example
+   * through a biometric prompt or an unattended session) must not be enough
+   * to replace the credential that protects the vault.
+   *
+   * NOTE: the vault key itself is NOT rotated. An older copy of the envelope
+   * (cloud history, backups) combined with the OLD password still yields the
+   * vault key. Callers must tell the user so.
+   */
+  async changeMasterPassword(newPassword, currentPassword) {
     if (this._isLocked || !this.rawVaultKey || !this.envelope) {
       throw new Error("[MySecret] Vault must be unlocked to change password");
+    }
+    if (!await this.verifyPassword(currentPassword)) {
+      throw new Error("[MySecret] The current password is incorrect");
     }
     assertArgon2CostParams({
       memoryKib: this.envelope.argon2.memory,
@@ -3484,6 +3571,9 @@ var KeyManager = class {
       );
       const newPassKey = await importAesKey(newPassKeyBytes);
       const vaultKeyEnc = await encryptAesGcm(this.rawVaultKey, newPassKey, "vault-envelope");
+      if (!this.envelope.vaultId) {
+        this.envelope.vaultId = this.envelope.argon2.salt;
+      }
       this.envelope.argon2.salt = bytesToHex(newSalt);
       this.envelope.vaultKeyEnvelope = {
         iv: bytesToHex(vaultKeyEnc.iv),
@@ -3702,6 +3792,18 @@ async function isAuthenticContainer(rawBytes, aad, keyManager) {
 var AdapterInterceptor = class {
   constructor(adapter, pathFilter, keyManager, mediaManager, vault) {
     this.isHooked = false;
+    /**
+     * Serializes compound read-modify-write operations (`process`, `append`,
+     * `appendBinary`) per path. The native `process()` is atomic; the hooked
+     * version reads, transforms and writes in separate steps, so without this
+     * queue two concurrent calls on the same note would lose one update.
+     */
+    this.pathQueues = /* @__PURE__ */ new Map();
+    /**
+     * Renames/copies whose AAD re-binding is still pending (vault locked,
+     * crash...). Persisted by the plugin through `onPendingRebindsChanged`.
+     */
+    this.pendingRebinds = [];
     this.adapter = adapter;
     this.pathFilter = pathFilter;
     this.keyManager = keyManager;
@@ -3717,6 +3819,116 @@ var AdapterInterceptor = class {
    */
   setMetadataHashPatch(patch) {
     this.metadataHashPatch = patch;
+  }
+  /**
+   * Runs `task` after every previously queued task of the same path.
+   */
+  withPathLock(path, task) {
+    const key = this.pathFilter.normalizePath(path);
+    const previous = this.pathQueues.get(key) ?? Promise.resolve();
+    const run = previous.then(task, task);
+    const tail = run.catch(() => void 0);
+    this.pathQueues.set(key, tail);
+    void tail.then(() => {
+      if (this.pathQueues.get(key) === tail) {
+        this.pathQueues.delete(key);
+      }
+    });
+    return run;
+  }
+  /**
+   * Loads the persisted queue of pending re-binds and registers the callback
+   * that persists every change.
+   */
+  setPendingRebinds(list, onChange) {
+    this.pendingRebinds = Array.isArray(list) ? list.filter((i) => i && typeof i.from === "string" && typeof i.to === "string") : [];
+    this.onPendingRebindsChanged = onChange;
+  }
+  getPendingRebinds() {
+    return this.pendingRebinds.map((i) => ({ ...i }));
+  }
+  queueRebind(from, to) {
+    if (this.pendingRebinds.some((i) => i.from === from && i.to === to)) return;
+    this.pendingRebinds.push({ from, to });
+    this.onPendingRebindsChanged?.(this.getPendingRebinds());
+  }
+  /**
+   * Re-binds `from` -> `to`; when that is not possible right now (vault
+   * locked, I/O error) the operation is queued and replayed on unlock, so a
+   * note is never left permanently bound to a path it no longer has.
+   */
+  async rebindOrQueue(from, to) {
+    try {
+      await this.rebindAad(from, to);
+    } catch (err2) {
+      console.error(`[MySecret] Re-bind ${from} -> ${to} deferred:`, err2);
+      this.queueRebind(from, to);
+    }
+  }
+  /**
+   * Replays the queued re-binds. Entries that can never succeed (the file is
+   * gone, or it authenticates under neither path) are dropped; the rest stay
+   * queued.
+   *
+   * @returns the number of re-binds that were completed.
+   */
+  async processPendingRebinds() {
+    if (this.keyManager.isLocked || this.pendingRebinds.length === 0) return 0;
+    const snapshot = this.getPendingRebinds();
+    let done = 0;
+    const remaining = [];
+    for (const item of snapshot) {
+      try {
+        const exists = this.adapter.exists ? await this.adapter.exists(item.to) : true;
+        if (!exists) continue;
+        await this.rebindAad(item.from, item.to);
+        done++;
+      } catch (err2) {
+        if (this.keyManager.isLocked) {
+          remaining.push(item);
+        } else {
+          console.error(`[MySecret] Dropping unrecoverable re-bind ${item.from} -> ${item.to}:`, err2);
+        }
+      }
+    }
+    this.pendingRebinds = remaining;
+    this.onPendingRebindsChanged?.(this.getPendingRebinds());
+    return done;
+  }
+  /**
+   * Converts the given files from ciphertext to plaintext ON DISK.
+   *
+   * Used before a policy change makes the plugin stop decrypting them (a
+   * folder is excluded, attachment encryption is turned off): otherwise the
+   * files would be served as raw ciphertext and a later save would corrupt
+   * them. Every file is decrypted fully in memory BEFORE anything is written.
+   *
+   * @returns paths converted and the failures (those files stay untouched).
+   */
+  async decryptFilesToPlain(paths) {
+    const converted = [];
+    const failed = [];
+    for (const path of paths) {
+      try {
+        const rawBytes = new Uint8Array(await this.origReadBinary(path));
+        const format = detectContainerFormat(rawBytes);
+        if (format === "plain") continue;
+        const outcome = await decryptContainer(
+          rawBytes,
+          this.pathFilter.normalizePath(path),
+          this.keyManager
+        );
+        if (format === "armored") {
+          await this.origWrite(path, bytesToString(outcome.bytes));
+        } else {
+          await this.origWriteBinary(path, toArrayBuffer(outcome.bytes));
+        }
+        converted.push(path);
+      } catch (err2) {
+        failed.push({ path, error: err2?.message || String(err2) });
+      }
+    }
+    return { converted, failed };
   }
   /**
    * Installs the transparent interception hooks onto the Obsidian Vault DataAdapter
@@ -3850,10 +4062,7 @@ var AdapterInterceptor = class {
       return await self2.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
     };
     if (a.append) {
-      a.append = async function(path, data, options) {
-        if (!self2.pathFilter.shouldEncrypt(path)) {
-          return await self2.origAppend(path, data, options);
-        }
+      const appendEncrypted = async (path, data, options) => {
         let existing;
         try {
           existing = await a.read(path);
@@ -3875,12 +4084,15 @@ var AdapterInterceptor = class {
         }
         await a.write(path, existing + data, options);
       };
+      a.append = function(path, data, options) {
+        if (!self2.pathFilter.shouldEncrypt(path)) {
+          return self2.origAppend(path, data, options);
+        }
+        return self2.withPathLock(path, () => appendEncrypted(path, data, options));
+      };
     }
     if (a.appendBinary) {
-      a.appendBinary = async function(path, data, options) {
-        if (!self2.pathFilter.shouldEncrypt(path)) {
-          return await self2.origAppendBinary(path, data, options);
-        }
+      const appendBinaryEncrypted = async (path, data, options) => {
         if (self2.keyManager.isLocked) {
           throw new Error(`[MySecret] Cannot append binary while vault is locked (${path})`);
         }
@@ -3939,24 +4151,30 @@ var AdapterInterceptor = class {
           tag: encResult.tag,
           ciphertext: encResult.ciphertext
         });
-        return await self2.origWriteBinary(path, binaryEncrypted.buffer, options);
+        return await self2.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
+      };
+      a.appendBinary = function(path, data, options) {
+        if (!self2.pathFilter.shouldEncrypt(path)) {
+          return self2.origAppendBinary(path, data, options);
+        }
+        return self2.withPathLock(path, () => appendBinaryEncrypted(path, data, options));
       };
     }
-    a.process = async function(path, fn, options) {
-      if (!self2.pathFilter.shouldEncrypt(path)) {
-        if (self2.origProcess) {
-          return await self2.origProcess(path, fn, options);
-        }
-        let plain = "";
-        try {
-          plain = await self2.origRead(path);
-        } catch {
-          plain = "";
-        }
-        const processed2 = fn(plain);
-        await self2.origWrite(path, processed2, options);
-        return processed2;
+    const processPlain = async (path, fn, options) => {
+      if (self2.origProcess) {
+        return await self2.origProcess(path, fn, options);
       }
+      let plain = "";
+      try {
+        plain = await self2.origRead(path);
+      } catch {
+        plain = "";
+      }
+      const processed = fn(plain);
+      await self2.origWrite(path, processed, options);
+      return processed;
+    };
+    const processEncrypted = async (path, fn, options) => {
       let exists = false;
       if (typeof self2.adapter.exists === "function") {
         try {
@@ -3979,6 +4197,12 @@ var AdapterInterceptor = class {
       await a.write(path, processed, options);
       return processed;
     };
+    a.process = function(path, fn, options) {
+      if (!self2.pathFilter.shouldEncrypt(path)) {
+        return processPlain(path, fn, options);
+      }
+      return self2.withPathLock(path, () => processEncrypted(path, fn, options));
+    };
     if (a.copy) {
       a.copy = async function(path, newPath) {
         if (!self2.origCopy) {
@@ -3987,12 +4211,7 @@ var AdapterInterceptor = class {
         const oldNorm = self2.pathFilter.normalizePath(path);
         const newNorm = self2.pathFilter.normalizePath(newPath);
         await self2.origCopy(path, newPath);
-        try {
-          await self2.rebindAad(oldNorm, newNorm);
-        } catch (err2) {
-          console.error(`[MySecret] Failed to re-bind encryption after copy (${path} -> ${newPath}):`, err2);
-          throw err2;
-        }
+        await self2.rebindOrQueue(oldNorm, newNorm);
       };
     }
     this.isHooked = true;
@@ -4100,14 +4319,10 @@ var AdapterInterceptor = class {
         for (const descendant of descendants) {
           const fromAbs = oldNorm + descendant.slice(newPath.length);
           const toAbs = descendant;
-          try {
-            await this.rebindAad(fromAbs, toAbs);
-          } catch (err2) {
-            console.error(`[MySecret] Failed to re-bind encryption after rename (${fromAbs} -> ${toAbs}):`, err2);
-          }
+          await this.rebindOrQueue(fromAbs, toAbs);
         }
       } else {
-        await this.rebindAad(oldNorm, newPath);
+        await this.rebindOrQueue(oldNorm, newPath);
       }
       this.mediaManager?.handleRename(oldNorm, newPath);
     } catch (err2) {
@@ -4159,6 +4374,18 @@ var AdapterInterceptor = class {
     return toArrayBuffer(data);
   }
   /**
+   * Whether a payload authenticates under the given AAD (used to detect that
+   * a re-bind was already performed, which makes the operation idempotent).
+   */
+  async authenticatesUnder(payload, vaultKey, aad) {
+    try {
+      await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, aad);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
    * Re-binds the AES-GCM AAD of a file after it has been moved or copied.
    *
    * The file is read from disk in its *current* (encrypted with the old AAD)
@@ -4185,7 +4412,13 @@ var AdapterInterceptor = class {
     const rawBytes = new Uint8Array(rawBuffer);
     if (isBinaryEncrypted(rawBytes)) {
       const payload = deserializeBinary(rawBytes);
-      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      let plain;
+      try {
+        plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      } catch (err2) {
+        if (await this.authenticatesUnder(payload, vaultKey, newAad)) return;
+        throw err2;
+      }
       if (!shouldEncryptNew) {
         await this.origWriteBinary(toAbs, this.toArrayBuffer(plain));
         return;
@@ -4202,7 +4435,13 @@ var AdapterInterceptor = class {
     }
     if (isArmoredBytesEncrypted(rawBytes)) {
       const payload = deserializeArmored(bytesToString(rawBytes));
-      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      let plain;
+      try {
+        plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      } catch (err2) {
+        if (await this.authenticatesUnder(payload, vaultKey, newAad)) return;
+        throw err2;
+      }
       if (!shouldEncryptNew) {
         await this.origWrite(toAbs, bytesToString(plain));
         return;
@@ -4405,6 +4644,8 @@ var PublishGuard = class {
   constructor(app) {
     this.publishInstance = null;
     this.installed = false;
+    this.wrapper = null;
+    this.noticeShown = false;
     this.app = app;
   }
   /**
@@ -4431,7 +4672,7 @@ var PublishGuard = class {
     this.publishInstance = instance;
     this.origApiUploadFile = instance.apiUploadFile.bind(instance);
     const self2 = this;
-    instance.apiUploadFile = async function(file) {
+    const wrapper = async function(file) {
       const blocked = await self2.assertPublishable(file);
       if (!blocked) {
         return await self2.origApiUploadFile(file);
@@ -4440,10 +4681,14 @@ var PublishGuard = class {
         '[MySecret] Obsidian Publish no puede publicar "' + file.path + '" porque la nota est\xE1 cifrada. Publicarla subir\xEDa el texto claro a un sitio web p\xFAblico. Usa "Descifrar todo" en MySecret antes de publicar, o excluye la nota de la publicaci\xF3n.'
       );
     };
+    instance.apiUploadFile = wrapper;
+    this.wrapper = wrapper;
     this.installed = true;
     console.warn(
       "[MySecret] Obsidian Publish is enabled: the upload of encrypted notes has been blocked to avoid publishing their cleartext."
     );
+    if (this.noticeShown) return true;
+    this.noticeShown = true;
     try {
       new import_obsidian2.Notice(
         'MySecret: Obsidian Publish est\xE1 activo. Se ha bloqueado la publicaci\xF3n de notas cifradas para no exponer su texto claro. Usa "Descifrar todo" si quieres publicarlas.',
@@ -4452,6 +4697,35 @@ var PublishGuard = class {
     } catch {
     }
     return true;
+  }
+  /**
+   * Re-checks the Publish plugin and (re)installs the guard when needed.
+   *
+   * Publish can be enabled AFTER MySecret has loaded, or disabled and enabled
+   * again (which creates a NEW instance whose `apiUploadFile` is not wrapped).
+   * Without this check the cleartext of the encrypted notes could be uploaded
+   * to a public website in those cases.
+   */
+  refresh() {
+    let instance = null;
+    try {
+      const internalPlugins = this.app.internalPlugins;
+      instance = internalPlugins?.getEnabledPluginById?.(PUBLISH_PLUGIN_ID) ?? null;
+    } catch {
+      instance = null;
+    }
+    if (!instance) {
+      this.publishInstance = null;
+      this.origApiUploadFile = void 0;
+      this.wrapper = null;
+      this.installed = false;
+      return;
+    }
+    if (this.installed && instance === this.publishInstance && instance.apiUploadFile === this.wrapper) {
+      return;
+    }
+    this.installed = false;
+    this.install();
   }
   /**
    * Checks whether the given file must NOT be published.
@@ -4506,7 +4780,7 @@ var MIME_MAP = {
   mov: "video/quicktime",
   pdf: "application/pdf"
 };
-var MediaManager = class {
+var MediaManager = class _MediaManager {
   constructor(app, pathFilter, keyManager) {
     this.blobUrls = /* @__PURE__ */ new Map();
     // normalizedPath -> blobUrl
@@ -4579,6 +4853,9 @@ var MediaManager = class {
           norm,
           this.keyManager
         );
+        if (this.keyManager.isLocked) {
+          return null;
+        }
         const decryptedBuffer = toArrayBuffer(outcome.bytes);
         const mime = this.getMimeType(norm);
         const blob = new Blob([decryptedBuffer], { type: mime });
@@ -4601,17 +4878,28 @@ var MediaManager = class {
    */
   patchDomForPath(normPath, blobUrl) {
     const filename = normPath.split("/").pop() || normPath;
-    const encodedFilename = encodeURIComponent(filename);
     const images = document.querySelectorAll("img");
     images.forEach((img) => {
       const src = img.getAttribute("src") || "";
       const alt = img.getAttribute("alt") || "";
       const parent = img.closest(".internal-embed");
       const parentSrc = parent?.getAttribute("src") || "";
-      if (src.includes(encodedFilename) || src.includes(filename) || alt === filename || parentSrc === filename || parentSrc.endsWith("/" + filename)) {
+      if (_MediaManager.lastSegment(src) === filename || alt === filename || parentSrc === filename || parentSrc === normPath || parentSrc.endsWith("/" + filename)) {
         this.applyBlobToImage(img, blobUrl, normPath);
       }
     });
+  }
+  /**
+   * Last path segment of a URL (query/fragment removed, percent-decoded).
+   */
+  static lastSegment(rawUrl) {
+    try {
+      const clean = rawUrl.split("?")[0].split("#")[0];
+      const last = clean.split("/").pop() || "";
+      return decodeURIComponent(last);
+    } catch {
+      return "";
+    }
   }
   /**
    * Applies the Blob URL to an img element, clearing broken indicators and fixing display
@@ -5866,7 +6154,8 @@ var BackupEngine = class _BackupEngine {
     let textNotesCount = 0;
     let attachmentsCount = 0;
     let totalBytes = 0;
-    const vaultKey = plugin.keyManager.getVaultKey();
+    const vaultKey = options.vaultKey ?? plugin.keyManager.getVaultKey();
+    const skipped = [];
     for (let i = 0; i < targets.length; i++) {
       const file = targets[i];
       const path = file.path;
@@ -5883,7 +6172,16 @@ var BackupEngine = class _BackupEngine {
           if (isText) {
             textNotesCount++;
             const diskContent = await rawAdapter.read(path);
-            if (isArmoredEncrypted(diskContent)) {
+            const diskIsArmored = isArmoredEncrypted(diskContent);
+            if (!diskIsArmored && !vaultKey) {
+              skipped.push({ path, reason: "plaintext file and the vault key is not available" });
+              continue;
+            }
+            if (!diskIsArmored && decodeUtf8Strict(new Uint8Array(await rawAdapter.readBinary(path))) === null) {
+              skipped.push({ path, reason: "not valid UTF-8; it would be altered by encryption" });
+              continue;
+            }
+            if (diskIsArmored) {
               const fileBytes = strToU8(diskContent);
               zipData[path] = fileBytes;
               totalBytes += fileBytes.length;
@@ -5910,7 +6208,9 @@ var BackupEngine = class _BackupEngine {
               zipData[path] = diskBytes;
               totalBytes += diskBytes.length;
               manifestFiles.push({ path, size: diskBytes.length, isEncrypted: true });
-            } else if (vaultKey) {
+            } else if (!vaultKey) {
+              skipped.push({ path, reason: "plaintext file and the vault key is not available" });
+            } else {
               const enc = await encryptAesGcm(diskBytes, vaultKey, plugin.pathFilter.normalizePath(path));
               const binEnc = serializeBinary({
                 version: 1,
@@ -5942,6 +6242,7 @@ var BackupEngine = class _BackupEngine {
         }
       } catch (err2) {
         console.warn(`[MySecret] Backup warning on ${path}:`, err2);
+        skipped.push({ path, reason: err2?.message || String(err2) });
       }
     }
     if (mode === "encrypted" && includeEnvelope) {
@@ -5968,6 +6269,7 @@ var BackupEngine = class _BackupEngine {
     zipData["mysecret-manifest.json"] = strToU8(JSON.stringify(manifest, null, 2));
     const zipBytes = zipSync(zipData, { level: 6 });
     const stats = {
+      skippedFiles: skipped,
       totalFiles: targets.length,
       totalBytes: zipBytes.length,
       textNotesCount,
@@ -6012,6 +6314,13 @@ var BackupEngine = class _BackupEngine {
       skippedFiles: 0,
       errors: []
     };
+    if (!plugin.keyManager || plugin.keyManager.isLocked) {
+      result.errors.push({
+        path: "",
+        error: "Desbloquea la b\xF3veda antes de restaurar: las entradas se validan con tu clave."
+      });
+      return result;
+    }
     if (!zipBytes || zipBytes.length === 0) {
       result.errors.push({ path: "", error: "El archivo ZIP est\xE1 vac\xEDo." });
       return result;
@@ -6082,7 +6391,7 @@ var BackupEngine = class _BackupEngine {
         return result;
       }
     }
-    const isEncryptedBackup = manifest?.mode === "encrypted";
+    void manifest;
     for (let i = 0; i < entries.length; i++) {
       const [entryPath, data] = entries[i];
       if (entryPath === "mysecret-manifest.json" || entryPath === "vault-envelope.json") {
@@ -6123,20 +6432,57 @@ var BackupEngine = class _BackupEngine {
           }
         }
         const isText = plugin.pathFilter.isTextNote(safePath);
-        if (isEncryptedBackup) {
-          if (isText) {
-            const textContent = strFromU8(data);
-            await rawAdapter.write(safePath, textContent);
+        const aad = plugin.pathFilter.normalizePath(safePath);
+        const format = detectContainerFormat(data);
+        const encryptsHere = plugin.pathFilter.shouldEncrypt(safePath);
+        if (format !== "plain") {
+          if (!await isAuthenticContainer(data, aad, plugin.keyManager)) {
+            result.skippedFiles++;
+            result.errors.push({
+              path: safePath,
+              error: "No se autentica con la clave de esta b\xF3veda (copia de otra b\xF3veda, ruta distinta o archivo alterado)."
+            });
+            continue;
+          }
+          if (isText && format !== "armored" || !isText && format !== "binary") {
+            result.skippedFiles++;
+            result.errors.push({
+              path: safePath,
+              error: "El formato del contenedor cifrado no corresponde al tipo de archivo."
+            });
+            continue;
+          }
+          if (encryptsHere) {
+            if (format === "armored") {
+              await rawAdapter.write(safePath, bytesToString(data));
+            } else {
+              await rawAdapter.writeBinary(safePath, data.slice().buffer);
+            }
           } else {
-            await rawAdapter.writeBinary(safePath, data.buffer);
+            const outcome = await decryptContainer(data, aad, plugin.keyManager);
+            if (format === "armored") {
+              await rawAdapter.write(safePath, bytesToString(outcome.bytes));
+            } else {
+              await rawAdapter.writeBinary(safePath, outcome.bytes.slice().buffer);
+            }
+          }
+        } else if (isText) {
+          const textContent = decodeUtf8Strict(data);
+          if (textContent === null) {
+            if (encryptsHere) {
+              result.skippedFiles++;
+              result.errors.push({
+                path: safePath,
+                error: "No es UTF-8 v\xE1lido: cifrarlo lo alterar\xEDa."
+              });
+              continue;
+            }
+            await rawAdapter.writeBinary(safePath, data.slice().buffer);
+          } else {
+            await plugin.app.vault.adapter.write(safePath, textContent);
           }
         } else {
-          if (isText) {
-            const textContent = strFromU8(data);
-            await plugin.app.vault.adapter.write(safePath, textContent);
-          } else {
-            await plugin.app.vault.adapter.writeBinary(safePath, data.buffer);
-          }
+          await plugin.app.vault.adapter.writeBinary(safePath, data.slice().buffer);
         }
         result.restoredFiles++;
       } catch (err2) {
@@ -6418,6 +6764,8 @@ var en = {
     currentPasswordLabel: "Current Master Password",
     newPasswordLabel: "New Master Password (min 12 chars)",
     confirmNewPasswordLabel: "Confirm New Master Password",
+    keyNotRotatedWarning: "Heads up: changing the password does NOT rotate the vault key. Anyone holding an older copy of vault-envelope.json (cloud history, backups) together with the OLD password can still decrypt your notes.",
+    wrongCurrentPassword: "The current master password is incorrect.",
     submitBtn: "Update Password",
     updating: "Re-deriving Argon2id keys...",
     success: "Master password updated successfully."
@@ -6478,6 +6826,12 @@ var en = {
     stopBtn: "Cancel",
     processing: "Processing {current} ({processed}/{total})...",
     complete: "Operation completed successfully."
+  },
+  reauth: {
+    title: "Confirm your master password",
+    desc: "This action is sensitive. Enter your master password to continue.",
+    confirmBtn: "Confirm",
+    wrongPassword: "Incorrect master password."
   },
   recoveryPhraseModal: {
     title: "Emergency Recovery Phrase",
@@ -6751,6 +7105,8 @@ var es = {
     currentPasswordLabel: "Contrase\xF1a Maestra Actual",
     newPasswordLabel: "Nueva Contrase\xF1a Maestra (m\xEDn 12 car)",
     confirmNewPasswordLabel: "Confirmar Nueva Contrase\xF1a",
+    keyNotRotatedWarning: "Atenci\xF3n: cambiar la contrase\xF1a NO rota la clave de la b\xF3veda. Quien conserve una copia antigua de vault-envelope.json (historial de la nube, backups) junto con la contrase\xF1a ANTERIOR todav\xEDa puede descifrar tus notas.",
+    wrongCurrentPassword: "La contrase\xF1a maestra actual es incorrecta.",
     submitBtn: "Actualizar Contrase\xF1a",
     updating: "Re-derivando claves con Argon2id...",
     success: "Contrase\xF1a maestra actualizada con \xE9xito."
@@ -6811,6 +7167,12 @@ var es = {
     stopBtn: "Cancelar",
     processing: "Procesando {current} ({processed}/{total})...",
     complete: "Operaci\xF3n completada con \xE9xito."
+  },
+  reauth: {
+    title: "Confirma tu contrase\xF1a maestra",
+    desc: "Esta acci\xF3n es sensible. Introduce tu contrase\xF1a maestra para continuar.",
+    confirmBtn: "Confirmar",
+    wrongPassword: "Contrase\xF1a maestra incorrecta."
   },
   recoveryPhraseModal: {
     title: "Frase de Recuperaci\xF3n de Emergencia",
@@ -7084,6 +7446,8 @@ var ru = {
     currentPasswordLabel: "\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C",
     newPasswordLabel: "\u041D\u043E\u0432\u044B\u0439 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C (\u043C\u0438\u043D. 12 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432)",
     confirmNewPasswordLabel: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C",
+    keyNotRotatedWarning: "\u0412\u043D\u0438\u043C\u0430\u043D\u0438\u0435: \u0441\u043C\u0435\u043D\u0430 \u043F\u0430\u0440\u043E\u043B\u044F \u041D\u0415 \u043C\u0435\u043D\u044F\u0435\u0442 \u043A\u043B\u044E\u0447 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430. \u0422\u043E\u0442, \u0443 \u043A\u043E\u0433\u043E \u0435\u0441\u0442\u044C \u0441\u0442\u0430\u0440\u0430\u044F \u043A\u043E\u043F\u0438\u044F vault-envelope.json (\u0438\u0441\u0442\u043E\u0440\u0438\u044F \u043E\u0431\u043B\u0430\u043A\u0430, \u0440\u0435\u0437\u0435\u0440\u0432\u043D\u044B\u0435 \u043A\u043E\u043F\u0438\u0438) \u0438 \u0421\u0422\u0410\u0420\u042B\u0419 \u043F\u0430\u0440\u043E\u043B\u044C, \u043F\u043E-\u043F\u0440\u0435\u0436\u043D\u0435\u043C\u0443 \u0441\u043C\u043E\u0436\u0435\u0442 \u0440\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u0430\u0448\u0438 \u0437\u0430\u043C\u0435\u0442\u043A\u0438.",
+    wrongCurrentPassword: "\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C \u043D\u0435\u0432\u0435\u0440\u0435\u043D.",
     submitBtn: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
     updating: "\u041F\u043E\u0432\u0442\u043E\u0440\u043D\u0430\u044F \u0434\u0435\u0440\u0438\u0432\u0430\u0446\u0438\u044F \u043A\u043B\u044E\u0447\u0435\u0439 Argon2id...",
     success: "\u041C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u043E\u0431\u043D\u043E\u0432\u043B\u0451\u043D."
@@ -7144,6 +7508,12 @@ var ru = {
     stopBtn: "\u041E\u0442\u043C\u0435\u043D\u0430",
     processing: "\u041E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0430 {current} ({processed}/{total})...",
     complete: "\u041E\u043F\u0435\u0440\u0430\u0446\u0438\u044F \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430."
+  },
+  reauth: {
+    title: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C",
+    desc: "\u042D\u0442\u043E \u0447\u0443\u0432\u0441\u0442\u0432\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435. \u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C.",
+    confirmBtn: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C",
+    wrongPassword: "\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C."
   },
   recoveryPhraseModal: {
     title: "\u0410\u0432\u0430\u0440\u0438\u0439\u043D\u0430\u044F \u043C\u043D\u0435\u043C\u043E\u043D\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u0444\u0440\u0430\u0437\u0430",
@@ -7417,6 +7787,8 @@ var zh2 = {
     currentPasswordLabel: "\u5F53\u524D\u4E3B\u5BC6\u7801",
     newPasswordLabel: "\u65B0\u4E3B\u5BC6\u7801 (\u81F3\u5C11 12 \u5B57\u7B26)",
     confirmNewPasswordLabel: "\u786E\u8BA4\u65B0\u4E3B\u5BC6\u7801",
+    keyNotRotatedWarning: "\u6CE8\u610F\uFF1A\u66F4\u6539\u5BC6\u7801\u4E0D\u4F1A\u8F6E\u6362\u4FDD\u9669\u5E93\u5BC6\u94A5\u3002\u6301\u6709\u65E7\u7248 vault-envelope.json\uFF08\u4E91\u7AEF\u5386\u53F2\u3001\u5907\u4EFD\uFF09\u548C\u65E7\u5BC6\u7801\u7684\u4EBA\u4ECD\u53EF\u89E3\u5BC6\u60A8\u7684\u7B14\u8BB0\u3002",
+    wrongCurrentPassword: "\u5F53\u524D\u4E3B\u5BC6\u7801\u4E0D\u6B63\u786E\u3002",
     submitBtn: "\u66F4\u65B0\u5BC6\u7801",
     updating: "\u6B63\u5728\u91CD\u65B0\u6D3E\u751F Argon2id \u5BC6\u94A5...",
     success: "\u4E3B\u5BC6\u7801\u66F4\u65B0\u6210\u529F\u3002"
@@ -7477,6 +7849,12 @@ var zh2 = {
     stopBtn: "\u53D6\u6D88",
     processing: "\u6B63\u5728\u5904\u7406 {current} ({processed}/{total})...",
     complete: "\u64CD\u4F5C\u5DF2\u987A\u5229\u5B8C\u6210\u3002"
+  },
+  reauth: {
+    title: "\u786E\u8BA4\u60A8\u7684\u4E3B\u5BC6\u7801",
+    desc: "\u6B64\u64CD\u4F5C\u8F83\u4E3A\u654F\u611F\u3002\u8BF7\u8F93\u5165\u4E3B\u5BC6\u7801\u4EE5\u7EE7\u7EED\u3002",
+    confirmBtn: "\u786E\u8BA4",
+    wrongPassword: "\u4E3B\u5BC6\u7801\u4E0D\u6B63\u786E\u3002"
   },
   recoveryPhraseModal: {
     title: "\u7D27\u6025\u6062\u590D\u52A9\u8BB0\u8BCD",
@@ -7732,6 +8110,9 @@ var ExportModal = class extends import_obsidian4.Modal {
       this.plugin.openLockScreen();
       return;
     }
+    if (this.mode === "decrypted" && !await this.plugin.requireReauth()) {
+      return;
+    }
     this.isProcessing = true;
     this.exportBtn.disabled = true;
     this.cancelBtn.disabled = true;
@@ -7759,6 +8140,14 @@ var ExportModal = class extends import_obsidian4.Modal {
         `${t("common.success")} ${(result.stats.totalBytes / (1024 * 1024)).toFixed(2)} MB (${result.stats.totalFiles})`
       );
       this.currentFileEl.setText("");
+      const skippedByBackup = result.stats.skippedFiles ?? [];
+      if (skippedByBackup.length > 0) {
+        console.warn("[MySecret] Backup skipped files:", skippedByBackup);
+        new import_obsidian4.Notice(
+          `\u26A0\uFE0F ${skippedByBackup.length} archivo(s) NO se incluyeron en la copia (p. ej. ${skippedByBackup[0].path}: ${skippedByBackup[0].reason}).`,
+          12e3
+        );
+      }
       BackupEngine.triggerDownload(result.filename, result.zipBytes);
       new import_obsidian4.Notice(`\u2705 ${t("notices.exportSuccess")}: ${result.filename}`);
       this.cancelBtn.disabled = false;
@@ -8518,6 +8907,14 @@ var CloudBackupModal = class extends import_obsidian5.Modal {
           this.currentFileEl.setText(`\u{1F4E6} ${currentFile}`);
         }
       );
+      const skippedByBackup = zipResult.stats.skippedFiles ?? [];
+      if (skippedByBackup.length > 0) {
+        console.warn("[MySecret] Backup skipped files:", skippedByBackup);
+        new import_obsidian5.Notice(
+          `\u26A0\uFE0F ${skippedByBackup.length} archivo(s) NO se incluyeron en la copia (p. ej. ${skippedByBackup[0].path}: ${skippedByBackup[0].reason}).`,
+          12e3
+        );
+      }
       this.progressStatusEl.setText(`${provider.name}...`);
       this.currentFileEl.setText(zipResult.filename);
       const uploadResult = await provider.uploadBackup(
@@ -8752,6 +9149,14 @@ var RestoreModal = class extends import_obsidian6.Modal {
       this.progressStatusEl.setText(t("notices.restoreSuccess", { count: result.restoredFiles }));
       this.currentFileEl.setText("");
       new import_obsidian6.Notice(`\u2705 ${t("notices.restoreSuccess", { count: result.restoredFiles })}`);
+      if (result.errors.length > 0) {
+        const first = result.errors[0];
+        console.warn("[MySecret] Restore rejected entries:", result.errors);
+        new import_obsidian6.Notice(
+          `\u26A0\uFE0F ${result.errors.length} entrada(s) no se restauraron` + (first.path ? ` (p. ej. ${first.path}: ${first.error})` : `: ${first.error}`),
+          12e3
+        );
+      }
       this.cancelBtn.disabled = false;
       this.cancelBtn.setText(t("common.close"));
     } catch (err2) {
@@ -8843,6 +9248,16 @@ function validateBridgeUrl(rawUrl) {
 }
 
 // src/ui/settings-tab.ts
+function debounce(fn, ms) {
+  let timer = null;
+  return (...args) => {
+    if (timer !== null) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = null;
+      void fn(...args);
+    }, ms);
+  };
+}
 var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -8891,12 +9306,10 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
     });
     new import_obsidian8.Setting(containerEl).setName(t("settings.encryptAttachmentsTitle")).setDesc(t("settings.encryptAttachmentsDesc")).addToggle((toggle) => {
       toggle.setValue(this.plugin.settings.encryptAttachments).onChange(async (value) => {
-        this.plugin.settings.encryptAttachments = value;
-        await this.plugin.saveSettings();
-        this.plugin.pathFilter.updateConfig(
-          this.plugin.settings.excludedFolders,
-          this.plugin.settings.encryptAttachments
-        );
+        const applied = await this.plugin.setEncryptAttachments(value);
+        if (!applied) {
+          toggle.setValue(!value);
+        }
       });
     });
     new import_obsidian8.Setting(containerEl).setName(t("settings.biometricsSectionTitle")).setHeading();
@@ -8959,6 +9372,10 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
               toggle.setValue(false);
               return;
             }
+          }
+          if (!await this.plugin.requireReauth()) {
+            toggle.setValue(false);
+            return;
           }
           const rawKey = this.plugin.keyManager.getRawVaultKey();
           if (!rawKey) {
@@ -9129,7 +9546,7 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
     if (this.plugin.hasRecoveryPhrase()) {
       new import_obsidian8.Setting(containerEl).setName(t("settings.viewRecoveryTitle")).setDesc(t("settings.viewRecoveryDesc")).addButton((button) => {
         button.setButtonText(t("settings.showPhraseBtn")).onClick(() => {
-          this.plugin.promptShowRecoveryPhrase();
+          void this.plugin.promptShowRecoveryPhrase();
         });
       });
       new import_obsidian8.Setting(containerEl).setName(t("settings.deleteRecoveryTitle")).setDesc(t("settings.deleteRecoveryDesc")).addButton((button) => {
@@ -9147,7 +9564,7 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
           const mnemonic = await this.plugin.enableRecoveryPhrase();
           this.display();
           if (mnemonic) {
-            this.plugin.promptShowRecoveryPhrase();
+            void this.plugin.promptShowRecoveryPhrase();
           }
         });
       });
@@ -9167,9 +9584,9 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
     const providerContainer = containerEl.createDiv({ cls: "mysecret-provider-settings-wrap" });
     if (this.plugin.settings.backup.provider === "google-drive") {
       new import_obsidian8.Setting(providerContainer).setName(t("settings.gdriveTokenTitle")).setDesc(t("settings.gdriveTokenDesc")).addText((text) => {
-        text.setPlaceholder("ya29.a0AfH6SM...").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.googleDrive.accessToken)).onChange(async (val) => {
+        text.setPlaceholder("ya29.a0AfH6SM...").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.googleDrive.accessToken)).onChange(debounce(async (val) => {
           await this.plugin.setEncryptedCredential("googleDriveAccessToken", val);
-        });
+        }, 600));
         text.inputEl.type = "password";
       });
       new import_obsidian8.Setting(providerContainer).setName(t("settings.gdriveFolderTitle")).setDesc(t("settings.gdriveFolderDesc")).addText((text) => {
@@ -9180,9 +9597,9 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
       });
     } else if (this.plugin.settings.backup.provider === "onedrive") {
       new import_obsidian8.Setting(providerContainer).setName(t("settings.onedriveTokenTitle")).setDesc(t("settings.onedriveTokenDesc")).addText((text) => {
-        text.setPlaceholder("EwBoA8l6BAAU...").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.oneDrive.accessToken)).onChange(async (val) => {
+        text.setPlaceholder("EwBoA8l6BAAU...").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.oneDrive.accessToken)).onChange(debounce(async (val) => {
           await this.plugin.setEncryptedCredential("oneDriveAccessToken", val);
-        });
+        }, 600));
         text.inputEl.type = "password";
       });
       new import_obsidian8.Setting(providerContainer).setName(t("settings.onedriveFolderTitle")).setDesc(t("settings.onedriveFolderDesc")).addText((text) => {
@@ -9205,9 +9622,9 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
         });
       });
       new import_obsidian8.Setting(providerContainer).setName(t("settings.webdavPassTitle")).setDesc(t("settings.webdavPassDesc")).addText((text) => {
-        text.setPlaceholder("\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.webdav.password)).onChange(async (val) => {
+        text.setPlaceholder("\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022").setValue(this.plugin.getCredentialDisplayValue(this.plugin.settings.backup.webdav.password)).onChange(debounce(async (val) => {
           await this.plugin.setEncryptedCredential("webdavPassword", val);
-        });
+        }, 600));
         text.inputEl.type = "password";
       });
       new import_obsidian8.Setting(providerContainer).setName(t("settings.webdavFolderTitle")).setDesc(t("settings.webdavFolderDesc")).addText((text) => {
@@ -10189,6 +10606,12 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const loadingEl = container.createDiv({ cls: "mysecret-loading" });
     loadingEl.createSpan({ cls: "mysecret-spinner" });
     loadingEl.createSpan({ text: "Generando entrop\xEDa criptogr\xE1fica (Argon2id + BIP-39)\u2026" });
+    if (this.plugin.keyManager.isInitialized) {
+      loadingEl.remove();
+      errorEl.setText("Ya existe una b\xF3veda configurada: el asistente no puede crear otra clave encima.");
+      errorEl.show();
+      return;
+    }
     this.plugin.keyManager.initializeVault(this.generatedPassword).then(async ({ mnemonic, envelope, commit }) => {
       await this.plugin.saveVaultEnvelope(envelope);
       await commit();
@@ -10409,6 +10832,14 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const loadingEl = container.createDiv({ cls: "mysecret-loading" });
     loadingEl.createSpan({ cls: "mysecret-spinner" });
     loadingEl.createSpan({ text: "Generando claves y cifrando configuraci\xF3n\u2026" });
+    if (this.plugin.keyManager.isInitialized) {
+      loadingEl.remove();
+      container.createDiv({
+        cls: "mysecret-error-banner",
+        text: "Ya existe una b\xF3veda configurada: el asistente no puede crear otra clave encima."
+      });
+      return;
+    }
     this.plugin.keyManager.initializeVault(this.generatedPassword, false).then(async ({ envelope, commit }) => {
       await this.plugin.saveVaultEnvelope(envelope);
       await commit();
@@ -10726,8 +11157,15 @@ var MigrationModal = class extends import_obsidian11.Modal {
           if (isText) {
             const diskContent = await rawAdapter.read(path);
             if (!isArmoredEncrypted(diskContent)) {
-              await this.app.vault.adapter.write(path, diskContent);
-              modified++;
+              if (decodeUtf8Strict(new Uint8Array(await rawAdapter.readBinary(path))) === null) {
+                this.progress.errors.push({
+                  path,
+                  error: "No es UTF-8 v\xE1lido: se omiti\xF3 para no alterar su contenido."
+                });
+              } else {
+                await this.app.vault.adapter.write(path, diskContent);
+                modified++;
+              }
             }
           } else {
             const diskBuffer = await rawAdapter.readBinary(path);
@@ -10937,7 +11375,24 @@ var ChangePasswordModal = class extends import_obsidian12.Modal {
     });
     this.errorEl = contentEl.createDiv({ cls: "mysecret-error-banner" });
     this.errorEl.hide();
+    const warning = contentEl.createDiv({ cls: "mysecret-migration-warning" });
+    warning.setText(t("changePassword.keyNotRotatedWarning"));
     const form = contentEl.createDiv({ cls: "mysecret-wizard-form" });
+    const cGroup = form.createDiv({ cls: "mysecret-input-group" });
+    cGroup.createEl("label", {
+      cls: "mysecret-input-label",
+      text: t("changePassword.currentPasswordLabel")
+    });
+    this.currentInput = cGroup.createEl("input", {
+      type: "password",
+      cls: "mysecret-password-input",
+      attr: {
+        spellcheck: "false",
+        autocomplete: "current-password",
+        "aria-label": t("changePassword.currentPasswordLabel"),
+        "data-mysecret-testid": "change-password-current"
+      }
+    });
     const p1Group = form.createDiv({ cls: "mysecret-input-group" });
     p1Group.createEl("label", {
       cls: "mysecret-input-label",
@@ -10992,7 +11447,7 @@ var ChangePasswordModal = class extends import_obsidian12.Modal {
         if (!this.isBusy) this.handleSubmit();
       }
     });
-    window.setTimeout(() => this.passwordInput.focus(), 60);
+    window.setTimeout(() => this.currentInput.focus(), 60);
   }
   showError(message) {
     this.errorEl.setText(message);
@@ -11006,12 +11461,19 @@ var ChangePasswordModal = class extends import_obsidian12.Modal {
    * Wipes the sensitive inputs from the DOM.
    */
   wipeInputs() {
+    if (this.currentInput) this.currentInput.value = "";
     if (this.passwordInput) this.passwordInput.value = "";
     if (this.confirmInput) this.confirmInput.value = "";
   }
   async handleSubmit() {
+    const currentPass = this.currentInput.value;
     const newPass = this.passwordInput.value;
     const confirmPass = this.confirmInput.value;
+    if (!currentPass) {
+      this.showError(t("changePassword.wrongCurrentPassword"));
+      this.currentInput.focus();
+      return;
+    }
     if (!newPass || newPass.length < MIN_MASTER_PASSWORD_LENGTH) {
       this.showError(t("notices.passwordTooShort"));
       this.wipeInputs();
@@ -11034,9 +11496,22 @@ var ChangePasswordModal = class extends import_obsidian12.Modal {
     this.isBusy = true;
     this.submitBtn.disabled = true;
     this.submitBtn.setText(t("changePassword.updating"));
+    const currentEnvelope = this.plugin.keyManager.getEnvelope();
+    const snapshot = currentEnvelope ? JSON.parse(JSON.stringify(currentEnvelope)) : null;
     try {
-      const updatedEnvelope = await this.plugin.keyManager.changeMasterPassword(newPass);
-      await this.plugin.saveVaultEnvelope(updatedEnvelope);
+      if (!await this.plugin.keyManager.verifyPassword(currentPass)) {
+        this.showError(t("changePassword.wrongCurrentPassword"));
+        this.currentInput.value = "";
+        this.currentInput.focus();
+        return;
+      }
+      const updatedEnvelope = await this.plugin.keyManager.changeMasterPassword(newPass, currentPass);
+      try {
+        await this.plugin.saveVaultEnvelope(updatedEnvelope);
+      } catch (saveErr) {
+        if (snapshot) this.plugin.keyManager.setEnvelope(snapshot);
+        throw saveErr;
+      }
       new import_obsidian12.Notice(`\u2705 ${t("changePassword.success")}`);
       this.close();
     } catch (err2) {
@@ -11151,6 +11626,89 @@ var RecoveryPhraseModal = class extends import_obsidian13.Modal {
   }
 };
 
+// src/ui/reauth-modal.ts
+var import_obsidian14 = require("obsidian");
+var ReauthModal = class extends import_obsidian14.Modal {
+  constructor(app, plugin, resolve) {
+    super(app);
+    this.settled = false;
+    this.busy = false;
+    this.plugin = plugin;
+    this.resolveFn = resolve;
+  }
+  onOpen() {
+    const { contentEl, modalEl } = this;
+    contentEl.empty();
+    modalEl.addClass("mysecret-change-password-modal");
+    contentEl.createEl("h2", { cls: "mysecret-migration-title", text: t("reauth.title") });
+    contentEl.createEl("p", { cls: "mysecret-migration-desc", text: t("reauth.desc") });
+    this.errorEl = contentEl.createDiv({ cls: "mysecret-error-banner" });
+    this.errorEl.hide();
+    const group = contentEl.createDiv({ cls: "mysecret-input-group" });
+    this.inputEl = group.createEl("input", {
+      type: "password",
+      cls: "mysecret-password-input",
+      attr: {
+        spellcheck: "false",
+        autocomplete: "current-password",
+        "aria-label": t("reauth.title"),
+        "data-mysecret-testid": "reauth-password-input"
+      }
+    });
+    const actions = contentEl.createDiv({ cls: "mysecret-actions-group" });
+    this.confirmBtn = actions.createEl("button", {
+      cls: "mod-cta mysecret-wizard-btn",
+      text: t("reauth.confirmBtn"),
+      attr: { "data-mysecret-testid": "reauth-confirm" }
+    });
+    const cancelBtn = actions.createEl("button", {
+      cls: "mysecret-wizard-btn",
+      text: t("common.cancel")
+    });
+    this.confirmBtn.addEventListener("click", () => void this.submit());
+    cancelBtn.addEventListener("click", () => this.close());
+    this.inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void this.submit();
+      }
+    });
+    window.setTimeout(() => this.inputEl.focus(), 50);
+  }
+  async submit() {
+    if (this.busy) return;
+    const password = this.inputEl.value;
+    if (!password) return;
+    this.busy = true;
+    this.confirmBtn.disabled = true;
+    try {
+      const ok = await this.plugin.keyManager.verifyPassword(password);
+      if (ok) {
+        this.settled = true;
+        this.inputEl.value = "";
+        this.resolveFn(true);
+        this.close();
+      } else {
+        this.errorEl.setText(t("reauth.wrongPassword"));
+        this.errorEl.show();
+        this.inputEl.value = "";
+        this.inputEl.focus();
+      }
+    } finally {
+      this.busy = false;
+      this.confirmBtn.disabled = false;
+    }
+  }
+  onClose() {
+    if (this.inputEl) this.inputEl.value = "";
+    this.contentEl.empty();
+    if (!this.settled) {
+      this.settled = true;
+      this.resolveFn(false);
+    }
+  }
+};
+
 // src/utils/credential-store.ts
 var ENCRYPTED_CREDENTIAL_PREFIX = "enc:v1:";
 var CREDENTIAL_AAD = "mysecret-credential-v1";
@@ -11196,7 +11754,7 @@ function isEncryptedCredential(stored) {
 }
 
 // src/biometrics/biometric-manager.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/biometrics/kdf.ts
 var BIOMETRIC_ENVELOPE_VERSION = 2;
@@ -11599,6 +12157,12 @@ try {
     exit 1
 }
 `;
+function parseAvailabilityOutput(stdout) {
+  return stdout.split(/\r?\n/).map((line) => line.trim()).includes("AVAILABLE");
+}
+function parseVerificationOutput(stdout) {
+  return stdout.split(/\r?\n/).map((line) => line.trim()).includes("VERIFIED");
+}
 var WindowsHelloProvider = class {
   constructor() {
     this.type = "windows-hello";
@@ -11624,7 +12188,7 @@ var WindowsHelloProvider = class {
       input: AVAILABILITY_SCRIPT,
       timeoutMs: 15e3
     });
-    return result.code === 0 && result.stdout.includes("AVAILABLE");
+    return result.code === 0 && parseAvailabilityOutput(result.stdout);
   }
   /**
    * Prompts the user for a Windows Hello verification.
@@ -11645,7 +12209,7 @@ var WindowsHelloProvider = class {
       timeoutMs: 12e4
     });
     if (result.timedOut) return false;
-    return result.code === 0 && result.stdout.includes("VERIFIED");
+    return result.code === 0 && parseVerificationOutput(result.stdout);
   }
   /**
    * Encrypts a blob with DPAPI (CurrentUser scope).
@@ -11890,15 +12454,17 @@ var LinuxBiometricProvider = class {
     this.name = "Linux (Huella fprintd / Secret Service)";
   }
   /**
-   * Checks if fprintd has an enrolled fingerprint AND secret-tool is usable.
+   * Checks that fprintd has an enrolled fingerprint.
    *
-   * Both tools are resolved to absolute paths in root-owned system
-   * directories so a hostile `$PATH` entry cannot impersonate them.
+   * SECURITY: a real user-verification gate is REQUIRED. The previous
+   * fallback (Secret Service alone) reported "available" on machines without
+   * any fingerprint reader and then unlocked the vault with no check.
+   *
+   * `fprintd-list` is resolved to an absolute path in a root-owned system
+   * directory so a hostile `$PATH` entry cannot impersonate it.
    */
   async isAvailable() {
-    const hasFprintd = await this.isFprintdReady();
-    if (hasFprintd) return true;
-    return this.resolveSecretTool() !== null;
+    return await this.isFprintdReady();
   }
   /**
    * Prompts the user for fingerprint verification using fprintd-verify.
@@ -12040,28 +12606,21 @@ ${result.stderr}`;
     }
   }
   async enroll(rawVaultKey, deviceId, vaultId) {
-    const hasFprintd = await this.isFprintdReady();
-    const mode = hasFprintd ? MODE_FPRINTD : MODE_SECRET_SERVICE;
-    if (hasFprintd) {
-      const verified = await this.promptFprintd();
-      if (!verified) {
-        throw new Error("Verificaci\xF3n de huella fprintd cancelada o no reconocida.");
-      }
-    } else if (!this.resolveSecretTool()) {
+    if (!await this.isFprintdReady()) {
       throw new Error(
-        "No hay hardware biom\xE9trico ni Secret Service disponibles en este equipo."
+        "No hay un lector de huellas (fprintd) con huellas registradas: el desbloqueo biom\xE9trico no est\xE1 disponible en este equipo."
       );
     }
-    const useKeyring = mode === MODE_SECRET_SERVICE;
-    const deviceSecret = useKeyring ? this.generateDeviceSecret() : await this.getOrCreateDeviceSecret(deviceId, vaultId);
+    const verified = await this.promptFprintd();
+    if (!verified) {
+      throw new Error("Verificaci\xF3n de huella fprintd cancelada o no reconocida.");
+    }
+    const deviceSecret = await this.getOrCreateDeviceSecret(deviceId, vaultId);
     const aad = biometricAad(this.type, vaultId);
     let enc = null;
     try {
       const wrapKey = await deriveAesKeyFromSecret(deviceSecret, `${deviceId}:${vaultId}`, aad);
       enc = await encryptAesGcm(rawVaultKey, wrapKey, aad);
-      if (useKeyring) {
-        await this.secretToolStore(deviceId, vaultId, bytesToBase64(deviceSecret));
-      }
     } finally {
       zeroize(deviceSecret);
     }
@@ -12071,7 +12630,7 @@ ${result.stderr}`;
       version: BIOMETRIC_ENVELOPE_VERSION,
       deviceId,
       providerType: this.type,
-      mode,
+      mode: MODE_FPRINTD,
       createdAt: now,
       updatedAt: now,
       iv: bytesToHex(enc.iv),
@@ -12083,29 +12642,26 @@ ${result.stderr}`;
   async verifyAndDecrypt(envelope, vaultId) {
     const mode = envelope.mode || MODE_FPRINTD;
     let deviceSecret = null;
+    if (mode !== MODE_FPRINTD) {
+      console.warn(
+        "[MySecret] Inscripci\xF3n biom\xE9trica heredada sin verificaci\xF3n de usuario: se requiere la contrase\xF1a maestra y volver a inscribir la huella."
+      );
+      return null;
+    }
     try {
-      if (mode === MODE_FPRINTD) {
-        const hasFprintd = await this.isFprintdReady();
-        if (!hasFprintd) {
-          console.warn("[MySecret] fprintd no est\xE1 disponible: se requiere la contrase\xF1a maestra.");
-          return null;
-        }
-        const verified = await this.promptFprintd();
-        if (!verified) {
-          return null;
-        }
-        deviceSecret = await this.getOrCreateDeviceSecret(envelope.deviceId, vaultId);
-      } else {
-        const stored = await this.secretToolLookup(envelope.deviceId, vaultId);
-        if (!stored) {
-          console.warn("[MySecret] Secret Service no disponible: se requiere la contrase\xF1a maestra.");
-          return null;
-        }
-        deviceSecret = base64ToBytes(stored);
-        if (deviceSecret.length !== 32) {
-          console.warn("[MySecret] Secreto de dispositivo corrupto: se requiere la contrase\xF1a maestra.");
-          return null;
-        }
+      const hasFprintd = await this.isFprintdReady();
+      if (!hasFprintd) {
+        console.warn("[MySecret] fprintd no est\xE1 disponible: se requiere la contrase\xF1a maestra.");
+        return null;
+      }
+      const verified = await this.promptFprintd();
+      if (!verified) {
+        return null;
+      }
+      deviceSecret = this.readDeviceSecret(this.getDeviceSecretPath(envelope.deviceId, vaultId));
+      if (!deviceSecret) {
+        console.warn("[MySecret] Secreto de dispositivo ausente: se requiere la contrase\xF1a maestra.");
+        return null;
       }
       const aad = biometricAad(this.type, vaultId);
       const wrapKey = await deriveAesKeyFromSecret(
@@ -12174,60 +12730,6 @@ ${result.stderr}`;
       } catch {
       }
     }
-  }
-  /**
-   * Stores the device wrapping secret in the OS keyring.
-   *
-   * The entry is scoped by BOTH the device id and the vault id, so two
-   * vaults on the same machine never share a keyring entry.
-   */
-  async secretToolStore(deviceId, vaultId, secret) {
-    const bin = this.resolveSecretTool();
-    if (!bin) throw new Error("secret-tool no disponible");
-    const result = await runProcess({
-      bin,
-      args: [
-        "store",
-        "--label=MySecret Vault Key",
-        "service",
-        KEYRING_SERVICE,
-        "device",
-        deviceId,
-        "vault",
-        vaultId
-      ],
-      input: secret,
-      timeoutMs: 3e4
-    });
-    if (result.code !== 0) {
-      throw new Error(`secret-tool store failed: ${result.stderr || result.stdout}`);
-    }
-  }
-  /**
-   * Reads the device wrapping secret from the OS keyring.
-   *
-   * Returns `null` when the entry does not exist or the keyring refused the
-   * request (the caller must then fail closed).
-   */
-  async secretToolLookup(deviceId, vaultId) {
-    const bin = this.resolveSecretTool();
-    if (!bin) return null;
-    const result = await runProcess({
-      bin,
-      args: [
-        "lookup",
-        "service",
-        KEYRING_SERVICE,
-        "device",
-        deviceId,
-        "vault",
-        vaultId
-      ],
-      timeoutMs: 3e4
-    });
-    if (result.code !== 0) return null;
-    const out = result.stdout.trim();
-    return out.length > 0 ? out : null;
   }
 };
 
@@ -12901,7 +13403,8 @@ var ExternalBridgeProvider = class {
     window.clearTimeout(currentSession.timeoutTimer);
     if (error) {
       if (currentSession.rawVaultKey) zeroize(currentSession.rawVaultKey);
-      currentSession.reject(new Error(decodeURIComponent(error)));
+      const message = String(error).replace(/[\u0000-\u001f]/g, " ").slice(0, 200);
+      currentSession.reject(new Error(message));
       return true;
     }
     try {
@@ -13201,11 +13704,11 @@ var BiometricManager = class {
     this.selectProvider(bridgeUrl);
   }
   selectProvider(bridgeUrl) {
-    if (import_obsidian14.Platform.isWin) {
+    if (import_obsidian15.Platform.isWin) {
       this.activeProvider = new WindowsHelloProvider();
-    } else if (import_obsidian14.Platform.isLinux && !import_obsidian14.Platform.isAndroidApp) {
+    } else if (import_obsidian15.Platform.isLinux && !import_obsidian15.Platform.isAndroidApp) {
       this.activeProvider = new LinuxBiometricProvider();
-    } else if (import_obsidian14.Platform.isAndroidApp) {
+    } else if (import_obsidian15.Platform.isAndroidApp) {
       this.activeProvider = new ExternalBridgeProvider(bridgeUrl);
     } else {
       this.activeProvider = new WebAuthnProvider();
@@ -13214,7 +13717,7 @@ var BiometricManager = class {
   setBridgeUrl(url) {
     if (this.activeProvider instanceof ExternalBridgeProvider) {
       this.activeProvider.setBridgeUrl(url);
-    } else if (import_obsidian14.Platform.isAndroidApp) {
+    } else if (import_obsidian15.Platform.isAndroidApp) {
       this.activeProvider = new ExternalBridgeProvider(url);
     }
   }
@@ -13328,6 +13831,8 @@ var BiometricManager = class {
 };
 
 // src/main.ts
+var PUBLISH_GUARD_REFRESH_MS = 15 * 1e3;
+var REAUTH_GRACE_MS = 2 * 60 * 1e3;
 var DEFAULT_SETTINGS = {
   autoLockMinutes: 5,
   lockOnBlur: false,
@@ -13353,14 +13858,21 @@ var DEFAULT_SETTINGS = {
     retentionCount: 5
   }
 };
-var MySecretPlugin = class extends import_obsidian15.Plugin {
+var MySecretPlugin = class extends import_obsidian16.Plugin {
   constructor() {
     super(...arguments);
     this.inactivityTimer = null;
+    this.reauthValidUntil = 0;
     this.autoBackupIntervalTimer = null;
     this.isAutoBackupRunning = false;
     this.currentLockModal = null;
     this.savedOpenLeaves = [];
+    /**
+     * Set when an envelope file EXISTS but cannot be used (corrupt, tampered or
+     * truncated). In that case the setup wizard must NOT be offered: creating a
+     * new vault key over it would make every encrypted note unreadable forever.
+     */
+    this.envelopeLoadError = null;
   }
   async onload() {
     console.log("[MySecret] Loading transparent encryption plugin...");
@@ -13383,7 +13895,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
         }
       } catch (err2) {
         console.warn("[MySecret] Error en callback de autenticaci\xF3n externa:", err2);
-        new import_obsidian15.Notice(`Error biom\xE9trico: ${err2?.message || String(err2)}`);
+        new import_obsidian16.Notice(`Error biom\xE9trico: ${err2?.message || String(err2)}`);
       }
     });
     await this.loadVaultEnvelope();
@@ -13395,12 +13907,19 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       this.app.vault
     );
     this.interceptor.install();
+    this.interceptor.setPendingRebinds(this.settings.pendingRebinds, (list) => {
+      this.settings.pendingRebinds = list;
+      void this.saveSettings();
+    });
     this.interceptor.installVaultHooks();
     this.metadataHashPatch = new MetadataHashPatch(this.app);
     this.metadataHashPatch.install();
     this.interceptor.setMetadataHashPatch(this.metadataHashPatch);
     this.publishGuard = new PublishGuard(this.app);
     this.publishGuard.install();
+    this.registerInterval(
+      window.setInterval(() => this.publishGuard?.refresh(), PUBLISH_GUARD_REFRESH_MS)
+    );
     this.registerMarkdownPostProcessor((element) => {
       this.mediaManager.scanAndPatch(element);
     });
@@ -13476,7 +13995,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian15.TFolder && (typeof file.isRoot !== "function" || !file.isRoot()) && file.path.trim().length > 0 && file.path !== "/") {
+        if (file instanceof import_obsidian16.TFolder && (typeof file.isRoot !== "function" || !file.isRoot()) && file.path.trim().length > 0 && file.path !== "/") {
           const isDirectlyExcluded = this.isFolderExcluded(file.path);
           const isInheritedExcluded = !isDirectlyExcluded && this.pathFilter.isUserExcluded(file.path);
           if (isInheritedExcluded) {
@@ -13498,7 +14017,15 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     this.initAutoBackupTimer();
     this.app.workspace.onLayoutReady(() => {
       if (!this.keyManager.isInitialized) {
-        this.openSetupWizard();
+        if (this.envelopeLoadError) {
+          console.error("[MySecret] Unusable vault envelope:", this.envelopeLoadError);
+          new import_obsidian16.Notice(
+            "\u26A0\uFE0F MySecret: vault-envelope.json existe pero est\xE1 da\xF1ado o ha sido modificado. No se crear\xE1 una b\xF3veda nueva. Restaura el archivo (o vault-envelope.json.bak) desde una copia.",
+            0
+          );
+          return;
+        }
+        void this.openSetupWizard();
       } else {
         this.preserveAndCloseOpenNotes();
         document.body.classList.add("is-mysecret-locked");
@@ -13555,6 +14082,9 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
    */
   getVaultId() {
     const envelope = this.keyManager.getEnvelope();
+    if (envelope && envelope.vaultId) {
+      return envelope.vaultId;
+    }
     if (envelope && envelope.argon2 && envelope.argon2.salt) {
       return envelope.argon2.salt;
     }
@@ -13602,7 +14132,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     }
     const vaultKey = this.keyManager.getVaultKey();
     if (!vaultKey) {
-      new import_obsidian15.Notice("Desbloquea la b\xF3veda para guardar las credenciales de forma cifrada.");
+      new import_obsidian16.Notice("Desbloquea la b\xF3veda para guardar las credenciales de forma cifrada.");
       return;
     }
     try {
@@ -13612,7 +14142,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       else backup.webdav.password = encrypted;
       await this.saveSettings();
     } catch (err2) {
-      new import_obsidian15.Notice("\u274C No se pudo guardar la credencial: " + (err2?.message || String(err2)));
+      new import_obsidian16.Notice("\u274C No se pudo guardar la credencial: " + (err2?.message || String(err2)));
     }
   }
   /**
@@ -13722,30 +14252,74 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     return resolved;
   }
   async loadVaultEnvelope() {
-    try {
-      const rawAdapter = this.app.vault.adapter;
-      const candidatePaths = [VAULT_ENVELOPE_PATH];
-      if (this.manifest?.dir) {
-        const manifestEnvPath = `${this.manifest.dir}/${VAULT_ENVELOPE_FILENAME}`;
-        if (!candidatePaths.includes(manifestEnvPath)) {
-          candidatePaths.unshift(manifestEnvPath);
-        }
+    this.envelopeLoadError = null;
+    const rawAdapter = this.app.vault.adapter;
+    const candidatePaths = [VAULT_ENVELOPE_PATH];
+    if (this.manifest?.dir) {
+      const manifestEnvPath = `${this.manifest.dir}/${VAULT_ENVELOPE_FILENAME}`;
+      if (!candidatePaths.includes(manifestEnvPath)) {
+        candidatePaths.unshift(manifestEnvPath);
       }
-      for (const envPath of candidatePaths) {
-        const exists = await rawAdapter.exists(envPath);
-        if (exists) {
-          const rawContent = await rawAdapter.read(envPath);
-          const parsed = JSON.parse(rawContent);
-          this.keyManager.setEnvelope(parsed);
-          this.settings.isInitialized = true;
-          await this.saveSettings();
-          return true;
+    }
+    let sawCandidate = false;
+    const attempts = candidatePaths.flatMap((p) => [p, `${p}.bak`]);
+    for (const envPath of attempts) {
+      try {
+        if (!await rawAdapter.exists(envPath)) continue;
+        sawCandidate = true;
+        const parsed = JSON.parse(await rawAdapter.read(envPath));
+        if (!isValidEnvelopeShape(parsed)) {
+          throw new Error("invalid structure");
         }
+        this.keyManager.setEnvelope(parsed);
+        this.settings.isInitialized = true;
+        if (envPath.endsWith(".bak")) {
+          new import_obsidian16.Notice("\u26A0\uFE0F MySecret: vault-envelope.json estaba da\xF1ado; se us\xF3 la copia anterior (.bak).");
+        }
+        await this.saveSettings();
+        return true;
+      } catch (err2) {
+        console.warn(`[MySecret] Could not load ${envPath}:`, err2);
+        this.envelopeLoadError = `${envPath}: ${err2?.message || String(err2)}`;
       }
-    } catch (err2) {
-      console.warn("[MySecret] Could not load vault-envelope.json:", err2);
+    }
+    if (!sawCandidate) {
+      this.envelopeLoadError = null;
     }
     return false;
+  }
+  /**
+   * Writes a file atomically enough for a key file: the new content goes to a
+   * temporary file first, is read back and validated, the previous version is
+   * kept as `.bak`, and only then is the target replaced. A crash or a full
+   * disk can no longer leave the only copy of the wrapped vault key truncated.
+   */
+  async writeEnvelopeFile(path, json) {
+    const rawAdapter = this.app.vault.adapter;
+    const tmpPath = `${path}.tmp`;
+    await rawAdapter.write(tmpPath, json);
+    const readBack = await rawAdapter.read(tmpPath);
+    if (readBack !== json) {
+      await rawAdapter.remove(tmpPath).catch(() => void 0);
+      throw new Error("[MySecret] El archivo del sobre no se escribi\xF3 correctamente; se conserva la versi\xF3n anterior.");
+    }
+    if (await rawAdapter.exists(path)) {
+      try {
+        await rawAdapter.write(`${path}.bak`, await rawAdapter.read(path));
+      } catch (err2) {
+        console.warn("[MySecret] Could not refresh the envelope backup:", err2);
+      }
+    }
+    try {
+      if (await rawAdapter.exists(path)) {
+        await rawAdapter.remove(path);
+      }
+      await rawAdapter.rename(tmpPath, path);
+    } catch (err2) {
+      console.warn("[MySecret] Atomic rename failed, writing the envelope directly:", err2);
+      await rawAdapter.write(path, json);
+      await rawAdapter.remove(tmpPath).catch(() => void 0);
+    }
   }
   async saveVaultEnvelope(config) {
     const envelopeToSave = config || this.keyManager.getEnvelope();
@@ -13755,22 +14329,24 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     const rawAdapter = this.app.vault.adapter;
     const targetDir = this.manifest?.dir || `.obsidian/plugins/${PLUGIN_ID}`;
     const targetPath = `${targetDir}/${VAULT_ENVELOPE_FILENAME}`;
+    const json = JSON.stringify(envelopeToSave, null, 2);
     if (!await rawAdapter.exists(targetDir)) {
       await rawAdapter.mkdir(targetDir);
     }
-    await rawAdapter.write(targetPath, JSON.stringify(envelopeToSave, null, 2));
+    await this.writeEnvelopeFile(targetPath, json);
     if (targetPath !== VAULT_ENVELOPE_PATH) {
       try {
         const fallbackDir = `.obsidian/plugins/${PLUGIN_ID}`;
         if (!await rawAdapter.exists(fallbackDir)) {
           await rawAdapter.mkdir(fallbackDir);
         }
-        await rawAdapter.write(VAULT_ENVELOPE_PATH, JSON.stringify(envelopeToSave, null, 2));
+        await this.writeEnvelopeFile(VAULT_ENVELOPE_PATH, json);
       } catch {
       }
     }
     this.keyManager.setEnvelope(envelopeToSave);
     this.settings.isInitialized = true;
+    this.envelopeLoadError = null;
     await this.saveSettings();
   }
   // --- Auto-Backup Engine & Timers ---
@@ -13785,7 +14361,31 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       }
     }, 15 * 60 * 1e3);
   }
-  async runBackgroundAutoBackup(triggerReason, preResolved) {
+  /**
+   * Best-effort removal of the plaintext Obsidian keeps in memory for the
+   * encrypted notes (`TFile` content cache). Without it `vault.cachedRead()`
+   * would keep returning the note after the vault is locked.
+   *
+   * It does not reach everything (the metadata cache, other plugins' copies):
+   * the lock protects against casual access, not against a debugger.
+   */
+  dropPlaintextCaches() {
+    try {
+      for (const file of this.app.vault.getFiles()) {
+        if (!this.pathFilter.shouldEncrypt(file.path)) continue;
+        const f = file;
+        if (typeof f.cache === "function") {
+          try {
+            f.cache(null);
+          } catch {
+          }
+        }
+      }
+    } catch (err2) {
+      console.warn("[MySecret] Could not drop the in-memory note caches:", err2);
+    }
+  }
+  async runBackgroundAutoBackup(triggerReason, preResolved, vaultKey) {
     if (this.isAutoBackupRunning) return;
     if (!this.settings.backup.autoBackup || this.settings.backup.provider === "none") return;
     if (triggerReason === "interval") {
@@ -13808,14 +14408,23 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       const result = await BackupEngine.createVaultZip(this, {
         mode: "encrypted",
         includeAttachments: this.settings.encryptAttachments,
-        includeEnvelope: true
+        includeEnvelope: true,
+        vaultKey: vaultKey ?? void 0
       });
+      const skipped = result.stats.skippedFiles ?? [];
+      if (skipped.length > 0) {
+        console.warn("[MySecret] Auto-backup skipped files:", skipped);
+        new import_obsidian16.Notice(
+          `\u26A0\uFE0F MySecret: la copia autom\xE1tica omiti\xF3 ${skipped.length} archivo(s) (p. ej. ${skipped[0].path}: ${skipped[0].reason}).`,
+          1e4
+        );
+      }
       const uploadResult = await provider.uploadBackup(result.filename, result.zipBytes);
       if (uploadResult.success) {
         this.settings.backup.lastBackupTimestamp = Date.now();
         await this.saveSettings();
         console.log(`[MySecret] Auto-backup succeeded: ${result.filename}`);
-        new import_obsidian15.Notice(`\u2601\uFE0F MySecret: Copia de seguridad autom\xE1tica subida a ${provider.name}.`);
+        new import_obsidian16.Notice(`\u2601\uFE0F MySecret: Copia de seguridad autom\xE1tica subida a ${provider.name}.`);
       } else {
         console.warn(`[MySecret] Auto-backup upload warning:`, uploadResult.message);
       }
@@ -13836,7 +14445,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     for (const leaf of leaves) {
       const view = leaf.view;
       const file = view?.file;
-      if (file instanceof import_obsidian15.TFile) {
+      if (file instanceof import_obsidian16.TFile) {
         this.savedOpenLeaves.push({
           path: file.path,
           state: leaf.getViewState(),
@@ -13852,7 +14461,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     this.savedOpenLeaves = [];
     for (const saved of leavesToRestore) {
       const file = this.app.vault.getAbstractFileByPath(saved.path);
-      if (file instanceof import_obsidian15.TFile) {
+      if (file instanceof import_obsidian16.TFile) {
         try {
           const leaf = this.app.workspace.getLeaf("tab");
           await leaf.openFile(file, saved.state);
@@ -13874,16 +14483,18 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     this.preserveAndCloseOpenNotes();
     document.body.classList.add("is-mysecret-locked");
     const needsBackupOnLock = this.settings.backup.autoBackup && (this.settings.backup.autoBackupTrigger === "on-lock" || this.settings.backup.autoBackupTrigger === "both");
+    const keyForBackup = needsBackupOnLock ? this.keyManager.getVaultKey() : null;
     let pendingBackup = null;
     if (needsBackupOnLock) {
       pendingBackup = (async () => {
         const resolved = await this.getDecryptedBackupSettings();
-        await this.runBackgroundAutoBackup("on-lock", resolved);
+        await this.runBackgroundAutoBackup("on-lock", resolved, keyForBackup);
       })();
     }
+    this.dropPlaintextCaches();
     this.keyManager.lock();
     this.updateRibbonIcon();
-    new import_obsidian15.Notice(`\u{1F512} ${t("notices.vaultLocked")}`);
+    new import_obsidian16.Notice(`\u{1F512} ${t("notices.vaultLocked")}`);
     this.openLockScreen();
     if (pendingBackup) {
       pendingBackup.catch((err2) => {
@@ -13895,12 +14506,13 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     document.body.classList.remove("is-mysecret-locked");
     this.updateRibbonIcon();
     this.resetInactivityTimer();
-    new import_obsidian15.Notice(`\u{1F513} ${t("notices.vaultUnlocked")}`);
+    new import_obsidian16.Notice(`\u{1F513} ${t("notices.vaultUnlocked")}`);
     if (this.currentLockModal) {
       const modal = this.currentLockModal;
       this.currentLockModal = null;
       modal.forceClose();
     }
+    void this.interceptor.processPendingRebinds();
     void this.restoreSavedOpenNotes();
     try {
       const metaCache = this.app.metadataCache;
@@ -13966,13 +14578,50 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
     this.currentLockModal = new LockScreenModal(this.app, this);
     this.currentLockModal.open();
   }
-  openSetupWizard() {
+  async openSetupWizard() {
+    const encryptedCount = await this.countEncryptedFiles(500);
+    if (encryptedCount > 0) {
+      const proceed = window.confirm(
+        `MySecret ha encontrado ${encryptedCount} archivo(s) cifrado(s) pero no hay vault-envelope.json.
+
+Crear una b\xF3veda nueva generar\xE1 una clave distinta y esos archivos quedar\xE1n ILEGIBLES para siempre.
+
+Lo correcto es restaurar vault-envelope.json (o su copia .bak) desde un respaldo.
+
+\xBFCrear una b\xF3veda nueva de todos modos?`
+      );
+      if (!proceed) return;
+    }
     const wizard = new SetupWizardModal(this.app, this);
     wizard.open();
   }
+  /**
+   * Counts files that are encrypted ON DISK (stops early at `limit` files
+   * scanned or at the first hit for cheap "is there anything encrypted?"
+   * checks).
+   */
+  async countEncryptedFiles(maxScanned = 500) {
+    const raw = this.interceptor.getRawAdapter();
+    let scanned = 0;
+    let found = 0;
+    for (const file of this.app.vault.getFiles()) {
+      if (scanned >= maxScanned) break;
+      if (this.pathFilter.isSystemExcluded(file.path)) continue;
+      scanned++;
+      try {
+        const bytes = new Uint8Array(await raw.readBinary(file.path));
+        if (detectContainerFormat(bytes) !== "plain") {
+          found++;
+          break;
+        }
+      } catch {
+      }
+    }
+    return found;
+  }
   openMigrationModal(mode) {
     if (this.keyManager.isLocked) {
-      new import_obsidian15.Notice("Debes desbloquear la b\xF3veda antes de realizar operaciones de migraci\xF3n.");
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda antes de realizar operaciones de migraci\xF3n.");
       this.openLockScreen();
       return;
     }
@@ -13981,7 +14630,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
   }
   promptChangePassword() {
     if (this.keyManager.isLocked) {
-      new import_obsidian15.Notice("Debes desbloquear la b\xF3veda antes de cambiar la contrase\xF1a.");
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda antes de cambiar la contrase\xF1a.");
       this.openLockScreen();
       return;
     }
@@ -13991,43 +14640,72 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
   hasRecoveryPhrase() {
     return Boolean(this.keyManager.hasRecoveryEnvelope());
   }
-  promptShowRecoveryPhrase() {
+  async promptShowRecoveryPhrase() {
     if (this.keyManager.isLocked) {
-      new import_obsidian15.Notice("Debes desbloquear la b\xF3veda primero.");
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda primero.");
       this.openLockScreen();
       return;
     }
     if (!this.hasRecoveryPhrase()) {
-      new import_obsidian15.Notice("Esta b\xF3veda est\xE1 en modo de m\xE1xima seguridad: la frase de recuperaci\xF3n est\xE1 desactivada.");
+      new import_obsidian16.Notice("Esta b\xF3veda est\xE1 en modo de m\xE1xima seguridad: la frase de recuperaci\xF3n est\xE1 desactivada.");
       return;
     }
+    if (!await this.requireReauth()) return;
     const mnemonic = this.keyManager.getRecoveryMnemonic();
     if (!mnemonic) {
-      new import_obsidian15.Notice("La frase de recuperaci\xF3n no est\xE1 en memoria en esta sesi\xF3n. Si la anotaste al configurar la b\xF3veda, sigue us\xE1ndola.");
+      new import_obsidian16.Notice("La frase de recuperaci\xF3n no est\xE1 en memoria en esta sesi\xF3n. Si la anotaste al configurar la b\xF3veda, sigue us\xE1ndola.");
       return;
     }
     new RecoveryPhraseModal(this.app, mnemonic).open();
   }
+  /**
+   * Re-authentication gate for sensitive actions.
+   *
+   * Being unlocked is not enough: the master password is asked again. A
+   * successful check is remembered for a short grace period so a sequence of
+   * related actions does not nag the user.
+   *
+   * @returns true when the user proved knowledge of the master password.
+   */
+  async requireReauth() {
+    if (this.keyManager.isLocked) {
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda primero.");
+      this.openLockScreen();
+      return false;
+    }
+    if (Date.now() < this.reauthValidUntil) {
+      return true;
+    }
+    const ok = await new Promise((resolve) => {
+      new ReauthModal(this.app, this, resolve).open();
+    });
+    if (ok) {
+      this.reauthValidUntil = Date.now() + REAUTH_GRACE_MS;
+    }
+    return ok;
+  }
   async enableRecoveryPhrase() {
     if (this.keyManager.isLocked) {
-      new import_obsidian15.Notice("Debes desbloquear la b\xF3veda primero.");
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda primero.");
       this.openLockScreen();
       return null;
     }
+    if (!await this.requireReauth()) return null;
     const result = await this.keyManager.addRecoveryPhrase();
     await this.saveVaultEnvelope(result.envelope);
-    new import_obsidian15.Notice("\u2705 Frase de recuperaci\xF3n activada.");
+    new import_obsidian16.Notice("\u2705 Frase de recuperaci\xF3n activada.");
     return result.mnemonic;
   }
   async disableRecoveryPhrase() {
     if (this.keyManager.isLocked) {
-      new import_obsidian15.Notice("Debes desbloquear la b\xF3veda primero.");
+      new import_obsidian16.Notice("Debes desbloquear la b\xF3veda primero.");
       this.openLockScreen();
       return false;
     }
+    if (!await this.requireReauth()) return false;
     const updatedEnvelope = this.keyManager.removeRecoveryPhrase();
     await this.saveVaultEnvelope(updatedEnvelope);
-    new import_obsidian15.Notice("\u{1F6E1}\uFE0F Frase de recuperaci\xF3n eliminada. Solo podr\xE1s acceder con tu contrase\xF1a.");
+    new import_obsidian16.Notice("\u{1F6E1}\uFE0F Frase de recuperaci\xF3n eliminada. Solo podr\xE1s acceder con tu contrase\xF1a.");
     return true;
   }
   // --- Folder Exclusion Management ---
@@ -14037,18 +14715,84 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       (f) => this.pathFilter.normalizePath(f) === normalized
     );
   }
+  /**
+   * Decrypts, ON DISK, the given files that are currently encrypted.
+   *
+   * Must be called BEFORE a policy change stops the plugin from decrypting
+   * them. Requires an unlocked vault.
+   *
+   * @returns false (after telling the user) when the change must be aborted.
+   */
+  async decryptBeforePolicyChange(paths) {
+    if (paths.length === 0) return true;
+    const raw = this.interceptor.getRawAdapter();
+    const encrypted = [];
+    for (const path of paths) {
+      try {
+        const bytes = new Uint8Array(await raw.readBinary(path));
+        if (detectContainerFormat(bytes) !== "plain") encrypted.push(path);
+      } catch {
+      }
+    }
+    if (encrypted.length === 0) return true;
+    if (this.keyManager.isLocked) {
+      new import_obsidian16.Notice(
+        `Desbloquea la b\xF3veda: ${encrypted.length} archivo(s) cifrado(s) deben descifrarse antes de aplicar este cambio.`
+      );
+      this.openLockScreen();
+      return false;
+    }
+    const { converted, failed } = await this.interceptor.decryptFilesToPlain(encrypted);
+    if (failed.length > 0) {
+      console.error("[MySecret] Could not decrypt files before the policy change:", failed);
+      new import_obsidian16.Notice(
+        `No se aplic\xF3 el cambio: ${failed.length} archivo(s) no se pudieron descifrar (${failed[0].path}). Los dem\xE1s ya est\xE1n en texto plano y siguen siendo legibles.`,
+        1e4
+      );
+      return false;
+    }
+    new import_obsidian16.Notice(`\u{1F513} ${converted.length} archivo(s) descifrado(s) en disco por el cambio de pol\xEDtica.`);
+    return true;
+  }
+  /**
+   * Enables/disables the encryption of attachments.
+   *
+   * Disabling it first converts the already encrypted attachments back to
+   * plaintext; otherwise they would be served as raw ciphertext.
+   *
+   * @returns whether the new value was applied.
+   */
+  async setEncryptAttachments(value) {
+    if (!value) {
+      const attachments = this.app.vault.getFiles().filter((f) => !this.pathFilter.isTextNote(f.path) && this.pathFilter.shouldEncrypt(f.path)).map((f) => f.path);
+      if (!await this.decryptBeforePolicyChange(attachments)) {
+        return false;
+      }
+    }
+    this.settings.encryptAttachments = value;
+    await this.saveSettings();
+    this.pathFilter.updateConfig(this.settings.excludedFolders, this.settings.encryptAttachments);
+    return true;
+  }
   async addExcludedFolder(folderPath) {
     const normalized = this.pathFilter.normalizePath(folderPath);
     if (!normalized) {
-      new import_obsidian15.Notice("Introduce una ruta de carpeta v\xE1lida.");
+      new import_obsidian16.Notice("Introduce una ruta de carpeta v\xE1lida.");
       return false;
     }
     if (this.isFolderExcluded(normalized)) {
-      new import_obsidian15.Notice(`La carpeta "${normalized}" ya est\xE1 en la lista de exclusiones.`);
+      new import_obsidian16.Notice(`La carpeta "${normalized}" ya est\xE1 en la lista de exclusiones.`);
       return false;
     }
     if (this.pathFilter.isUserExcluded(normalized)) {
-      new import_obsidian15.Notice(`La carpeta "${normalized}" ya est\xE1 excluida por una carpeta superior.`);
+      new import_obsidian16.Notice(`La carpeta "${normalized}" ya est\xE1 excluida por una carpeta superior.`);
+      return false;
+    }
+    const affected = this.app.vault.getFiles().filter((f) => {
+      const p = this.pathFilter.normalizePath(f.path);
+      return (p === normalized || p.startsWith(normalized + "/")) && this.pathFilter.shouldEncrypt(f.path);
+    }).map((f) => f.path);
+    if (!await this.decryptBeforePolicyChange(affected)) {
       return false;
     }
     this.settings.excludedFolders.push(normalized);
@@ -14057,7 +14801,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
       this.settings.excludedFolders,
       this.settings.encryptAttachments
     );
-    new import_obsidian15.Notice(`Carpeta "${normalized}" excluida del cifrado.`);
+    new import_obsidian16.Notice(`Carpeta "${normalized}" excluida del cifrado.`);
     return true;
   }
   async removeExcludedFolder(folderPath) {
@@ -14072,7 +14816,7 @@ var MySecretPlugin = class extends import_obsidian15.Plugin {
         this.settings.excludedFolders,
         this.settings.encryptAttachments
       );
-      new import_obsidian15.Notice(`Carpeta "${normalized}" eliminada de exclusiones.`);
+      new import_obsidian16.Notice(`Carpeta "${normalized}" eliminada de exclusiones.`);
       return true;
     }
     return false;

@@ -16,6 +16,35 @@ import { bytesToHex, hexToBytes } from '../utils/buffer';
 import { generateMnemonic, validateMnemonic, mnemonicToKey } from './bip39';
 import { zeroize } from '../utils/zeroize';
 
+/**
+ * Validates the SHAPE of an envelope read from disk.
+ *
+ * The envelope lives inside the vault, so it is untrusted input: a malformed
+ * file must produce a clear error instead of a TypeError deep inside the
+ * unlock flow.
+ */
+export function isValidEnvelopeShape(value: any): value is VaultEnvelopeConfig {
+  const isHex = (v: unknown, bytes?: number): boolean =>
+    typeof v === 'string' && /^[0-9a-fA-F]*$/.test(v) && v.length % 2 === 0 &&
+    (bytes === undefined || v.length === bytes * 2);
+
+  if (!value || typeof value !== 'object') return false;
+  const a = value.argon2;
+  const k = value.vaultKeyEnvelope;
+  if (!a || typeof a !== 'object' || !k || typeof k !== 'object') return false;
+  if (![a.memory, a.iterations, a.parallelism].every(n => typeof n === 'number')) return false;
+  if (!isHex(a.salt, 16)) return false;
+  if (!isHex(k.iv, 12) || !isHex(k.tag, 16) || !isHex(k.ciphertext, 32)) return false;
+
+  const r = value.recoveryEnvelope;
+  if (r !== undefined) {
+    if (!r || typeof r !== 'object') return false;
+    if (!isHex(r.salt, 16) || !isHex(r.iv, 12) || !isHex(r.tag, 16) || !isHex(r.ciphertext, 32)) return false;
+  }
+  if (value.vaultId !== undefined && typeof value.vaultId !== 'string') return false;
+  return true;
+}
+
 export class KeyManager {
   private _isLocked: boolean = true;
   private vaultKey: CryptoKey | null = null;
@@ -126,6 +155,10 @@ export class KeyManager {
       const now = Date.now();
       const newEnvelope: VaultEnvelopeConfig = {
         version: CURRENT_ENVELOPE_VERSION,
+        // Stable vault identifier: unlike the Argon2 salt it survives a
+        // master password change, so device-local biometric enrollments keep
+        // pointing at the same slot.
+        vaultId: bytesToHex(salt),
         argon2: {
           memory: ARGON2_MEMORY_KIB,
           iterations: ARGON2_ITERATIONS,
@@ -328,11 +361,68 @@ export class KeyManager {
   }
 
   /**
-   * Instant O(1) Master Password change without touching note files on disk
+   * Checks a master password against the envelope WITHOUT touching the
+   * lock state or the key material held in memory.
+   *
+   * It is the re-authentication primitive for sensitive actions (change the
+   * password, reveal the recovery phrase, enroll biometrics...): being
+   * unlocked is not enough to perform them.
    */
-  public async changeMasterPassword(newPassword: string): Promise<VaultEnvelopeConfig> {
+  public async verifyPassword(masterPassword: string): Promise<boolean> {
+    if (!this.envelope || !masterPassword) return false;
+
+    let passKeyBytes: Uint8Array | null = null;
+    try {
+      assertArgon2CostParams({
+        memoryKib: this.envelope.argon2.memory,
+        iterations: this.envelope.argon2.iterations,
+        parallelism: this.envelope.argon2.parallelism
+      });
+      passKeyBytes = await deriveKeyArgon2id(
+        masterPassword,
+        hexToBytes(this.envelope.argon2.salt),
+        this.envelope.argon2.memory,
+        this.envelope.argon2.iterations,
+        this.envelope.argon2.parallelism
+      );
+      const passKey = await importAesKey(passKeyBytes);
+      const decrypted = await decryptAesGcm(
+        hexToBytes(this.envelope.vaultKeyEnvelope.ciphertext),
+        passKey,
+        hexToBytes(this.envelope.vaultKeyEnvelope.iv),
+        hexToBytes(this.envelope.vaultKeyEnvelope.tag),
+        'vault-envelope'
+      );
+      zeroize(decrypted);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      zeroize(passKeyBytes);
+    }
+  }
+
+  /**
+   * Instant O(1) Master Password change without touching note files on disk.
+   *
+   * SECURITY: the CURRENT password is required. Being unlocked (for example
+   * through a biometric prompt or an unattended session) must not be enough
+   * to replace the credential that protects the vault.
+   *
+   * NOTE: the vault key itself is NOT rotated. An older copy of the envelope
+   * (cloud history, backups) combined with the OLD password still yields the
+   * vault key. Callers must tell the user so.
+   */
+  public async changeMasterPassword(
+    newPassword: string,
+    currentPassword: string
+  ): Promise<VaultEnvelopeConfig> {
     if (this._isLocked || !this.rawVaultKey || !this.envelope) {
       throw new Error('[MySecret] Vault must be unlocked to change password');
+    }
+
+    if (!(await this.verifyPassword(currentPassword))) {
+      throw new Error('[MySecret] The current password is incorrect');
     }
 
     // Never re-wrap the vault key with downgraded cost parameters.
@@ -353,8 +443,14 @@ export class KeyManager {
         this.envelope.argon2.parallelism
       );
       const newPassKey = await importAesKey(newPassKeyBytes);
-
       const vaultKeyEnc = await encryptAesGcm(this.rawVaultKey, newPassKey, 'vault-envelope');
+
+      // Pin the vault identifier BEFORE the salt changes. Legacy envelopes
+      // used the salt as identifier, so the current salt is the right value
+      // for them: existing biometric enrollments keep working.
+      if (!this.envelope.vaultId) {
+        this.envelope.vaultId = this.envelope.argon2.salt;
+      }
 
       this.envelope.argon2.salt = bytesToHex(newSalt);
       this.envelope.vaultKeyEnvelope = {

@@ -7,7 +7,7 @@
  */
 
 import { BiometricProvider, DeviceBiometricEnvelope } from './types';
-import { bytesToBase64, base64ToBytes, bytesToHex, hexToBytes } from '../utils/buffer';
+import { bytesToHex, hexToBytes } from '../utils/buffer';
 import { encryptAesGcm, decryptAesGcm } from '../crypto/aes';
 import { zeroize } from '../utils/zeroize';
 import {
@@ -31,6 +31,12 @@ const KEYRING_SERVICE = 'mysecret-vault';
 
 /** Unlock modes recorded in the envelope. */
 const MODE_FPRINTD = 'fprintd';
+/**
+ * Legacy mode. It only read a secret from the OS keyring, which is normally
+ * already unlocked in a logged-in session: it authenticated NOBODY, so a
+ * "biometric" unlock without a fingerprint reader was an unlock with no check
+ * at all. New enrollments with it are refused and existing ones fail closed.
+ */
 const MODE_SECRET_SERVICE = 'secret-service';
 
 export class LinuxBiometricProvider implements BiometricProvider {
@@ -38,17 +44,17 @@ export class LinuxBiometricProvider implements BiometricProvider {
   public readonly name = 'Linux (Huella fprintd / Secret Service)';
 
   /**
-   * Checks if fprintd has an enrolled fingerprint AND secret-tool is usable.
+   * Checks that fprintd has an enrolled fingerprint.
    *
-   * Both tools are resolved to absolute paths in root-owned system
-   * directories so a hostile `$PATH` entry cannot impersonate them.
+   * SECURITY: a real user-verification gate is REQUIRED. The previous
+   * fallback (Secret Service alone) reported "available" on machines without
+   * any fingerprint reader and then unlocked the vault with no check.
+   *
+   * `fprintd-list` is resolved to an absolute path in a root-owned system
+   * directory so a hostile `$PATH` entry cannot impersonate it.
    */
   public async isAvailable(): Promise<boolean> {
-    const hasFprintd = await this.isFprintdReady();
-    if (hasFprintd) return true;
-
-    // Fallback: the Secret Service can gate the unlock on its own.
-    return this.resolveSecretTool() !== null;
+    return await this.isFprintdReady();
   }
 
   /**
@@ -218,50 +224,30 @@ export class LinuxBiometricProvider implements BiometricProvider {
     deviceId: string,
     vaultId: string
   ): Promise<DeviceBiometricEnvelope> {
-    // Decide WHICH gate will protect the secret and enforce it NOW.
-    const hasFprintd = await this.isFprintdReady();
-    const mode = hasFprintd ? MODE_FPRINTD : MODE_SECRET_SERVICE;
-
-    if (hasFprintd) {
-      const verified = await this.promptFprintd();
-      if (!verified) {
-        throw new Error('Verificación de huella fprintd cancelada o no reconocida.');
-      }
-    } else if (!this.resolveSecretTool()) {
+    // SECURITY: enrollment requires a working fingerprint reader. Without one
+    // there would be no gate to re-apply at unlock time.
+    if (!(await this.isFprintdReady())) {
       throw new Error(
-        'No hay hardware biométrico ni Secret Service disponibles en este equipo.'
+        'No hay un lector de huellas (fprintd) con huellas registradas: el desbloqueo biométrico no está disponible en este equipo.'
       );
     }
+    const verified = await this.promptFprintd();
+    if (!verified) {
+      throw new Error('Verificación de huella fprintd cancelada o no reconocida.');
+    }
 
-    // The wrapping key is derived from a high-entropy device secret. NEVER
-    // from public machine identifiers.
-    //
-    // Each mode has exactly ONE secret store:
-    //  - fprintd mode        -> the 0600 file in the user's home directory.
-    //  - secret-service mode -> the OS keyring (and nothing on disk).
-    //
-    // The secret file is scoped by BOTH the device id and the vault id, so
-    // two vaults never share it and removing one does not break the other.
-    const useKeyring = mode === MODE_SECRET_SERVICE;
-    const deviceSecret = useKeyring
-      ? this.generateDeviceSecret()
-      : await this.getOrCreateDeviceSecret(deviceId, vaultId);
+    // The wrapping key is derived from a high-entropy device secret stored in
+    // a 0600 file in the user's home directory. NEVER from public machine
+    // identifiers. The file is scoped by BOTH the device id and the vault id.
+    const deviceSecret = await this.getOrCreateDeviceSecret(deviceId, vaultId);
     const aad = biometricAad(this.type, vaultId);
     let enc: { iv: Uint8Array; tag: Uint8Array; ciphertext: Uint8Array } | null = null;
 
     try {
       const wrapKey = await deriveAesKeyFromSecret(deviceSecret, `${deviceId}:${vaultId}`, aad);
       enc = await encryptAesGcm(rawVaultKey, wrapKey, aad);
-
-      if (useKeyring) {
-        // Store ONLY the wrapping secret in the OS keyring — never the vault
-        // key. The vault key itself lives only inside the AES-GCM envelope.
-        // If this fails the enrollment cannot be used later: fail closed.
-        await this.secretToolStore(deviceId, vaultId, bytesToBase64(deviceSecret));
-      }
     } finally {
-      // SECURITY: the device secret is wiped from memory as soon as it has
-      // been used. It must not outlive the enrolment.
+      // The device secret is wiped from memory as soon as it has been used.
       zeroize(deviceSecret);
     }
 
@@ -272,7 +258,7 @@ export class LinuxBiometricProvider implements BiometricProvider {
       version: BIOMETRIC_ENVELOPE_VERSION,
       deviceId,
       providerType: this.type,
-      mode,
+      mode: MODE_FPRINTD,
       createdAt: now,
       updatedAt: now,
       iv: bytesToHex(enc!.iv),
@@ -293,34 +279,32 @@ export class LinuxBiometricProvider implements BiometricProvider {
     const mode = envelope.mode || MODE_FPRINTD;
     let deviceSecret: Uint8Array | null = null;
 
+    if (mode !== MODE_FPRINTD) {
+      // Legacy "secret-service" enrollments authenticated nobody. They are
+      // refused: the user must fall back to the master password and re-enroll.
+      console.warn(
+        '[MySecret] Inscripción biométrica heredada sin verificación de usuario: se requiere la contraseña maestra y volver a inscribir la huella.'
+      );
+      return null;
+    }
+
     try {
-      if (mode === MODE_FPRINTD) {
-        // Gate 1: the fingerprint MUST match.
-        const hasFprintd = await this.isFprintdReady();
-        if (!hasFprintd) {
-          console.warn('[MySecret] fprintd no está disponible: se requiere la contraseña maestra.');
-          return null;
-        }
-        const verified = await this.promptFprintd();
-        if (!verified) {
-          return null;
-        }
-        // Secret store: the 0600 file in the user's home directory.
-        deviceSecret = await this.getOrCreateDeviceSecret(envelope.deviceId, vaultId);
-      } else {
-        // Gate 1: the Secret Service gates the unlock (it may prompt for the
-        // keyring password). If it is unavailable the unlock MUST fail.
-        // Secret store: the OS keyring (and nothing on disk).
-        const stored = await this.secretToolLookup(envelope.deviceId, vaultId);
-        if (!stored) {
-          console.warn('[MySecret] Secret Service no disponible: se requiere la contraseña maestra.');
-          return null;
-        }
-        deviceSecret = base64ToBytes(stored);
-        if (deviceSecret.length !== 32) {
-          console.warn('[MySecret] Secreto de dispositivo corrupto: se requiere la contraseña maestra.');
-          return null;
-        }
+      // Gate: the fingerprint MUST match.
+      const hasFprintd = await this.isFprintdReady();
+      if (!hasFprintd) {
+        console.warn('[MySecret] fprintd no está disponible: se requiere la contraseña maestra.');
+        return null;
+      }
+      const verified = await this.promptFprintd();
+      if (!verified) {
+        return null;
+      }
+      // The secret MUST already exist: creating a fresh one here would only
+      // hide a deleted file behind a decryption failure.
+      deviceSecret = this.readDeviceSecret(this.getDeviceSecretPath(envelope.deviceId, vaultId));
+      if (!deviceSecret) {
+        console.warn('[MySecret] Secreto de dispositivo ausente: se requiere la contraseña maestra.');
+        return null;
       }
 
       const aad = biometricAad(this.type, vaultId);
@@ -406,69 +390,5 @@ export class LinuxBiometricProvider implements BiometricProvider {
         // Best effort.
       }
     }
-  }
-
-  /**
-   * Stores the device wrapping secret in the OS keyring.
-   *
-   * The entry is scoped by BOTH the device id and the vault id, so two
-   * vaults on the same machine never share a keyring entry.
-   */
-  private async secretToolStore(
-    deviceId: string,
-    vaultId: string,
-    secret: string
-  ): Promise<void> {
-    const bin = this.resolveSecretTool();
-    if (!bin) throw new Error('secret-tool no disponible');
-
-    const result = await runProcess({
-      bin,
-      args: [
-        'store',
-        '--label=MySecret Vault Key',
-        'service',
-        KEYRING_SERVICE,
-        'device',
-        deviceId,
-        'vault',
-        vaultId
-      ],
-      input: secret,
-      timeoutMs: 30000
-    });
-
-    if (result.code !== 0) {
-      throw new Error(`secret-tool store failed: ${result.stderr || result.stdout}`);
-    }
-  }
-
-  /**
-   * Reads the device wrapping secret from the OS keyring.
-   *
-   * Returns `null` when the entry does not exist or the keyring refused the
-   * request (the caller must then fail closed).
-   */
-  private async secretToolLookup(deviceId: string, vaultId: string): Promise<string | null> {
-    const bin = this.resolveSecretTool();
-    if (!bin) return null;
-
-    const result = await runProcess({
-      bin,
-      args: [
-        'lookup',
-        'service',
-        KEYRING_SERVICE,
-        'device',
-        deviceId,
-        'vault',
-        vaultId
-      ],
-      timeoutMs: 30000
-    });
-
-    if (result.code !== 0) return null;
-    const out = result.stdout.trim();
-    return out.length > 0 ? out : null;
   }
 }

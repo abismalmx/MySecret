@@ -314,7 +314,7 @@ function createFakeAdapter() {
   };
 }
 
-function createFakePlugin(adapter) {
+function createFakePlugin(adapter, vaultKey = null) {
   const rawAdapter = {
     read: adapter.read,
     write: adapter.write,
@@ -323,6 +323,9 @@ function createFakePlugin(adapter) {
     exists: adapter.exists
   };
   return {
+    // The restore now validates ciphertext against the vault key, so it needs
+    // an unlocked key manager (the key is only used for authentication here).
+    keyManager: { isLocked: false, getVaultKey: () => vaultKey },
     interceptor: { getRawAdapter: () => rawAdapter },
     app: {
       vault: {
@@ -335,7 +338,9 @@ function createFakePlugin(adapter) {
       }
     },
     pathFilter: {
-      isTextNote: (p) => p.toLowerCase().endsWith('.md') || p.toLowerCase().endsWith('.txt')
+      isTextNote: (p) => p.toLowerCase().endsWith('.md') || p.toLowerCase().endsWith('.txt'),
+      normalizePath: (p) => p,
+      shouldEncrypt: () => true
     }
   };
 }

@@ -99,6 +99,28 @@ The following sections detail the active defenses against specific attack vector
 - **Ephemeral ECDH Key Exchange:** On Android, the companion WebAuthn PWA bridge negotiates a session key via **ECDH over the P-256 curve**.
 - **Domain Pinning & Challenge Verification:** The RP ID is pinned to the registrable domain on Cloudflare Pages with single-use timestamped challenges to prevent replay attacks.
 - **Vault Anonymity:** The actual vault ID is never transmitted to the browser; only a one-way cryptographic SHA-256 binding is exchanged.
+- **Linux requires a real gate:** biometric unlock needs a working `fprintd` fingerprint reader. The former "Secret Service only" mode authenticated nobody (the keyring is normally already unlocked in a logged-in session), so it can no longer be enrolled and old enrollments fail closed.
+- **Windows availability check** compares whole output lines (`UNAVAILABLE` contains `AVAILABLE`).
+
+### 🛡️ Second-Audit Hardening
+- **Re-authentication for sensitive actions:** changing the password (which also requires the *current* password), revealing/removing the recovery phrase, enrolling biometrics and exporting plaintext all ask for the master password again; being unlocked is not enough.
+- **Stable vault id:** device-local biometric slots are keyed by a `vaultId` that survives password changes (it used to be the Argon2 salt, which silently orphaned the enrollment).
+- **Authenticated restore:** every ZIP entry is judged by its content, never by the `mode` its own manifest claims. Ciphertext must authenticate with *this* vault's key and *this* path; plaintext is encrypted on the way in. Restore requires an unlocked vault and reports every rejected entry.
+- **Backups never drop files silently:** files that cannot be included (no key, non-UTF-8, I/O error) are reported. The "on lock" auto-backup keeps the key it needs until the upload is built.
+- **Safe policy changes:** excluding a folder or turning attachment encryption off first decrypts what is already encrypted (all-or-nothing per file), instead of serving raw ciphertext that a later save would corrupt.
+- **Deferred re-binds:** a rename/copy performed while the vault is locked is queued, persisted and replayed on unlock; replaying is idempotent. Hooked `process`/`append` calls are serialized per path (no lost updates).
+- **Envelope handling:** `vault-envelope.json` is validated on load, written through a temp file + read-back + `.bak`, and a damaged envelope never triggers the setup wizard (which would create a new key over encrypted notes). The wizard also warns if encrypted files exist and refuses to overwrite an initialized vault.
+- **Publish guard follows the plugin instance** (enabled later / re-enabled) instead of being installed once at load.
+- **Hidden text notes** inside folders (`Notes/.private.md`) are encrypted; hidden folders at any depth are excluded.
+- **CI:** actions are pinned to commit SHAs, releases only run for semantic-version tags, CodeQL runs on every push/PR.
+
+### ⚠️ Known Limitations (read these)
+- **Changing the master password does NOT rotate the vault key.** Anyone holding an older copy of `vault-envelope.json` (cloud history, backups) together with the *old* password can still decrypt the notes. If a password was exposed, treat the vault as exposed.
+- **The lock is a UI lock.** The key is wiped and open notes are closed, but Obsidian and other plugins may keep plaintext in memory (metadata cache, editor state). It protects against casual access, not against a debugger or a malicious plugin.
+- **The AAD binds the file path only.** Someone who can write to your vault can restore an older ciphertext of the same file or replace a note with plaintext; the plugin cannot detect that.
+- **Biometric unlock on Windows and Linux is a convenience gate** enforced by the plugin: the wrapping secret is protected by DPAPI / a `0600` file readable by the same OS user. Malware running as you can bypass it. Only the WebAuthn (PRF) provider derives the key from the authenticator itself. Use the master password if that matters to you.
+- **Backups only contain files that the plugin encrypts.** Excluded folders and hidden/system files are not included.
+- **Third-party plugins** that read notes through the Obsidian API receive plaintext by design.
 
 ---
 
@@ -121,7 +143,9 @@ Every security defense is continuously validated through automated unit, cryptog
 | **Key Lifecycle & Master Password Change** | 4 tests | ✅ Passed |
 | **Internationalization (i18n) Integrity** | 6 tests | ✅ Passed |
 | **Adapter Interception & Streaming I/O** | 19 tests | ✅ Passed |
-| **Total Automated Tests** | **83 tests** | **100% Passing** |
+| **Second-audit regression tests** (re-auth, restore, backup, re-binds, biometrics) | 30+ tests | ✅ Passed |
+| **Recovery tools compatibility** (HTML + Python decrypt a real vault) | 8 tests | ✅ Passed |
+| **Total Automated Tests** | **128 tests** | **100% Passing** |
 
 ---
 
@@ -149,7 +173,7 @@ During manual source-code audit of the internationalization engine, two critical
 
 ### 🔬 Attack Surface & Defense-in-Depth Verification
 - **GitHub Actions Security**: All CI dependencies (`actions/checkout@v4`, `actions/setup-node@v4`, `github/codeql-action@v3`, `softprops/action-gh-release@v2`) audited via OSV database — **0 vulnerabilities**.
-- **Zero External Python Dependencies**: `tools/standalone-decryptor.py` relies exclusively on the Python 3 standard library (`hashlib`, `hmac`, `struct`, `os`, `sys`, `json`).
+- **Recovery tools**: `tools/offline-decryptor.html` has zero dependencies. `tools/standalone-decryptor.py` needs `cryptography` (and `argon2-cffi` only for `--password`), since AES-GCM and Argon2id are not in the Python standard library. Both are tested against vaults produced by the real plugin code.
 - **Zero External CDNs or Runtime Scripts**: No third-party CDN scripts or remote resources in the HTML/JS layers of either the plugin or the companion WebAuthn PWA bridge.
 - **Zero `eval`, `innerHTML`, or `insertAdjacentHTML`**: The codebase strictly uses Obsidian's native DOM methods (`createEl`, `setIcon`, `setText`, `setCssStyles`), preventing DOM-based XSS.
 - **Full Cryptographic Assurance**: AES-256-GCM (96-bit IV, 128-bit tag), Argon2id (64 MiB / 3 iterations / 16-byte salt), HKDF-SHA256, vault-bound AAD, constant-time comparisons, deterministic BIP-39 recovery, and proactive RAM zeroization.

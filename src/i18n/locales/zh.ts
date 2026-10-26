@@ -258,6 +258,8 @@ export const zh: TranslationDictionary = {
     currentPasswordLabel: '当前主密码',
     newPasswordLabel: '新主密码 (至少 12 字符)',
     confirmNewPasswordLabel: '确认新主密码',
+    keyNotRotatedWarning: '注意：更改密码不会轮换保险库密钥。持有旧版 vault-envelope.json（云端历史、备份）和旧密码的人仍可解密您的笔记。',
+    wrongCurrentPassword: '当前主密码不正确。',
     submitBtn: '更新密码',
     updating: '正在重新派生 Argon2id 密钥...',
     success: '主密码更新成功。'
@@ -318,6 +320,12 @@ export const zh: TranslationDictionary = {
     stopBtn: '取消',
     processing: '正在处理 {current} ({processed}/{total})...',
     complete: '操作已顺利完成。'
+  },
+  reauth: {
+    title: '确认您的主密码',
+    desc: '此操作较为敏感。请输入主密码以继续。',
+    confirmBtn: '确认',
+    wrongPassword: '主密码不正确。'
   },
   recoveryPhraseModal: {
     title: '紧急恢复助记词',

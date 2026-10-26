@@ -269,7 +269,11 @@ export class ExternalBridgeProvider implements BiometricProvider {
 
     if (error) {
       if (currentSession.rawVaultKey) zeroize(currentSession.rawVaultKey);
-      currentSession.reject(new Error(decodeURIComponent(error)));
+      // Obsidian already URL-decodes the protocol parameters: decoding again
+      // throws a URIError on any message containing a literal `%`, which used
+      // to leave the pending promise unsettled. The text is also bounded.
+      const message = String(error).replace(/[\u0000-\u001f]/g, ' ').slice(0, 200);
+      currentSession.reject(new Error(message));
       return true;
     }
 

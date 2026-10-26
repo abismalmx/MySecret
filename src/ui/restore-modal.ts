@@ -261,6 +261,18 @@ export class RestoreModal extends Modal {
 
       new Notice(`✅ ${t('notices.restoreSuccess', { count: result.restoredFiles })}`);
 
+      // Rejected entries must be visible: a restore that silently dropped
+      // files would look like a complete one.
+      if (result.errors.length > 0) {
+        const first = result.errors[0];
+        console.warn('[MySecret] Restore rejected entries:', result.errors);
+        new Notice(
+          `⚠️ ${result.errors.length} entrada(s) no se restauraron` +
+          (first.path ? ` (p. ej. ${first.path}: ${first.error})` : `: ${first.error}`),
+          12000
+        );
+      }
+
       this.cancelBtn.disabled = false;
       this.cancelBtn.setText(t('common.close'));
     } catch (err: any) {

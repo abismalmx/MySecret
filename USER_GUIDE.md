@@ -244,16 +244,18 @@ A core architectural strength of MySecret is that **you are never locked into Ob
 The repository includes ready-to-run recovery tools inside the `tools/` directory:
 
 ### Method 1: Using Any Web Browser (100% Offline)
-Zero installation required. Works on any computer:
+Zero installation required. Works for **one note or attachment at a time**, with your recovery phrase:
 1. Double-click to open [`tools/offline-decryptor.html`](tools/offline-decryptor.html) in your browser (Chrome, Firefox, Safari, or Edge).
-2. Enter your 24-word BIP-39 recovery phrase.
-3. Provide the relative path of the note within your vault (e.g., `Notes/Journal.md`).
-4. Paste the armored note text starting with `-----BEGIN MYSECRET ENCRYPTED FILE-----`.
-5. Click **Decrypt Note Now**: your browser executes native Web Crypto API locally and displays your plaintext note.
+2. Open `.obsidian/plugins/mysecret/vault-envelope.json` with a text editor and paste its whole content.
+3. Enter your 24-word BIP-39 recovery phrase.
+4. Type the **exact** vault path the file had (e.g., `Notes/Journal.md`). The path is part of the authenticated data: a wrong path fails on purpose.
+5. Paste the armored note (starting with `-----BEGIN MYSECRET ENCRYPTED FILE-----`) or pick an encrypted attachment, then click **Decrypt**.
+
+> Vaults created without a recovery phrase ("password only" mode) cannot use this page: use Method 2 with `--password`.
 
 ### Method 2: Batch Decryption with Python (`tools/standalone-decryptor.py`)
 To decrypt an entire vault containing hundreds of notes and image attachments in one pass:
-1. Ensure Python 3 is installed and install the required dependencies:
+1. Ensure Python 3 is installed and install the required dependencies (`argon2-cffi` is only needed for `--password`):
    ```bash
    pip install cryptography argon2-cffi
    ```
@@ -261,11 +263,11 @@ To decrypt an entire vault containing hundreds of notes and image attachments in
    ```bash
    python tools/standalone-decryptor.py --vault "/path/to/vault" --mnemonic "word1 word2 ... word24" --output "/path/to/decrypted_vault"
    ```
-3. Or decrypt using your Master Password (requires the `data.json` file in `.obsidian/plugins/mysecret/`):
+3. Or decrypt using your Master Password. The tool reads `.obsidian/plugins/mysecret/vault-envelope.json` (use `--envelope` if it is elsewhere). Leave `--password` without a value to be prompted, so the password stays out of your shell history:
    ```bash
-   python tools/standalone-decryptor.py --vault "/path/to/vault" --password "YourMasterPassword" --output "/path/to/decrypted_vault"
+   python tools/standalone-decryptor.py --vault "/path/to/vault" --password --output "/path/to/decrypted_vault"
    ```
-4. The script reconstructs your full vault hierarchy with all markdown files and binary attachments in clean plaintext.
+4. The script reconstructs your vault hierarchy with all markdown files and attachments in plaintext. The output folder must be **outside** the vault. A single file: add `--file note.md --relative-path "Notes/note.md"`.
 
 ### Method 3: Using CyberChef (GCHQ Web Utility)
 1. Navigate to [CyberChef](https://gchq.github.io/CyberChef/).

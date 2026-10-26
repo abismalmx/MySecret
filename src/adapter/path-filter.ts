@@ -35,10 +35,25 @@ export class PathFilter {
         return true;
       }
     }
-    // Also ignore dotfiles at the root of the vault (e.g. .DS_Store, .gitignore)
-    const baseName = normalized.split('/').pop() || '';
+    const segments = normalized.split('/');
+    const baseName = segments[segments.length - 1] || '';
+
+    // Hidden DIRECTORIES at any depth (e.g. `Projects/.git/`, `Notes/.cache/`)
+    // are never user content: Obsidian does not index them.
+    for (let i = 0; i < segments.length - 1; i++) {
+      if (segments[i].startsWith('.')) {
+        return true;
+      }
+    }
+
     if (baseName.startsWith('.')) {
-      return true;
+      // Dotfiles at the root of the vault (.DS_Store, .gitignore...) are never
+      // encrypted. A hidden TEXT NOTE inside a folder (`Notes/.private.md`) IS
+      // user content and must not be silently left in cleartext; any other
+      // nested dotfile (`.gitkeep`, `.DS_Store`...) stays excluded.
+      if (segments.length === 1 || !this.isTextNote(normalized)) {
+        return true;
+      }
     }
     return false;
   }

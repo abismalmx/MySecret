@@ -35,6 +35,21 @@ export class AdapterInterceptor {
   private isHooked: boolean = false;
 
   /**
+   * Serializes compound read-modify-write operations (`process`, `append`,
+   * `appendBinary`) per path. The native `process()` is atomic; the hooked
+   * version reads, transforms and writes in separate steps, so without this
+   * queue two concurrent calls on the same note would lose one update.
+   */
+  private pathQueues: Map<string, Promise<unknown>> = new Map();
+
+  /**
+   * Renames/copies whose AAD re-binding is still pending (vault locked,
+   * crash...). Persisted by the plugin through `onPendingRebindsChanged`.
+   */
+  private pendingRebinds: Array<{ from: string; to: string }> = [];
+  private onPendingRebindsChanged?: (list: Array<{ from: string; to: string }>) => void;
+
+  /**
    * The Obsidian `Vault` instance.
    *
    * It is required to intercept `Vault.readBinary()`, which is a DIFFERENT
@@ -91,6 +106,135 @@ export class AdapterInterceptor {
    */
   public setMetadataHashPatch(patch: MetadataHashPatch): void {
     this.metadataHashPatch = patch;
+  }
+
+  /**
+   * Runs `task` after every previously queued task of the same path.
+   */
+  private withPathLock<T>(path: string, task: () => Promise<T>): Promise<T> {
+    const key = this.pathFilter.normalizePath(path);
+    const previous = this.pathQueues.get(key) ?? Promise.resolve();
+    const run = previous.then(task, task);
+    const tail = run.catch(() => undefined);
+    this.pathQueues.set(key, tail);
+    void tail.then(() => {
+      if (this.pathQueues.get(key) === tail) {
+        this.pathQueues.delete(key);
+      }
+    });
+    return run;
+  }
+
+  /**
+   * Loads the persisted queue of pending re-binds and registers the callback
+   * that persists every change.
+   */
+  public setPendingRebinds(
+    list: Array<{ from: string; to: string }> | undefined,
+    onChange?: (list: Array<{ from: string; to: string }>) => void
+  ): void {
+    this.pendingRebinds = Array.isArray(list)
+      ? list.filter(i => i && typeof i.from === 'string' && typeof i.to === 'string')
+      : [];
+    this.onPendingRebindsChanged = onChange;
+  }
+
+  public getPendingRebinds(): Array<{ from: string; to: string }> {
+    return this.pendingRebinds.map(i => ({ ...i }));
+  }
+
+  private queueRebind(from: string, to: string): void {
+    if (this.pendingRebinds.some(i => i.from === from && i.to === to)) return;
+    this.pendingRebinds.push({ from, to });
+    this.onPendingRebindsChanged?.(this.getPendingRebinds());
+  }
+
+  /**
+   * Re-binds `from` -> `to`; when that is not possible right now (vault
+   * locked, I/O error) the operation is queued and replayed on unlock, so a
+   * note is never left permanently bound to a path it no longer has.
+   */
+  private async rebindOrQueue(from: string, to: string): Promise<void> {
+    try {
+      await this.rebindAad(from, to);
+    } catch (err) {
+      console.error(`[MySecret] Re-bind ${from} -> ${to} deferred:`, err);
+      this.queueRebind(from, to);
+    }
+  }
+
+  /**
+   * Replays the queued re-binds. Entries that can never succeed (the file is
+   * gone, or it authenticates under neither path) are dropped; the rest stay
+   * queued.
+   *
+   * @returns the number of re-binds that were completed.
+   */
+  public async processPendingRebinds(): Promise<number> {
+    if (this.keyManager.isLocked || this.pendingRebinds.length === 0) return 0;
+
+    const snapshot = this.getPendingRebinds();
+    let done = 0;
+    const remaining: Array<{ from: string; to: string }> = [];
+
+    for (const item of snapshot) {
+      try {
+        const exists = this.adapter.exists ? await this.adapter.exists(item.to) : true;
+        if (!exists) continue; // the destination disappeared: nothing to fix
+        await this.rebindAad(item.from, item.to);
+        done++;
+      } catch (err: any) {
+        if (this.keyManager.isLocked) {
+          remaining.push(item);
+        } else {
+          console.error(`[MySecret] Dropping unrecoverable re-bind ${item.from} -> ${item.to}:`, err);
+        }
+      }
+    }
+
+    this.pendingRebinds = remaining;
+    this.onPendingRebindsChanged?.(this.getPendingRebinds());
+    return done;
+  }
+
+  /**
+   * Converts the given files from ciphertext to plaintext ON DISK.
+   *
+   * Used before a policy change makes the plugin stop decrypting them (a
+   * folder is excluded, attachment encryption is turned off): otherwise the
+   * files would be served as raw ciphertext and a later save would corrupt
+   * them. Every file is decrypted fully in memory BEFORE anything is written.
+   *
+   * @returns paths converted and the failures (those files stay untouched).
+   */
+  public async decryptFilesToPlain(
+    paths: string[]
+  ): Promise<{ converted: string[]; failed: Array<{ path: string; error: string }> }> {
+    const converted: string[] = [];
+    const failed: Array<{ path: string; error: string }> = [];
+
+    for (const path of paths) {
+      try {
+        const rawBytes = new Uint8Array(await this.origReadBinary(path));
+        const format = detectContainerFormat(rawBytes);
+        if (format === 'plain') continue;
+
+        const outcome = await decryptContainer(
+          rawBytes,
+          this.pathFilter.normalizePath(path),
+          this.keyManager
+        );
+        if (format === 'armored') {
+          await this.origWrite(path, bytesToString(outcome.bytes));
+        } else {
+          await this.origWriteBinary(path, toArrayBuffer(outcome.bytes));
+        }
+        converted.push(path);
+      } catch (err: any) {
+        failed.push({ path, error: err?.message || String(err) });
+      }
+    }
+    return { converted, failed };
   }
 
   /**
@@ -312,10 +456,7 @@ export class AdapterInterceptor {
 
     // 5. Hook append
     if (a.append) {
-      a.append = async function (path: string, data: string, options?: any): Promise<void> {
-        if (!self.pathFilter.shouldEncrypt(path)) {
-          return await self.origAppend(path, data, options);
-        }
+      const appendEncrypted = async (path: string, data: string, options?: any): Promise<void> => {
         // Decrypt current, append in memory, and re-encrypt
         //
         // DATA INTEGRITY: a read failure must NEVER be swallowed here. If the
@@ -346,6 +487,13 @@ export class AdapterInterceptor {
         }
         await a.write(path, existing + data, options);
       };
+
+      a.append = function (path: string, data: string, options?: any): Promise<void> {
+        if (!self.pathFilter.shouldEncrypt(path)) {
+          return self.origAppend(path, data, options);
+        }
+        return self.withPathLock(path, () => appendEncrypted(path, data, options));
+      };
     }
 
     // 5b. Hook appendBinary
@@ -354,10 +502,7 @@ export class AdapterInterceptor {
     // an encrypted attachment, silently corrupting it and leaking the appended
     // content in cleartext on disk.
     if (a.appendBinary) {
-      a.appendBinary = async function (path: string, data: ArrayBuffer, options?: any): Promise<void> {
-        if (!self.pathFilter.shouldEncrypt(path)) {
-          return await self.origAppendBinary(path, data, options);
-        }
+      const appendBinaryEncrypted = async (path: string, data: ArrayBuffer, options?: any): Promise<void> => {
 
         if (self.keyManager.isLocked) {
           throw new Error(`[MySecret] Cannot append binary while vault is locked (${path})`);
@@ -433,31 +578,42 @@ export class AdapterInterceptor {
           ciphertext: encResult.ciphertext
         });
 
-        return await self.origWriteBinary(path, binaryEncrypted.buffer as ArrayBuffer, options);
+        return await self.origWriteBinary(path, toArrayBuffer(binaryEncrypted), options);
+      };
+
+      a.appendBinary = function (path: string, data: ArrayBuffer, options?: any): Promise<void> {
+        if (!self.pathFilter.shouldEncrypt(path)) {
+          return self.origAppendBinary(path, data, options);
+        }
+        return self.withPathLock(path, () => appendBinaryEncrypted(path, data, options));
       };
     }
 
     // 6. Hook process
-    a.process = async function (
+    const processPlain = async (
       path: string,
       fn: (data: string) => string,
       options?: any
-    ): Promise<string> {
-      if (!self.pathFilter.shouldEncrypt(path)) {
-        if (self.origProcess) {
-          return await self.origProcess(path, fn, options);
-        }
-        let plain = '';
-        try {
-          plain = await self.origRead(path);
-        } catch {
-          plain = '';
-        }
-        const processed = fn(plain);
-        await self.origWrite(path, processed, options);
-        return processed;
+    ): Promise<string> => {
+      if (self.origProcess) {
+        return await self.origProcess(path, fn, options);
       }
+      let plain = '';
+      try {
+        plain = await self.origRead(path);
+      } catch {
+        plain = '';
+      }
+      const processed = fn(plain);
+      await self.origWrite(path, processed, options);
+      return processed;
+    };
 
+    const processEncrypted = async (
+      path: string,
+      fn: (data: string) => string,
+      options?: any
+    ): Promise<string> => {
       // Check if file exists. If it exists, read MUST succeed; if read fails
       // (e.g. vault locked or decryption error), we MUST throw to prevent overwriting
       // existing user notes with empty text.
@@ -486,6 +642,18 @@ export class AdapterInterceptor {
       return processed;
     };
 
+    a.process = function (
+      path: string,
+      fn: (data: string) => string,
+      options?: any
+    ): Promise<string> {
+      if (!self.pathFilter.shouldEncrypt(path)) {
+        return processPlain(path, fn, options);
+      }
+      // The native process() is atomic: keep that guarantee per path.
+      return self.withPathLock(path, () => processEncrypted(path, fn, options));
+    };
+
     // 7. Hook copy
     //
     // A copy must be re-encrypted with the *destination* path as AAD,
@@ -504,12 +672,9 @@ export class AdapterInterceptor {
 
         await self.origCopy(path, newPath);
 
-        try {
-          await self.rebindAad(oldNorm, newNorm);
-        } catch (err) {
-          console.error(`[MySecret] Failed to re-bind encryption after copy (${path} -> ${newPath}):`, err);
-          throw err;
-        }
+        // A failed re-bind (e.g. locked vault) is queued and replayed on the
+        // next unlock instead of leaving a copy bound to the WRONG path.
+        await self.rebindOrQueue(oldNorm, newNorm);
       };
     }
 
@@ -662,14 +827,10 @@ export class AdapterInterceptor {
         for (const descendant of descendants) {
           const fromAbs = oldNorm + descendant.slice(newPath.length);
           const toAbs = descendant;
-          try {
-            await this.rebindAad(fromAbs, toAbs);
-          } catch (err) {
-            console.error(`[MySecret] Failed to re-bind encryption after rename (${fromAbs} -> ${toAbs}):`, err);
-          }
+          await this.rebindOrQueue(fromAbs, toAbs);
         }
       } else {
-        await this.rebindAad(oldNorm, newPath);
+        await this.rebindOrQueue(oldNorm, newPath);
       }
 
       this.mediaManager?.handleRename(oldNorm, newPath);
@@ -732,6 +893,23 @@ export class AdapterInterceptor {
   }
 
   /**
+   * Whether a payload authenticates under the given AAD (used to detect that
+   * a re-bind was already performed, which makes the operation idempotent).
+   */
+  private async authenticatesUnder(
+    payload: { iv: Uint8Array; tag: Uint8Array; ciphertext: Uint8Array },
+    vaultKey: CryptoKey,
+    aad: string
+  ): Promise<boolean> {
+    try {
+      await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, aad);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Re-binds the AES-GCM AAD of a file after it has been moved or copied.
    *
    * The file is read from disk in its *current* (encrypted with the old AAD)
@@ -783,7 +961,13 @@ export class AdapterInterceptor {
     // --- Encrypted BINARY container (attachments) ---
     if (isBinaryEncrypted(rawBytes)) {
       const payload = deserializeBinary(rawBytes);
-      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      let plain: Uint8Array;
+      try {
+        plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      } catch (err) {
+        if (await this.authenticatesUnder(payload, vaultKey, newAad)) return; // already re-bound
+        throw err;
+      }
       if (!shouldEncryptNew) {
         await this.origWriteBinary(toAbs, this.toArrayBuffer(plain));
         return;
@@ -802,7 +986,13 @@ export class AdapterInterceptor {
     // --- Encrypted TEXT container (armored Markdown notes) ---
     if (isArmoredBytesEncrypted(rawBytes)) {
       const payload = deserializeArmored(bytesToString(rawBytes));
-      const plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      let plain: Uint8Array;
+      try {
+        plain = await decryptAesGcm(payload.ciphertext, vaultKey, payload.iv, payload.tag, oldAad);
+      } catch (err) {
+        if (await this.authenticatesUnder(payload, vaultKey, newAad)) return; // already re-bound
+        throw err;
+      }
       if (!shouldEncryptNew) {
         await this.origWrite(toAbs, bytesToString(plain));
         return;

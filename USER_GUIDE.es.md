@@ -240,29 +240,31 @@ Una de las grandes fortalezas de MySecret es que **nunca estás cautivo del plug
 
 El repositorio incluye herramientas listas para usar dentro de la carpeta `tools/`:
 
-### Método 1: En cualquier Navegador Web (100% Offline)
-No requiere instalar nada. Puedes abrirlo en cualquier computadora:
-1. Abre el archivo [`tools/offline-decryptor.html`](tools/offline-decryptor.html) con tu navegador habitual (Chrome, Firefox, Safari o Edge).
-2. Pega tu frase de 24 palabras BIP-39.
-3. Especifica la ruta relativa de la nota (ejemplo: `Notas/Diario.md`).
-4. Pega el contenido cifrado de la nota.
-5. Pulsa **Descifrar Nota Ahora**: el navegador usará la Web Crypto API nativa en local y te mostrará el texto en claro.
+### Método 1: Desde Cualquier Navegador (100% Offline)
+Sin instalar nada. Sirve para **una nota o un adjunto a la vez**, con tu frase de rescate:
+1. Abre con doble clic [`tools/offline-decryptor.html`](tools/offline-decryptor.html) en tu navegador (Chrome, Firefox, Safari o Edge).
+2. Abre `.obsidian/plugins/mysecret/vault-envelope.json` con un editor de texto y pega todo su contenido.
+3. Escribe tu frase de rescate BIP-39 de 24 palabras.
+4. Indica la ruta **exacta** que tenía el archivo en la bóveda (p. ej. `Notas/Diario.md`). La ruta forma parte de los datos autenticados: una ruta incorrecta falla a propósito.
+5. Pega la nota cifrada (empieza con `-----BEGIN MYSECRET ENCRYPTED FILE-----`) o elige un adjunto cifrado y pulsa **Descifrar**.
+
+> Las bóvedas creadas sin frase de recuperación (modo «solo contraseña») no pueden usar esta página: usa el Método 2 con `--password`.
 
 ### Método 2: Con el Script de Python (`tools/standalone-decryptor.py`)
-Para descifrar una bóveda entera de golpe con cientos de notas e imágenes:
-1. Asegúrate de tener Python instalado y ejecuta:
+Para descifrar una bóveda completa con cientos de notas e imágenes de una sola vez:
+1. Instala las dependencias (`argon2-cffi` solo se necesita con `--password`):
    ```bash
    pip install cryptography argon2-cffi
    ```
-2. Para descifrar toda la bóveda usando tu frase de 24 palabras:
+2. Descifra toda la bóveda con tu frase de rescate de 24 palabras:
    ```bash
    python tools/standalone-decryptor.py --vault "/ruta/a/tu/boveda" --mnemonic "palabra1 palabra2 ... palabra24" --output "/ruta/a/boveda_descifrada"
    ```
-3. O usando tu Contraseña Maestra (requiere el archivo `data.json` de `.obsidian/plugins/mysecret/`):
+3. O con tu Contraseña Maestra. La herramienta lee `.obsidian/plugins/mysecret/vault-envelope.json` (usa `--envelope` si está en otro sitio). Deja `--password` sin valor para que te la pida y no quede en el historial del shell:
    ```bash
-   python tools/standalone-decryptor.py --vault "/ruta/a/tu/boveda" --password "TuContraseña" --output "/ruta/a/boveda_descifrada"
+   python tools/standalone-decryptor.py --vault "/ruta/a/tu/boveda" --password --output "/ruta/a/boveda_descifrada"
    ```
-4. El script creará una copia limpia en texto plano con todas tus carpetas, notas Markdown e imágenes intactas.
+4. El script reconstruye la jerarquía con todas las notas y adjuntos en texto plano. La carpeta de salida debe estar **fuera** de la bóveda. Para un solo archivo: `--file nota.md --relative-path "Notas/nota.md"`.
 
 ### Método 3: Con CyberChef (Herramienta Web de GCHQ)
 1. Abre [CyberChef](https://gchq.github.io/CyberChef/).

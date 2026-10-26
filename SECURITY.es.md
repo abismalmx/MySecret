@@ -99,6 +99,28 @@ A continuación se detallan las medidas de endurecimiento activas contra vectore
 - **Intercambio Criptográfico Efímero:** En Android y navegadores móviles, el puente WebAuthn PWA utiliza intercambio de claves **ECDH sobre curva P-256**.
 - **Anclaje de Dominio y Desafíos:** Anclaje estricto de RP ID al dominio registrable de Cloudflare Pages y desafíos con marca de tiempo única contra ataques de repetición.
 - **Anonimización:** El identificador de la bóveda nunca viaja al navegador externo; se emplea un enlace unívoco unidireccional derivado criptográficamente.
+- **Linux exige una verificación real:** el desbloqueo biométrico requiere un lector de huellas `fprintd` operativo. El antiguo modo «solo Secret Service» no autenticaba a nadie (el llavero suele estar ya desbloqueado en una sesión abierta); ya no se puede inscribir y las inscripciones antiguas fallan cerradas.
+- **Comprobación de disponibilidad en Windows** compara líneas completas (`UNAVAILABLE` contiene `AVAILABLE`).
+
+### 🛡️ Endurecimiento de la Segunda Auditoría
+- **Reautenticación en acciones sensibles:** cambiar la contraseña (que además exige la contraseña *actual*), ver/eliminar la frase de recuperación, inscribir biometría y exportar en texto plano piden de nuevo la contraseña maestra; estar desbloqueado no basta.
+- **Identificador de bóveda estable:** el espacio biométrico local se indexa por un `vaultId` que sobrevive al cambio de contraseña (antes era la sal de Argon2 y la inscripción quedaba huérfana en silencio).
+- **Restauración autenticada:** cada entrada del ZIP se juzga por su contenido, nunca por el `mode` que declara su propio manifiesto. El texto cifrado debe autenticarse con la clave de *esta* bóveda y *esta* ruta; el texto plano se cifra al entrar. Exige bóveda desbloqueada y informa de cada entrada rechazada.
+- **Los respaldos no descartan archivos en silencio:** lo que no puede incluirse (sin clave, no UTF-8, error de E/S) se informa. El respaldo automático «al bloquear» conserva la clave necesaria hasta construir el archivo.
+- **Cambios de política seguros:** excluir una carpeta o desactivar el cifrado de adjuntos descifra antes lo que ya está cifrado (todo o nada por archivo), en lugar de servir texto cifrado crudo que un guardado posterior corrompería.
+- **Re-vinculaciones diferidas:** un renombrado/copia hecho con la bóveda bloqueada se encola, se persiste y se reaplica al desbloquear (de forma idempotente). Las llamadas `process`/`append` se serializan por ruta (sin actualizaciones perdidas).
+- **Manejo del sobre:** `vault-envelope.json` se valida al cargar, se escribe con archivo temporal + relectura + `.bak`, y un sobre dañado nunca abre el asistente (que crearía una clave nueva sobre notas cifradas). El asistente además avisa si hay archivos cifrados y se niega a sobrescribir una bóveda inicializada.
+- **El guardián de Publish sigue a la instancia del plugin** (activado después / reactivado), en vez de instalarse una sola vez al cargar.
+- **Notas de texto ocultas** dentro de carpetas (`Notas/.privada.md`) se cifran; las carpetas ocultas a cualquier profundidad se excluyen.
+- **CI:** acciones fijadas por SHA de commit, releases solo con tags de versión semántica, CodeQL en cada push/PR.
+
+### ⚠️ Limitaciones Conocidas (léelas)
+- **Cambiar la contraseña maestra NO rota la clave de la bóveda.** Quien conserve una copia antigua de `vault-envelope.json` (historial de la nube, backups) junto con la contraseña *anterior* aún puede descifrar las notas. Si una contraseña se expuso, considera la bóveda expuesta.
+- **El bloqueo es un bloqueo de interfaz.** Se borra la clave y se cierran las notas abiertas, pero Obsidian y otros plugins pueden conservar texto plano en memoria (caché de metadatos, estado del editor). Protege contra acceso casual, no contra un depurador o un plugin malicioso.
+- **El AAD vincula solo la ruta del archivo.** Quien pueda escribir en tu bóveda puede restaurar un cifrado antiguo del mismo archivo o sustituir una nota por texto plano; el plugin no puede detectarlo.
+- **El desbloqueo biométrico en Windows y Linux es una comodidad** aplicada por el plugin: el secreto de envoltura lo protege DPAPI / un archivo `0600` legible por el mismo usuario del SO. Malware ejecutándose como tú puede saltárselo. Solo el proveedor WebAuthn (PRF) deriva la clave del propio autenticador. Si esto te importa, usa la contraseña maestra.
+- **Los respaldos solo contienen los archivos que el plugin cifra.** Las carpetas excluidas y los archivos ocultos/de sistema no se incluyen.
+- **Plugins de terceros** que leen notas por la API de Obsidian reciben texto plano por diseño.
 
 ---
 
@@ -121,7 +143,9 @@ La integridad de todas estas protecciones se valida continuamente mediante una s
 | **Ciclo de Vida de Claves y Cambio de Contraseña** | 4 tests | ✅ Invicto |
 | **Internacionalización y Formato Multilingüe** | 6 tests | ✅ Invicto |
 | **Intercepción de Adaptador y Archivos** | 19 tests | ✅ Invicto |
-| **Total de pruebas verificadas** | **83 tests** | **100% Exitoso** |
+| **Regresión de la segunda auditoría** (reautenticación, restauración, respaldos, re-vinculaciones, biometría) | 30+ tests | ✅ Invicto |
+| **Compatibilidad de herramientas de recuperación** (HTML + Python descifran una bóveda real) | 8 tests | ✅ Invicto |
+| **Total de pruebas verificadas** | **128 tests** | **100% Exitoso** |
 
 ---
 
@@ -149,7 +173,7 @@ Durante la revisión manual del motor de internacionalización, se identificaron
 
 ### 🔬 Verificaciones de Superficie de Ataque y Defensa en Profundidad
 - **Seguridad en Acciones de CI**: Todas las GitHub Actions utilizadas (`actions/checkout@v4`, `actions/setup-node@v4`, `github/codeql-action@v3`, `softprops/action-gh-release@v2`) auditadas en la base de datos OSV — **0 vulnerabilidades**.
-- **Cero Dependencias Externas en Python**: `tools/standalone-decryptor.py` utiliza exclusivamente la biblioteca estándar de Python 3 (`hashlib`, `hmac`, `struct`, `os`, `sys`, `json`).
+- **Herramientas de recuperación**: `tools/offline-decryptor.html` no tiene dependencias. `tools/standalone-decryptor.py` necesita `cryptography` (y `argon2-cffi` solo para `--password`), porque AES-GCM y Argon2id no están en la biblioteca estándar de Python. Ambas se prueban contra bóvedas generadas por el código real del plugin.
 - **Cero CDNs o Scripts Remotos de Terceros**: Sin scripts externos ni llamadas remotas en el HTML/JS del plugin ni en el puente PWA WebAuthn.
 - **Cero uso de `eval`, `innerHTML` o `insertAdjacentHTML`**: El código utiliza rigurosamente las APIs seguras de Obsidian (`createEl`, `setIcon`, `setText`, `setCssStyles`), eliminando cualquier vector de Cross-Site Scripting (XSS).
 - **Rigor Criptográfico**: AES-256-GCM (IV 96 bits, tag 128 bits), Argon2id (64 MiB / 3 iteraciones / sal 16 bytes), HKDF-SHA256, AAD vinculado a la ruta de la bóveda, comparaciones en tiempo constante, rescate determinista BIP-39 y zeroización inmediata de memoria en RAM.

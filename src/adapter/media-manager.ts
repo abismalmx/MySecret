@@ -129,6 +129,12 @@ export class MediaManager {
           this.keyManager
         );
 
+        // The vault may have been locked while the file was being decrypted:
+        // the plaintext must not be cached after a lock.
+        if (this.keyManager.isLocked) {
+          return null;
+        }
+
         const decryptedBuffer = toArrayBuffer(outcome.bytes);
         const mime = this.getMimeType(norm);
         const blob = new Blob([decryptedBuffer], { type: mime });
@@ -154,7 +160,6 @@ export class MediaManager {
    */
   public patchDomForPath(normPath: string, blobUrl: string): void {
     const filename = normPath.split('/').pop() || normPath;
-    const encodedFilename = encodeURIComponent(filename);
 
     const images = document.querySelectorAll('img');
     images.forEach(img => {
@@ -163,16 +168,31 @@ export class MediaManager {
       const parent = img.closest('.internal-embed');
       const parentSrc = parent?.getAttribute('src') || '';
 
+      // EXACT file name comparison. A substring test ("data.png" inside
+      // "metadata.png") patched unrelated images with the wrong decrypted blob.
       if (
-        src.includes(encodedFilename) ||
-        src.includes(filename) ||
+        MediaManager.lastSegment(src) === filename ||
         alt === filename ||
         parentSrc === filename ||
+        parentSrc === normPath ||
         parentSrc.endsWith('/' + filename)
       ) {
         this.applyBlobToImage(img, blobUrl, normPath);
       }
     });
+  }
+
+  /**
+   * Last path segment of a URL (query/fragment removed, percent-decoded).
+   */
+  private static lastSegment(rawUrl: string): string {
+    try {
+      const clean = rawUrl.split('?')[0].split('#')[0];
+      const last = clean.split('/').pop() || '';
+      return decodeURIComponent(last);
+    } catch {
+      return '';
+    }
   }
 
   /**

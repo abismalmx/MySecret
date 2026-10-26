@@ -1,0 +1,14 @@
+# Cloudflare Pages / Netlify response headers for the biometric bridge.
+# `frame-ancestors` and `X-Frame-Options` only work as HTTP headers (not <meta>),
+# and they stop the bridge from being embedded in a hostile page (clickjacking).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: publickey-credentials-get=(self), publickey-credentials-create=(self), camera=(), microphone=(), geolocation=()
+
+# The service worker must always be revalidated so a fixed bridge reaches users.
+/sw.js
+  Cache-Control: no-cache

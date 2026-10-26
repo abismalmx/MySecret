@@ -236,6 +236,16 @@ export class CloudBackupModal extends Modal {
         }
       );
 
+
+      const skippedByBackup = zipResult.stats.skippedFiles ?? [];
+      if (skippedByBackup.length > 0) {
+        console.warn('[MySecret] Backup skipped files:', skippedByBackup);
+        new Notice(
+          `⚠️ ${skippedByBackup.length} archivo(s) NO se incluyeron en la copia (p. ej. ${skippedByBackup[0].path}: ${skippedByBackup[0].reason}).`,
+          12000
+        );
+      }
+
       // Step 2: Upload to cloud provider
       this.progressStatusEl.setText(`${provider.name}...`);
       this.currentFileEl.setText(zipResult.filename);

@@ -5,7 +5,7 @@
 
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import MySecretPlugin from '../main';
-import { BackupManifest, BackupStats, RestoreResult } from '../types';
+import { BackupManifest, BackupStats, BackupSkippedFile, RestoreResult } from '../types';
 import {
   VAULT_ENVELOPE_PATH,
   MAX_RESTORE_ENTRIES,
@@ -14,14 +14,21 @@ import {
   MAX_RESTORE_ARCHIVE_BYTES
 } from '../constants';
 import { isArmoredEncrypted, isBinaryEncrypted, serializeArmored, serializeBinary } from '../crypto/envelope';
+import { detectContainerFormat, isAuthenticContainer, decryptContainer } from '../adapter/decrypt';
 import { encryptAesGcm } from '../crypto/aes';
-import { stringToBytes, bytesToString } from '../utils/buffer';
+import { stringToBytes, bytesToString, decodeUtf8Strict } from '../utils/buffer';
 import { sanitizeVaultRelativePath, hasForbiddenSegment } from '../utils/path-sanitizer';
 
 export interface CreateZipOptions {
   mode: 'encrypted' | 'decrypted';
   includeAttachments?: boolean;
   includeEnvelope?: boolean;
+  /**
+   * Key used to encrypt files that are still plaintext on disk. Needed by the
+   * "on lock" auto-backup, which runs after the key was wiped from the
+   * KeyManager. When omitted the KeyManager's key is used.
+   */
+  vaultKey?: CryptoKey;
 }
 
 export class BackupEngine {
@@ -67,7 +74,8 @@ export class BackupEngine {
     let attachmentsCount = 0;
     let totalBytes = 0;
 
-    const vaultKey = plugin.keyManager.getVaultKey();
+    const vaultKey = options.vaultKey ?? plugin.keyManager.getVaultKey();
+    const skipped: BackupSkippedFile[] = [];
 
     for (let i = 0; i < targets.length; i++) {
       const file = targets[i];
@@ -91,7 +99,18 @@ export class BackupEngine {
           if (isText) {
             textNotesCount++;
             const diskContent = await rawAdapter.read(path);
-            if (isArmoredEncrypted(diskContent)) {
+            const diskIsArmored = isArmoredEncrypted(diskContent);
+            if (!diskIsArmored && !vaultKey) {
+              // Plaintext on disk and no key to encrypt it with: it must NOT
+              // vanish silently from the archive.
+              skipped.push({ path, reason: 'plaintext file and the vault key is not available' });
+              continue;
+            }
+            if (!diskIsArmored && decodeUtf8Strict(new Uint8Array(await rawAdapter.readBinary(path))) === null) {
+              skipped.push({ path, reason: 'not valid UTF-8; it would be altered by encryption' });
+              continue;
+            }
+            if (diskIsArmored) {
               const fileBytes = strToU8(diskContent);
               zipData[path] = fileBytes;
               totalBytes += fileBytes.length;
@@ -119,7 +138,9 @@ export class BackupEngine {
               zipData[path] = diskBytes;
               totalBytes += diskBytes.length;
               manifestFiles.push({ path, size: diskBytes.length, isEncrypted: true });
-            } else if (vaultKey) {
+            } else if (!vaultKey) {
+              skipped.push({ path, reason: 'plaintext file and the vault key is not available' });
+            } else {
               const enc = await encryptAesGcm(diskBytes, vaultKey, plugin.pathFilter.normalizePath(path));
               const binEnc = serializeBinary({
                 version: 1,
@@ -153,8 +174,9 @@ export class BackupEngine {
             manifestFiles.push({ path, size: fileBytes.length, isEncrypted: false });
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn(`[MySecret] Backup warning on ${path}:`, err);
+        skipped.push({ path, reason: err?.message || String(err) });
       }
     }
 
@@ -191,6 +213,7 @@ export class BackupEngine {
     const zipBytes = zipSync(zipData, { level: 6 });
 
     const stats: BackupStats = {
+      skippedFiles: skipped,
       totalFiles: targets.length,
       totalBytes: zipBytes.length,
       textNotesCount,
@@ -246,6 +269,18 @@ export class BackupEngine {
       skippedFiles: 0,
       errors: []
     };
+
+    // SECURITY: the archive is untrusted. Every entry is judged by what it
+    // CONTAINS, never by the `mode` its own manifest claims, and ciphertext is
+    // only accepted when it authenticates with THIS vault's key. That needs
+    // the key, hence an unlocked vault.
+    if (!plugin.keyManager || plugin.keyManager.isLocked) {
+      result.errors.push({
+        path: '',
+        error: 'Desbloquea la bóveda antes de restaurar: las entradas se validan con tu clave.'
+      });
+      return result;
+    }
 
     if (!zipBytes || zipBytes.length === 0) {
       result.errors.push({ path: '', error: 'El archivo ZIP está vacío.' });
@@ -331,7 +366,8 @@ export class BackupEngine {
       }
     }
 
-    const isEncryptedBackup = manifest?.mode === 'encrypted';
+    // `manifest` is informational only (shown in the UI); see the note above.
+    void manifest;
 
     for (let i = 0; i < entries.length; i++) {
       const [entryPath, data] = entries[i];
@@ -386,23 +422,65 @@ export class BackupEngine {
         }
 
         const isText = plugin.pathFilter.isTextNote(safePath);
+        const aad = plugin.pathFilter.normalizePath(safePath);
+        const format = detectContainerFormat(data);
+        const encryptsHere = plugin.pathFilter.shouldEncrypt(safePath);
 
-        if (isEncryptedBackup) {
-          // Encrypted file restored directly to disk
-          if (isText) {
-            const textContent = strFromU8(data);
-            await rawAdapter.write(safePath, textContent);
+        if (format !== 'plain') {
+          // Ciphertext: it must belong to THIS vault and to THIS path.
+          if (!(await isAuthenticContainer(data, aad, plugin.keyManager))) {
+            result.skippedFiles++;
+            result.errors.push({
+              path: safePath,
+              error: 'No se autentica con la clave de esta bóveda (copia de otra bóveda, ruta distinta o archivo alterado).'
+            });
+            continue;
+          }
+          if ((isText && format !== 'armored') || (!isText && format !== 'binary')) {
+            result.skippedFiles++;
+            result.errors.push({
+              path: safePath,
+              error: 'El formato del contenedor cifrado no corresponde al tipo de archivo.'
+            });
+            continue;
+          }
+
+          if (encryptsHere) {
+            // Store verbatim: it is already encrypted for this path.
+            if (format === 'armored') {
+              await rawAdapter.write(safePath, bytesToString(data));
+            } else {
+              await rawAdapter.writeBinary(safePath, data.slice().buffer as ArrayBuffer);
+            }
           } else {
-            await rawAdapter.writeBinary(safePath, data.buffer as ArrayBuffer);
+            // The path is not encrypted by policy (excluded folder): restore
+            // the plaintext, a ciphertext there would be unreadable.
+            const outcome = await decryptContainer(data, aad, plugin.keyManager);
+            if (format === 'armored') {
+              await rawAdapter.write(safePath, bytesToString(outcome.bytes));
+            } else {
+              await rawAdapter.writeBinary(safePath, outcome.bytes.slice().buffer as ArrayBuffer);
+            }
+          }
+        } else if (isText) {
+          // Plaintext note: write through the intercepted adapter so it is
+          // encrypted on the way in (never left as plaintext on disk).
+          const textContent = decodeUtf8Strict(data);
+          if (textContent === null) {
+            if (encryptsHere) {
+              result.skippedFiles++;
+              result.errors.push({
+                path: safePath,
+                error: 'No es UTF-8 válido: cifrarlo lo alteraría.'
+              });
+              continue;
+            }
+            await rawAdapter.writeBinary(safePath, data.slice().buffer as ArrayBuffer);
+          } else {
+            await plugin.app.vault.adapter.write(safePath, textContent);
           }
         } else {
-          // Decrypted file: write through intercepted adapter to transparently encrypt
-          if (isText) {
-            const textContent = strFromU8(data);
-            await plugin.app.vault.adapter.write(safePath, textContent);
-          } else {
-            await plugin.app.vault.adapter.writeBinary(safePath, data.buffer as ArrayBuffer);
-          }
+          await plugin.app.vault.adapter.writeBinary(safePath, data.slice().buffer as ArrayBuffer);
         }
 
         result.restoredFiles++;

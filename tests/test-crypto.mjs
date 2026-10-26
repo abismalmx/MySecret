@@ -471,7 +471,7 @@ test('KeyManager: Password change preserves note encryption/decryption integrity
   const encryptedNote = await encryptAesGcm(noteBytes, vaultKey, notePath);
 
   // 3. Change master password
-  const updatedEnvelope = await km.changeMasterPassword(newPassword);
+  const updatedEnvelope = await km.changeMasterPassword(newPassword, initialPassword);
   assert.ok(updatedEnvelope);
   assert.notStrictEqual(updatedEnvelope.argon2.salt, initialSalt);
 

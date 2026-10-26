@@ -36,3 +36,5 @@ The biometric bridge implements a hardened authentication architecture engineere
 | **One-Way Vault Binding** | The actual vault ID never leaves Obsidian; only a one-way SHA-256 binding (`vb`) is passed in the URL fragment. |
 | **Strict CSP & Referrer Policy** | `Content-Security-Policy: default-src 'self'` and `Referrer-Policy: no-referrer` block script injections and data exfiltration. |
 | **Subdomain Isolation (`pages.dev`)** | Because `pages.dev` is listed on the *Public Suffix List*, each project operates in an isolated WebAuthn RP ID credential boundary. |
+
+> **Security headers:** the `_headers` file in this folder (applied automatically by Cloudflare Pages) adds `frame-ancestors`/`X-Frame-Options` against clickjacking; those do not work inside a `<meta>` tag. Deploy the whole folder.

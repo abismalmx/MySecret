@@ -460,6 +460,16 @@ export class SetupWizardModal extends Modal {
     loadingEl.createSpan({ cls: 'mysecret-spinner' });
     loadingEl.createSpan({ text: 'Generando entropía criptográfica (Argon2id + BIP-39)…' });
 
+    // SECURITY / DATA INTEGRITY: the wizard must never overwrite an existing
+    // vault. A second `initializeVault()` generates a NEW random vault key;
+    // anything encrypted with the previous one becomes unreadable forever.
+    if (this.plugin.keyManager.isInitialized) {
+      loadingEl.remove();
+      errorEl.setText('Ya existe una bóveda configurada: el asistente no puede crear otra clave encima.');
+      errorEl.show();
+      return;
+    }
+
     this.plugin.keyManager.initializeVault(this.generatedPassword).then(async ({ mnemonic, envelope, commit }) => {
       // ATOMIC GUARANTEE: persist the envelope to disk BEFORE unlocking in RAM
       await this.plugin.saveVaultEnvelope(envelope);
@@ -739,6 +749,15 @@ export class SetupWizardModal extends Modal {
     const loadingEl = container.createDiv({ cls: 'mysecret-loading' });
     loadingEl.createSpan({ cls: 'mysecret-spinner' });
     loadingEl.createSpan({ text: 'Generando claves y cifrando configuración…' });
+
+    if (this.plugin.keyManager.isInitialized) {
+      loadingEl.remove();
+      container.createDiv({
+        cls: 'mysecret-error-banner',
+        text: 'Ya existe una bóveda configurada: el asistente no puede crear otra clave encima.'
+      });
+      return;
+    }
 
     this.plugin.keyManager
       .initializeVault(this.generatedPassword, false)

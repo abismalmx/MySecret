@@ -258,6 +258,8 @@ export const es: TranslationDictionary = {
     currentPasswordLabel: 'Contraseña Maestra Actual',
     newPasswordLabel: 'Nueva Contraseña Maestra (mín 12 car)',
     confirmNewPasswordLabel: 'Confirmar Nueva Contraseña',
+    keyNotRotatedWarning: 'Atención: cambiar la contraseña NO rota la clave de la bóveda. Quien conserve una copia antigua de vault-envelope.json (historial de la nube, backups) junto con la contraseña ANTERIOR todavía puede descifrar tus notas.',
+    wrongCurrentPassword: 'La contraseña maestra actual es incorrecta.',
     submitBtn: 'Actualizar Contraseña',
     updating: 'Re-derivando claves con Argon2id...',
     success: 'Contraseña maestra actualizada con éxito.'
@@ -318,6 +320,12 @@ export const es: TranslationDictionary = {
     stopBtn: 'Cancelar',
     processing: 'Procesando {current} ({processed}/{total})...',
     complete: 'Operación completada con éxito.'
+  },
+  reauth: {
+    title: 'Confirma tu contraseña maestra',
+    desc: 'Esta acción es sensible. Introduce tu contraseña maestra para continuar.',
+    confirmBtn: 'Confirmar',
+    wrongPassword: 'Contraseña maestra incorrecta.'
   },
   recoveryPhraseModal: {
     title: 'Frase de Recuperación de Emergencia',

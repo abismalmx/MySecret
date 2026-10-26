@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
-    "test": "esbuild tests/test-crypto.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-test.mjs && esbuild tests/test-security.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-security.mjs && esbuild tests/test-adapter.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-adapter.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-biometrics.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-biometrics.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-i18n.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-i18n.mjs && node --test tests/bundle-test.mjs tests/bundle-security.mjs tests/bundle-adapter.mjs tests/bundle-biometrics.mjs tests/bundle-i18n.mjs"
+    "test": "esbuild tests/test-crypto.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-test.mjs && esbuild tests/test-security.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-security.mjs && esbuild tests/test-adapter.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-adapter.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-biometrics.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-biometrics.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-i18n.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-i18n.mjs && esbuild tests/test-hardening.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-hardening.mjs --alias:obsidian=./tests/obsidian-stub.mjs && esbuild tests/test-recovery-tools.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-recovery-tools.mjs && esbuild tests/test-release-integrity.mjs --bundle --platform=node --format=esm --outfile=tests/bundle-release-integrity.mjs && node --test tests/bundle-test.mjs tests/bundle-security.mjs tests/bundle-adapter.mjs tests/bundle-biometrics.mjs tests/bundle-i18n.mjs tests/bundle-hardening.mjs tests/bundle-recovery-tools.mjs tests/bundle-release-integrity.mjs"
   },
   "keywords": [
     "obsidian",
@@ -34,6 +34,7 @@
     "@types/node": "^20.0.0",
     "esbuild": "^0.25.0",
     "obsidian": "^1.5.0",
+    "playwright": "^1.64.1",
     "tslib": "^2.6.0",
     "typescript": "^5.0.0"
   }

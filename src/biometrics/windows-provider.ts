@@ -117,6 +117,30 @@ try {
 }
 `;
 
+/**
+ * Interprets the output of the availability script.
+ *
+ * SECURITY / CORRECTNESS: the token is compared as a WHOLE LINE. A substring
+ * test is wrong here because `UNAVAILABLE` contains `AVAILABLE`, which made
+ * the provider report Windows Hello as usable on machines that do not have it.
+ */
+export function parseAvailabilityOutput(stdout: string): boolean {
+  return stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .includes('AVAILABLE');
+}
+
+/**
+ * Interprets the output of the verification script (whole-line match).
+ */
+export function parseVerificationOutput(stdout: string): boolean {
+  return stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .includes('VERIFIED');
+}
+
 export class WindowsHelloProvider implements BiometricProvider {
   public readonly type = 'windows-hello';
   public readonly name = 'Windows Hello (Huella digital / PIN)';
@@ -144,7 +168,7 @@ export class WindowsHelloProvider implements BiometricProvider {
       timeoutMs: 15000
     });
 
-    return result.code === 0 && result.stdout.includes('AVAILABLE');
+    return result.code === 0 && parseAvailabilityOutput(result.stdout);
   }
 
   /**
@@ -168,7 +192,7 @@ export class WindowsHelloProvider implements BiometricProvider {
     });
 
     if (result.timedOut) return false;
-    return result.code === 0 && result.stdout.includes('VERIFIED');
+    return result.code === 0 && parseVerificationOutput(result.stdout);
   }
 
   /**
