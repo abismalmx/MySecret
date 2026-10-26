@@ -10,8 +10,10 @@
 [![Security](https://img.shields.io/badge/Security-Hardened%20%26%20Verified-brightgreen)](SECURITY.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
-**Zero-Knowledge, on-the-fly encryption for your Obsidian notes and media files.**  
-*AES-256-GCM • Argon2id (WASM) • BIP-39 Mnemonic Recovery • WebAuthn & Biometrics • Multi-Cloud Backups*
+**Your vault knows your secrets. Make sure only you do.**  
+*Completely invisible to you — completely impenetrable to anyone else.*
+
+AES-256-GCM • Argon2id • BIP-39 Recovery • Biometrics on Android • Encrypted Cloud Backups
 
 [English](README.md) • [Español](README.es.md)
 
@@ -29,9 +31,11 @@
 
 ## 🌟 Overview
 
-**MySecret** is an advanced security and privacy plugin for [Obsidian](https://obsidian.md). It transparently intercepts Obsidian's file adapter (`app.vault.adapter`) to encrypt and decrypt notes (`.md`), canvases (`.canvas`), and binary attachments (images, PDFs, audio, video) in real-time.
+**MySecret** is a security and privacy plugin for [Obsidian](https://obsidian.md) that automatically encrypts every file in your vault — notes, canvases, and attachments (images, PDFs, audio, video) — the instant they are written to disk.
 
-On disk, your files remain fully encrypted at rest. When unlocked, you interact with Obsidian normally—with full search, graph view, links, and editing capabilities.
+It works like a **one-way mirror** between Obsidian and your hard drive: from inside Obsidian you see everything clearly — full-text search, graph view, links, Canvas. From outside — from the disk, from your cloud service, from whoever stole your laptop — there is only mathematical noise. Nothing readable.
+
+Cryptographic keys exist only in your device's RAM while the vault is unlocked. Not even the plugin developer can read your notes.
 
 ---
 
@@ -48,9 +52,11 @@ Explore the architectural walkthrough and interactive guides powered by Google N
 
 ## 📊 Why MySecret: Comparison & Key Advantages
 
-When choosing an encryption solution for your personal knowledge base in [Obsidian](https://obsidian.md), you typically have to choose between **security** and **convenience**. Most solutions either force you to manually encrypt notes one by one (breaking search, graph view, and backlinks) or require cumbersome external virtual drives (like Cryptomator or VeraCrypt) that are frustrating to manage on mobile devices.
+Your Obsidian notes are plain text files sitting on your hard drive. Anyone who opens your vault folder can read them. Your cloud service has access. If someone steals your laptop, they have everything. This is not alarmism — it is simply how a normal file system works.
 
-**MySecret eliminates this trade-off.** It brings true **military-grade, zero-knowledge, at-rest transparent encryption** directly into Obsidian without breaking your everyday workflow.
+Before MySecret, you had two bad options: **encrypt note by note** with plugins like Meld Encrypt (which turns your notes into unreadable blocks, breaks global search, destroys the graph view, and makes tags disappear) or **use external tools** like Cryptomator or VeraCrypt (workable on desktop, but mounting encrypted volumes on Android is frustrating even for experienced users).
+
+**MySecret eliminates this trade-off.** It encrypts your entire vault automatically and transparently, without breaking any Obsidian functionality.
 
 ### 📊 Feature Comparison Matrix
 
@@ -79,13 +85,13 @@ When choosing an encryption solution for your personal knowledge base in [Obsidi
 - **The Problem with Traditional Plugins:** Traditional encryption plugins only encrypt markdown text. If you attach an image of a medical document, a private contract PDF, or an audio recording, those files are stored in plaintext in your attachments folder.
 - **The MySecret Solution:** MySecret encrypts **every file type**. Text notes use an armored container, while binary media (PNG, JPG, PDF, MP3, MP4) use a compact 32-byte binary header (`MYSE`). Your confidential attachments are just as protected as your written thoughts.
 
-#### 3. 🛡️ Supercomputer-Resistant Cryptography (Argon2id vs. PBKDF2)
-- **The Problem with Traditional Plugins:** Almost all Obsidian security plugins use **PBKDF2** with low iteration counts. A modern graphics card (like an NVIDIA RTX 4090) can test tens of millions of passwords per second against PBKDF2.
-- **The MySecret Solution:** MySecret uses **Argon2id** (the official winner of the global Password Hashing Competition) compiled directly into WebAssembly. It forces any attacker to allocate **64 Megabytes of RAM per password guess**, mathematically neutralizing GPU, ASIC, and cloud brute-force cracking attempts.
+#### 3. 🛡️ GPU-farm-resistant cryptography (Argon2id vs. PBKDF2)
+- **The Problem with Traditional Plugins:** Almost all Obsidian security plugins use **PBKDF2**, an algorithm from two decades ago designed for speed. A modern gaming GPU (like an NVIDIA RTX 4090) can test *tens of millions of passwords per second* against a PBKDF2 hash. Given time and money, it is crackable.
+- **The MySecret Solution:** MySecret uses **Argon2id**, the winner of the Password Hashing Competition — a global contest where thousands of cryptographers competed for years to build the algorithm most resistant to modern attacks. Argon2id forces any attacker to allocate **64 MB of RAM per password guess**. Multiplied across millions of parallel attempts, this makes a GPU farm or cloud cluster economically unviable. Think of it as the difference between a regular lock and one that makes the thief carry a truck of sand before trying each combination.
 
-#### 4. 🔑 24-Word Emergency Recovery Phrase (Like a Crypto Cold Wallet)
-- **The Problem with Traditional Plugins:** If you forget your master password in other plugins, your notes are permanently lost forever. There is no recovery mechanism.
-- **The MySecret Solution:** When you first set up your vault, MySecret provides a standard **24-word BIP-39 mnemonic phrase** derived from 256 bits of mathematical entropy. If you ever forget your password, simply enter your 24 words, and your vault is instantly restored offline.
+#### 4. 🔑 24-word emergency recovery — like a crypto hardware wallet, for your notes
+- **The Problem with Traditional Plugins:** If you forget your master password in other plugins, your data is gone permanently. There is no recovery mechanism, no plan B.
+- **The MySecret Solution:** When you first set up your vault, MySecret generates a standard **24-word BIP-39 mnemonic phrase** — the same standard used by the best hardware cryptocurrency wallets to protect fortunes. If you ever forget your password, enter your 24 words and your vault is instantly restored, completely offline, with no servers or support needed. Write them on paper and store them somewhere physically safe.
 
 #### 5. 👆 Fingerprint & Face Unlock Everywhere (Even on Android!)
 - **The Problem with Mobile Security:** Obsidian Mobile on Android runs inside a restricted WebView where Google blocks native fingerprint APIs. Because of this hurdle, **no other plugin has been able to offer biometric unlock on Android**.
@@ -102,17 +108,13 @@ When choosing an encryption solution for your personal knowledge base in [Obsidi
 - **The Problem with Everyday Software:** When you close an app, your passwords and decryption keys often linger in your computer's RAM memory for hours, where malware or memory dump tools can extract them.
 - **The MySecret Solution:** MySecret systematically scrubs sensitive memory buffers (`zeroize()`) with zeros inside strict `finally` blocks whenever the vault is locked, when the auto-lock timer expires, or if an unexpected error occurs.
 
-#### 8. 🔓 Zero Vendor Lock-in: Recover Your Files Without Obsidian
-- **The Common Fear:** *“What if the plugin is discontinued, Obsidian disappears 20 years from now, or my application fails to launch?”*
-- **The MySecret Guarantee:** **You are NEVER trapped by the plugin or Obsidian.** MySecret is built entirely on open, internationally standardized cryptographic specifications:
-  - **AES-256-GCM** (NIST SP 800-38D).
-  - **Argon2id** (RFC 9106, IETF Standard).
-  - **BIP-39** (International cryptocurrency hardware wallet standard).
-- **What Other Software Can Decrypt Your Notes?**
-  1. **Python:** A simple 15-line script using universal, battle-tested libraries (`cryptography` or `pycryptodome` + `argon2-cffi`) can batch-decrypt your entire vault in seconds without Obsidian even installed.
-  2. **Any Modern Web Browser (100% Offline):** The native `crypto.subtle` API in Chrome, Firefox, Safari, or Edge can decrypt any note using a lightweight local HTML file.
-  3. **CyberChef (The Cyber Swiss Army Knife by GCHQ):** Paste your base64 IV, Tag, and Ciphertext directly into CyberChef using the standard AES-GCM recipe.
-  4. **OpenSSL / Node.js / Go / Rust:** Any programming language with standard AES-GCM support can easily parse and decrypt your notes. Your data is mathematically yours forever.
+#### 8. 🔓 Your notes are yours — even without Obsidian, even without MySecret
+- **The legitimate fear of trusting any plugin:** *”What if this project is abandoned and I can't open my notes?”*
+- **The MySecret Guarantee:** Your files are encrypted with **open, internationally standardized, universally implemented** cryptographic specifications: AES-256-GCM (NIST SP 800-38D), Argon2id (RFC 9106, IETF Standard), and BIP-39 (the same standard used by the best hardware crypto wallets). These are not formats invented for this plugin — they are specifications published in thousands of books, implemented in thousands of independent software libraries. If MySecret disappeared tomorrow, you could decrypt your entire vault with:
+  1. **Python:** A 15-line script using universal libraries (`cryptography` or `pycryptodome` + `argon2-cffi`). No Obsidian needed.
+  2. **Any modern web browser (fully offline):** The native `crypto.subtle` API (Chrome, Firefox, Safari, Edge) can decrypt any note from a local HTML file.
+  3. **CyberChef (GCHQ's cryptographic Swiss Army knife):** Paste the base64 IV, Tag, and ciphertext directly using the standard AES-GCM recipe.
+  4. **OpenSSL, Node.js, Go, Rust:** Any language with standard AES-GCM support can read and process your files. Your data is mathematically yours forever.
 
 ---
 
@@ -241,5 +243,8 @@ Puedes consultar la versión completa en español de este documento en [README.e
 
 ## 📄 License
 
-Copyright (c) 2026 Anthony Rios Licea (@abismalmx).  
-Licensed under the **MySecret Non-Commercial Software License**. Free for personal, academic, and non-commercial use. Commercial use or redistribution is strictly prohibited without prior written authorization from the author. See [LICENSE](LICENSE) for full legal terms.
+Copyright (c) 2026 Anthony Rios Licea (@abismalmx).
+
+**Public and auditable source code.** MySecret's entire source code is published on GitHub — anyone can read it line by line, audit it independently, and verify that no backdoor exists. The privacy it provides is mathematically verifiable: you don't have to take our word for it.
+
+License: free for personal, academic, and non-commercial use. Commercial use requires prior written authorization from the author. See [LICENSE](LICENSE) for full terms.

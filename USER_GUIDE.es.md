@@ -2,12 +2,16 @@
 
 [English Version](USER_GUIDE.md) • **Español**
 
-Bienvenido al **Manual de Usuario de MySecret**. Esta guía proporciona un recorrido completo y detallado paso a paso para instalar, configurar, usar, respaldar y recuperar una bóveda de Obsidian protegida con MySecret.
+Bienvenido a **MySecret** — tu bóveda, solo tuya.
+
+Esta guía te lleva paso a paso por la instalación, configuración y uso diario de MySecret. Antes de empezar, hay una cosa importante que entender sobre cómo funciona, y una advertencia que no debes saltarte.
+
+**Cómo funciona en una frase:** MySecret actúa como un intermediario invisible entre Obsidian y tu disco duro. Cuando guardas una nota, la cifra antes de escribirla al disco. Cuando la abres, la descifra en memoria antes de mostrártela. En tu disco siempre hay ruido cifrado; en Obsidian, siempre ves tus notas con total claridad.
 
 > [!IMPORTANT]
-> ### ⚠️ Paso Obligatorio Previo: Realiza una Copia de Seguridad de tus Notas
-> **Antes de siquiera instalar, habilitar o cifrar tu bóveda con MySecret, se recomienda encarecidamente hacer una copia de seguridad completa de la carpeta de tus notas.**
-> Simplemente copia la carpeta de tu bóveda de Obsidian a una memoria USB, a otra carpeta de tu computadora o a tu nube preferida. Como MySecret realiza cifrado real en reposo a nivel de disco, tener una copia previa sin cifrar te garantiza tranquilidad absoluta y protección total en caso de que olvides tu contraseña maestra o extravíes tu frase mnemónica de rescate de 24 palabras.
+> ### ⚠️ Antes de instalar: haz una copia de seguridad de tu bóveda
+> **Antes de instalar, activar o cifrar tu bóveda con MySecret, copia la carpeta completa de tu bóveda a otro disco, memoria USB o nube.**
+> MySecret cifra los archivos reales en tu disco. Si olvidas tu contraseña maestra **y** pierdes tus 24 palabras de recuperación, tus notas son irrecuperables de forma permanente — nadie puede ayudarte. Una copia previa sin cifrar es tu red de seguridad.
 
 ---
 
@@ -35,13 +39,17 @@ Bienvenido al **Manual de Usuario de MySecret**. Esta guía proporciona un recor
 
 ## 1. Introducción y Conceptos Clave
 
-### ¿Qué es el Cifrado Transparente?
-Los sistemas tradicionales de cifrado suelen obligar al usuario a bloquear o desbloquear notas una por una, o bien a almacenar el contenido dentro de bases de datos cerradas y propietarias que rompen el ecosistema de archivos abiertos de Obsidian.
+### ¿Qué es el cifrado transparente?
 
-**MySecret** adopta un modelo radicalmente distinto:
-- **En Reposo (En Disco):** Cada nota Markdown (`.md`), archivo de lienzo (`.canvas`) y archivo adjunto binario (imágenes PNG, JPG, documentos PDF, audios MP3) se almacena cifrado en disco con **AES-256-GCM**. Si un atacante extrae tu disco, abre tu bóveda en VS Code o accede a tu respaldo en la nube, solo verá contenedores criptográficos impenetrables.
-- **En Memoria (Dentro de Obsidian):** Mientras la bóveda esté desbloqueada, MySecret intercepta de forma transparente las llamadas internas de lectura y escritura de Obsidian. Puedes editar notas, pulsar enlaces internos, ver imágenes incrustadas, hacer búsquedas globales y ver la vista de gráfico con total normalidad.
-- **Arquitectura de Cero Conocimiento:** Las claves se derivan exclusivamente en la memoria RAM volátil. Ninguna clave, contraseña o frase de rescate sale jamás de tu dispositivo ni se guarda sin cifrar en disco.
+El cifrado "transparente" significa que ocurre solo, sin que tengas que hacer nada diferente a lo que ya haces en Obsidian.
+
+Los sistemas de cifrado tradicionales te obligan a bloquear y desbloquear notas una por una, o guardan el contenido en bases de datos cerradas que rompen la búsqueda, el grafo de conocimiento y los enlaces internos de Obsidian.
+
+**MySecret** funciona de forma radicalmente distinta — como un cristal unidireccional entre Obsidian y tu disco:
+
+- **En disco (bóveda bloqueada):** Cada nota `.md`, lienzo `.canvas` e imagen, PDF o audio adjunto se guarda cifrado con **AES-256-GCM**. Si alguien roba tu portátil, abre tu carpeta en el explorador de archivos o accede a tu copia en la nube, solo ve ruido matemático impenetrable.
+- **En memoria (bóveda desbloqueada):** MySecret intercepta silenciosamente las operaciones de lectura y escritura de Obsidian antes de que lleguen al disco. Editas notas, usas la búsqueda global, navegas el grafo, abres imágenes incrustadas — todo funciona con normalidad total.
+- **Arquitectura de Cero Conocimiento:** Las claves criptográficas se generan exclusivamente en la memoria RAM de tu dispositivo y nunca abandonan tu equipo. Ni el desarrollador del plugin puede leer tus notas.
 
 ---
 

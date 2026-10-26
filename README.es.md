@@ -10,8 +10,10 @@
 [![Seguridad](https://img.shields.io/badge/Seguridad-Blindada%20y%20Auditada-brightgreen)](SECURITY.es.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 
-**Cifrado en tiempo real con arquitectura de Cero Conocimiento para tus notas y archivos de Obsidian.**  
-*AES-256-GCM • Argon2id (WASM) • Rescate Mnemónico BIP-39 • WebAuthn y Biometría • Respaldos Multi-Nube*
+**Tu bóveda sabe tus secretos. Asegúrate de que solo tú los conozcas.**  
+*Cifrado completamente invisible para ti — completamente impenetrable para cualquier otro.*
+
+AES-256-GCM • Argon2id • Recuperación BIP-39 • Biometría en Android • Respaldos cifrados en la nube
 
 [English Version](README.md) • **Español**
 
@@ -29,9 +31,11 @@
 
 ## 🌟 Descripción General
 
-**MySecret** es un plugin de seguridad y privacidad avanzada para [Obsidian](https://obsidian.md). Intercepta de forma transparente el adaptador del sistema de archivos de Obsidian (`app.vault.adapter`) para cifrar y descifrar notas (`.md`), lienzos (`.canvas`) y archivos adjuntos binarios (imágenes, audios, PDFs, videos) en tiempo real.
+**MySecret** es un plugin de seguridad y privacidad para [Obsidian](https://obsidian.md) que cifra automáticamente cada archivo de tu bóveda — notas, lienzos y archivos adjuntos (imágenes, PDFs, audios, vídeos) — en el instante en que los escribe al disco.
 
-En disco, todos tus archivos permanecen fuertemente cifrados en reposo. Al desbloquear la bóveda con tu contraseña maestra o huella digital, utilizas Obsidian con total normalidad: búsqueda completa, vista gráfica, enlaces internos y edición fluida.
+Actúa como un **cristal unidireccional** entre Obsidian y tu disco duro: desde dentro de Obsidian ves todo con claridad total — búsqueda global, grafo de conocimiento, enlaces, Canvas. Desde fuera — desde el disco, desde tu servicio de nube, desde el ladrón que abrió tu portátil — solo hay ruido matemático. Nada legible.
+
+Las claves criptográficas existen únicamente en la memoria RAM de tu dispositivo mientras la bóveda está abierta. Ni el desarrollador del plugin puede leer tus notas.
 
 ---
 
@@ -48,9 +52,11 @@ Explora la arquitectura técnica y las guías interactivas impulsadas por Google
 
 ## 📊 Por qué MySecret: Comparativa y Ventajas Clave
 
-Al buscar una solución de seguridad y cifrado para tus notas en [Obsidian](https://obsidian.md), tradicionalmente tenías que elegir entre **seguridad** o **comodidad**. La mayoría de las opciones existentes te obligan a bloquear notas una por una (rompiendo las búsquedas, la vista gráfica y los enlaces) o requieren programas externos complejos (como Cryptomator o VeraCrypt) que son muy difíciles e incómodos de sincronizar en teléfonos móviles.
+Tus notas de Obsidian son archivos de texto plano en tu disco duro. Cualquiera que abra la carpeta puede leerlas. Tu servicio de nube tiene acceso. Si alguien roba tu portátil, las tiene todas. Esto no es alarmismo — es simplemente cómo funciona un sistema de archivos normal.
 
-**MySecret elimina este dilema.** Integra **cifrado transparente en disco, de grado militar y con arquitectura de Cero Conocimiento** directamente dentro de Obsidian, sin alterar tu ritmo de trabajo diario.
+Antes de MySecret, tenías dos opciones malas: **cifrar nota por nota** con plugins como Meld Encrypt (lo que convierte tus notas en bloques ilegibles, rompe la búsqueda global, elimina el grafo de conocimiento y hace que las etiquetas desaparezcan) o **usar herramientas externas** como Cryptomator o VeraCrypt (tolerables en escritorio, pero montar volúmenes cifrados en Android es una experiencia frustrante incluso para los más técnicos).
+
+**MySecret elimina este dilema.** Cifra tu bóveda entera de forma automática y transparente, sin romper ninguna funcionalidad de Obsidian.
 
 ### 📊 Tabla Comparativa de Características
 
@@ -79,13 +85,13 @@ Al buscar una solución de seguridad y cifrado para tus notas en [Obsidian](http
 - **El problema de los plugins tradicionales:** La mayoría de plugins solo cifran texto `.md`. Si adjuntas una foto de una identificación personal, un contrato en PDF confidencial o una grabación de voz sensible, esos archivos se quedan en texto claro en tu disco duro, totalmente expuestos a cualquiera.
 - **La solución de MySecret:** MySecret cifra **todos los tipos de archivo**. Las notas de texto usan un contenedor protegido y los archivos multimedia (PNG, JPG, PDF, MP3, MP4) utilizan una cabecera binaria compacta (`MYSE`). Tus documentos adjuntos están tan protegidos como tus notas escritas.
 
-#### 3. 🛡️ Criptografía Resistente a Supercomputadoras (Argon2id vs. PBKDF2)
-- **El problema de los plugins tradicionales:** Casi todos los plugins usan **PBKDF2** con pocas iteraciones. Una tarjeta gráfica moderna para videojuegos (como una NVIDIA RTX 4090) puede probar decenas de millones de contraseñas por segundo contra este algoritmo.
-- **La solución de MySecret:** MySecret implementa **Argon2id** (el algoritmo estándar ganador del Password Hashing Competition) compilado en WebAssembly. Este algoritmo obliga a cualquier atacante a gastar **64 Megabytes de memoria RAM por cada intento**, anulando matemáticamente los ataques de fuerza bruta con tarjetas gráficas o granjas de minería.
+#### 3. 🛡️ Criptografía resistente a granjas de GPUs (Argon2id vs. PBKDF2)
+- **El problema de los plugins tradicionales:** Casi todos los plugins usan **PBKDF2**, un algoritmo de hace dos décadas diseñado para la velocidad. Una tarjeta gráfica moderna para videojuegos (como una NVIDIA RTX 4090) puede probar *decenas de millones de contraseñas por segundo* contra un hash PBKDF2. Con tiempo y dinero, es vulnerable.
+- **La solución de MySecret:** MySecret usa **Argon2id**, el ganador de la Password Hashing Competition — un certamen mundial donde miles de criptógrafos compitieron durante años para crear el algoritmo más resistente a los ataques modernos. Argon2id obliga a cualquier atacante a ocupar **64 megabytes de RAM por cada intento**. Multiplicado por millones de intentos en paralelo, hace que una granja de GPUs o un clúster en la nube sea económicamente inviable. Es la diferencia entre una cerradura convencional y una que obliga al ladrón a cargar un camión de arena antes de probar cada combinación.
 
-#### 4. 🔑 Frase de Rescate de 24 Palabras (Como una Billetera Cripto)
-- **El problema de los plugins tradicionales:** En otros plugins, si olvidas tu contraseña maestra, has perdido toda tu información para siempre sin ninguna alternativa.
-- **La solución de MySecret:** Al configurar tu bóveda por primera vez, MySecret te entrega una frase estandarizada de **24 palabras mnemónicas BIP-39** basada en 256 bits de entropía. Si un día olvidas tu clave, introduces tus 24 palabras y tu bóveda se recupera en tu dispositivo sin depender de ningún servidor ni soporte técnico.
+#### 4. 🔑 Recuperación de emergencia con 24 palabras — como un monedero de criptomonedas, para tus notas
+- **El problema de los plugins tradicionales:** En otros plugins, olvidar la contraseña maestra es un desastre total: toda la información cifrada queda irrecuperable de forma permanente. No existe ningún plan B.
+- **La solución de MySecret:** Al configurar tu bóveda por primera vez, MySecret genera una **frase mnemónica BIP-39 de 24 palabras** — el mismo estándar que usan los mejores monederos físicos de criptomonedas para proteger fortunas millonarias. Si olvidas tu contraseña, introduces las 24 palabras y tu bóveda se recupera al instante, sin servidores, sin soporte técnico, completamente offline. Escríbelas en papel y guárdalas en un lugar físico seguro.
 
 #### 5. 👆 Desbloqueo por Huella y Rostro en Todos tus Equipos (¡Incluyendo Android!)
 - **El problema en dispositivos móviles:** En Android, Obsidian funciona dentro de un contenedor (WebView) donde Google bloquea el acceso a la huella dactilar. Por esta razón, **ningún otro plugin de Obsidian había logrado ofrecer desbloqueo biométrico en Android**.
@@ -102,17 +108,13 @@ Al buscar una solución de seguridad y cifrado para tus notas en [Obsidian](http
 - **El problema con las aplicaciones comunes:** Cuando cierras una app o dejas tu equipo encendido, las contraseñas y claves de descifrado a menudo permanecen en la memoria RAM durante horas, donde programas maliciosos pueden extraerlas.
 - **La solución de MySecret:** MySecret sobrescribe activamente con ceros (`zeroize()`) todos los buffers de claves en la memoria RAM en bloques estrictos `finally`, tanto al bloquearse la bóveda, al agotarse el tiempo de inactividad o ante cualquier error imprevisto.
 
-#### 8. 🔓 Cero Cautiverio de Proveedor (Sin Vendor Lock-in): Recupera tus Notas sin Obsidian
-- **El miedo común:** *«¿Qué pasa si el plugin deja de actualizarse, si Obsidian desaparece dentro de 20 años o si mi aplicación no abre?»*
-- **La garantía de MySecret:** **NO estás atado al plugin ni a Obsidian.** MySecret está construido exclusivamente sobre **estándares abiertos mundiales de la industria criptográfica**:
-  - **AES-256-GCM** (NIST SP 800-38D).
-  - **Argon2id** (RFC 9106, estándar IETF).
-  - **BIP-39** (estándar mnemónico internacional de hardware wallets).
-- **¿Con qué otros programas puedes descifrar tus notas?**
-  1. **Python:** Un script estándar de 15 líneas usando librerías universales (`cryptography` o `pycryptodome` + `argon2-cffi`) puede descifrar todas tus notas y adjuntos en segundos sin tener Obsidian instalado.
-  2. **Cualquier Navegador Web (Offline):** La API nativa `crypto.subtle` (presente en Chrome, Firefox, Safari, Edge) puede descifrar cualquier nota abriendo un archivo HTML local.
-  3. **CyberChef (La navaja suiza de GCHQ):** Puedes pegar el IV, el Tag y el texto en base64 en CyberChef y descifrarlo directamente con la receta estándar de AES-GCM.
-  4. **OpenSSL / Node.js / Go / Rust:** Cualquier lenguaje de programación con soporte AES-GCM estándar puede leer y procesar tus archivos. Tus datos son matemáticamente tuyos para siempre.
+#### 8. 🔓 Tus notas son tuyas — también sin Obsidian, también sin MySecret
+- **El miedo legítimo de confiar en cualquier plugin:** *«¿Qué pasa si este proyecto se abandona y no puedo abrir mis notas?»*
+- **La garantía de MySecret:** Tus archivos están cifrados con estándares criptográficos **abiertos, internacionales e implementados en cualquier lenguaje de programación**: AES-256-GCM (NIST SP 800-38D), Argon2id (RFC 9106, estándar IETF) y BIP-39 (el mismo estándar de los mejores monederos físicos de criptomonedas). No son formatos inventados para este plugin — son especificaciones publicadas en miles de libros, implementadas en miles de bibliotecas de software independientes. Si MySecret desaparece mañana, puedes descifrar toda tu bóveda con:
+  1. **Python:** Un script de 15 líneas usando librerías universales (`cryptography` o `pycryptodome` + `argon2-cffi`). Sin Obsidian instalado.
+  2. **Cualquier navegador web moderno (sin conexión):** La API nativa `crypto.subtle` (Chrome, Firefox, Safari, Edge) puede descifrar cualquier nota abriendo un archivo HTML local.
+  3. **CyberChef (la navaja suiza criptográfica del GCHQ):** Pega el IV, el Tag y el texto en base64 directamente con la receta estándar AES-GCM.
+  4. **OpenSSL, Node.js, Go, Rust:** Cualquier lenguaje con soporte AES-GCM estándar puede leer y procesar tus archivos. Tus datos son matemáticamente tuyos para siempre.
 
 ---
 
@@ -229,5 +231,8 @@ Consulta [auth-bridge/README.md](auth-bridge/README.md) para la guía paso a pas
 
 ## 📄 Licencia
 
-Copyright (c) 2026 Anthony Rios Licea (@abismalmx).  
-Publicado bajo la **Licencia de Software No Comercial MySecret**. Su uso es libre y gratuito para fines personales, educativos y no comerciales. Queda estrictamente prohibida su explotación comercial o redistribución con fines lucrativos sin la autorización previa y por escrito del autor. Consulta [LICENSE](LICENSE) para ver los términos legales completos.
+Copyright (c) 2026 Anthony Rios Licea (@abismalmx).
+
+**Código fuente público y auditable.** El código de MySecret está publicado íntegramente en GitHub — cualquier persona puede leerlo, auditarlo de forma independiente y verificar que no existe ninguna puerta trasera. La privacidad que ofrece es matemáticamente verificable: no tienes que confiar en nuestra palabra.
+
+Licencia: gratuito para uso personal, educativo y no comercial. El uso comercial requiere autorización previa del autor. Consulta [LICENSE](LICENSE) para los términos completos.
