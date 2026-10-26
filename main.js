@@ -6677,13 +6677,13 @@ var en = {
     // Section 1b: Biometrics
     biometricsSectionTitle: "Biometric Unlock & Fingerprint",
     biometricsSectionDesc: "Unlock your vault using your fingerprint or hardware biometrics without retyping your master password every time.",
-    androidBridgeNotice: "\u{1F4F1} Android Biometrics: Obsidian on Android requires an external WebAuthn bridge to communicate with the fingerprint sensor. Deploy the auth-bridge/ folder to Cloudflare Pages (100% free) and paste your URL below.",
-    androidBridgeUrlTitle: "Biometric Bridge URL (Cloudflare Pages)",
+    androidBridgeNotice: "\u{1F4F1} Mobile Biometrics (Android / iOS): Obsidian on mobile devices requires an external WebAuthn bridge to communicate with the biometric sensor (Fingerprint / Face ID / Touch ID). Deploy the auth-bridge/ folder to Cloudflare Pages (100% free) and paste your URL below.",
+    androidBridgeUrlTitle: "Mobile Biometric Bridge URL (Cloudflare Pages)",
     androidBridgeUrlDesc: "Paste your Cloudflare Pages URL (e.g. https://my-vault.pages.dev)",
     androidBridgePlaceholder: "https://my-vault.pages.dev",
     bridgeInvalidError: "Invalid URL. Only HTTPS URLs or http://localhost are allowed.",
-    enableBiometricsTitle: "Fingerprint unlock on this device",
-    enableBiometricsDesc: "Enables quick unlocking using WebAuthn / Touch ID / Windows Hello / Android Fingerprint.",
+    enableBiometricsTitle: "Biometric unlock (Fingerprint / Face ID) on this device",
+    enableBiometricsDesc: "Enables quick unlocking using WebAuthn / Touch ID / Face ID / Windows Hello / Android Fingerprint.",
     autoPromptBiometricsTitle: "Auto-prompt biometric sensor on lock screen",
     autoPromptBiometricsDesc: "Automatically triggers the biometric prompt when the lock screen appears.",
     desktopBiometricNotice: "\u26A0\uFE0F Notice: WebAuthn requires a secure origin. In Obsidian desktop, hardware authenticators (Touch ID, Windows Hello, YubiKey) are fully supported.",
@@ -7018,13 +7018,13 @@ var es = {
     // Section 1b: Biometrics
     biometricsSectionTitle: "Desbloqueo Biom\xE9trico y Huella Digital",
     biometricsSectionDesc: "Permite desbloquear la b\xF3veda mediante huella dactilar o biometr\xEDa sin necesidad de escribir la contrase\xF1a maestra en cada apertura.",
-    androidBridgeNotice: "\u{1F4F1} Desbloqueo en Android: Obsidian en Android requiere un puente WebAuthn externo para comunicarse con el sensor de huella. Sube la carpeta auth-bridge/ a Cloudflare Pages (100% gratis, sin tarjeta) y pega tu URL a continuaci\xF3n.",
-    androidBridgeUrlTitle: "URL del Puente Biom\xE9trico (Cloudflare Pages)",
+    androidBridgeNotice: "\u{1F4F1} Desbloqueo en Dispositivos M\xF3viles (Android / iOS): Obsidian en m\xF3viles requiere un puente WebAuthn externo para comunicarse con el sensor biom\xE9trico (Huella dactilar, Face ID o Touch ID). Sube la carpeta auth-bridge/ a Cloudflare Pages (100% gratis, sin tarjeta) y pega tu URL a continuaci\xF3n.",
+    androidBridgeUrlTitle: "URL del Puente Biom\xE9trico M\xF3vil (Cloudflare Pages)",
     androidBridgeUrlDesc: "Pega tu URL asignada por Cloudflare Pages (ej: https://mi-boveda.pages.dev)",
     androidBridgePlaceholder: "https://mi-boveda.pages.dev",
     bridgeInvalidError: "URL no v\xE1lida. Solo se permiten URLs https o http://localhost.",
-    enableBiometricsTitle: "Desbloqueo con huella en este dispositivo",
-    enableBiometricsDesc: "Activa el desbloqueo r\xE1pido con WebAuthn / Touch ID / Windows Hello / Huella Android.",
+    enableBiometricsTitle: "Desbloqueo con huella / Face ID en este dispositivo",
+    enableBiometricsDesc: "Activa el desbloqueo r\xE1pido con WebAuthn / Touch ID / Face ID / Windows Hello / Huella Android.",
     autoPromptBiometricsTitle: "Solicitar huella autom\xE1ticamente al bloquear",
     autoPromptBiometricsDesc: "Abre el di\xE1logo biom\xE9trico de inmediato al aparecer la pantalla de bloqueo.",
     desktopBiometricNotice: "\u26A0\uFE0F Nota: WebAuthn requiere un origen seguro. En Obsidian Desktop, los autenticadores de hardware (Touch ID, Windows Hello, YubiKey) son totalmente compatibles.",
@@ -9585,13 +9585,13 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
       cls: "setting-item-description",
       text: t("settings.biometricsSectionDesc")
     });
-    const isAndroid = import_obsidian8.Platform.isAndroidApp;
+    const isMobile = import_obsidian8.Platform.isMobile || import_obsidian8.Platform.isAndroidApp || import_obsidian8.Platform.isIosApp;
     const vaultId = this.plugin.getVaultId();
     const isEnrolled = this.plugin.biometricManager.isBiometricsEnrolled(vaultId);
     const isEnabled = Boolean(this.plugin.settings.biometrics?.enabled && isEnrolled);
-    if (isAndroid) {
-      const androidInfo = containerEl.createDiv({ cls: "setting-item-description mysecret-android-bridge-notice" });
-      androidInfo.setText(t("settings.androidBridgeNotice"));
+    if (isMobile) {
+      const mobileInfo = containerEl.createDiv({ cls: "setting-item-description mysecret-android-bridge-notice" });
+      mobileInfo.setText(t("settings.androidBridgeNotice"));
       new import_obsidian8.Setting(containerEl).setName(t("settings.androidBridgeUrlTitle")).setDesc(t("settings.androidBridgeUrlDesc")).addText((text) => {
         text.setPlaceholder(t("settings.androidBridgePlaceholder")).setValue(this.plugin.settings.biometrics?.bridgeUrl || "").onChange(async (val) => {
           const trimmed = (val || "").trim();
@@ -9633,7 +9633,7 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
     ).addToggle((toggle) => {
       toggle.setValue(isEnabled).onChange(async (value) => {
         if (value) {
-          if (isAndroid) {
+          if (isMobile) {
             const url = this.plugin.settings.biometrics?.bridgeUrl;
             if (!url) {
               new import_obsidian8.Notice(t("settings.androidBridgeNotice"));
@@ -9652,7 +9652,7 @@ var MySecretSettingTab = class extends import_obsidian8.PluginSettingTab {
             return;
           }
           try {
-            new import_obsidian8.Notice(isAndroid ? t("settings.enrollBiometricPrompt") : t("settings.testBiometricsWaiting"));
+            new import_obsidian8.Notice(isMobile ? t("settings.enrollBiometricPrompt") : t("settings.testBiometricsWaiting"));
             const success = await this.plugin.biometricManager.enrollBiometrics(rawKey, vaultId);
             if (success) {
               if (!this.plugin.settings.biometrics) {
@@ -14014,7 +14014,7 @@ var BiometricManager = class {
       this.activeProvider = new WindowsHelloProvider();
     } else if (import_obsidian15.Platform.isLinux && !import_obsidian15.Platform.isAndroidApp) {
       this.activeProvider = new LinuxBiometricProvider();
-    } else if (import_obsidian15.Platform.isAndroidApp) {
+    } else if (import_obsidian15.Platform.isAndroidApp || import_obsidian15.Platform.isIosApp || import_obsidian15.Platform.isMobile) {
       this.activeProvider = new ExternalBridgeProvider(bridgeUrl);
     } else {
       this.activeProvider = new WebAuthnProvider();
@@ -14023,7 +14023,7 @@ var BiometricManager = class {
   setBridgeUrl(url) {
     if (this.activeProvider instanceof ExternalBridgeProvider) {
       this.activeProvider.setBridgeUrl(url);
-    } else if (import_obsidian15.Platform.isAndroidApp) {
+    } else if (import_obsidian15.Platform.isAndroidApp || import_obsidian15.Platform.isIosApp || import_obsidian15.Platform.isMobile) {
       this.activeProvider = new ExternalBridgeProvider(url);
     }
   }

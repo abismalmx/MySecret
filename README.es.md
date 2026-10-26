@@ -199,7 +199,21 @@ npm run build
 ```bash
 npm test
 ```
-> Las 81 pruebas unitarias, de integración y regresión criptográfica se ejecutan con 100% de éxito.
+> Las 157 pruebas unitarias, de integración y regresión criptográfica se ejecutan con 100% de éxito.
+
+---
+
+## 📱 Puente Biométrico Móvil (iOS / Android) (`auth-bridge/`)
+
+Obsidian Mobile en Android e iOS corre dentro de un WebView con restricciones donde `navigator.credentials.get()` / WebAuthn no está disponible para esquemas de aplicación locales.
+
+MySecret soluciona esto mediante un **Puente PWA WebAuthn**:
+1. Despliegas los archivos de la carpeta `auth-bridge/` en un sitio gratuito de **Cloudflare Pages** (sin configuración previa, 1 clic).
+2. El plugin utiliza deep-linking (`obsidian://`) con intercambio de claves efímeras ECDH (P-256) y verificación de aserción.
+3. Safari en iOS invoca **Face ID / Touch ID** mediante el Secure Enclave de Apple; Chrome en Android activa el **Sensor de Huella Dactilar**.
+4. La clave de la bóveda jamás abandona tu dispositivo.
+
+Consulta [auth-bridge/README.md](auth-bridge/README.md) para la guía paso a paso.
 
 ---
 
@@ -209,7 +223,7 @@ npm test
 - 💻 **[Manual de Programador](DEVELOPER_GUIDE.es.md)** — Documentación de arquitectura interna, APIs y contribución.
 - 🛡️ **[Arquitectura de Seguridad](SECURITY.es.md)** — Especificación técnica y mitigación de vectores de ataque.
 - 📊 **[Por qué MySecret / Comparativa](COMPARISON.es.md)** — Ventajas frente a herramientas tradicionales.
-- 📱 **[Puente Biométrico para Android](auth-bridge/README.md)** — Instrucciones de despliegue en Cloudflare Pages.
+- 📱 **[Puente Biométrico Móvil (iOS / Android)](auth-bridge/README.md)** — Instrucciones de despliegue en Cloudflare Pages.
 
 ---
 

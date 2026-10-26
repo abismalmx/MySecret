@@ -1,8 +1,8 @@
-# MySecret Biometric Bridge for Cloudflare Pages
+# MySecret Mobile Biometric Bridge for Cloudflare Pages
 
 **English** • [Versión en Español](README.md)
 
-This folder contains the standalone static Web application (PWA) to enable **fingerprint and facial biometric unlocking** in Obsidian for Android.
+This folder contains the standalone static Web application (PWA) to enable **fingerprint, Face ID, and Touch ID biometric unlocking** in Obsidian for **mobile devices (Android and iOS / iPhone / iPad)**.
 
 ---
 
@@ -15,9 +15,9 @@ This folder contains the standalone static Web application (PWA) to enable **fin
 5. Drag and drop this `auth-bridge/` folder directly onto the browser and click **Deploy site**.
 6. Cloudflare will instantly provide a free HTTPS URL, such as:
    `https://my-vault-auth.pages.dev`
-7. Open Obsidian on your Android mobile device, go to **Settings > MySecret > Android Biometric Unlock**, and paste your Cloudflare Pages URL.
+7. Open Obsidian on your mobile device (Android or iPhone), go to **Settings > MySecret > Mobile Biometric Unlock**, and paste your Cloudflare Pages URL.
 
-That's it! You can now use your biometric sensor to unlock your encrypted vault on Android.  
+That's it! You can now use your biometric sensor (Fingerprint or Face ID) to unlock your encrypted vault on mobile.  
 Once opened for the first time, the Web app is locally cached via its Service Worker (offline PWA) and operates seamlessly even without an Internet connection.
 
 ---

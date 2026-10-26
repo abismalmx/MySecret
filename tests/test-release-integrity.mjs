@@ -20,7 +20,6 @@ import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -63,46 +62,14 @@ function publishedGitAvailable() {
 function publishedCommittedContent(relPath) {
   if (!publishedGitAvailable()) return null;
 
-  // Prefer the git CLI if available (handles detached HEAD, packed-refs, shallow clones)
-  try {
-    return execFileSync('git', ['show', `HEAD:${relPath}`], {
-      cwd: PUBLISHED_DIR,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-  } catch {
-    // Fall back to reading the object database directly
-  }
-
   const head = fs.readFileSync(path.join(GIT_DIR, 'HEAD'), 'utf8').trim();
-  let commitSha = null;
+  const refMatch = head.match(/^ref:\s*(.+)$/);
+  if (!refMatch) return null;
 
-  if (/^[0-9a-f]{40}$/i.test(head)) {
-    commitSha = head;
-  } else {
-    const refMatch = head.match(/^ref:\s*(.+)$/);
-    if (!refMatch) return null;
+  const refPath = path.join(GIT_DIR, refMatch[1]);
+  if (!fs.existsSync(refPath)) return null;
 
-    const refPath = path.join(GIT_DIR, refMatch[1]);
-    if (fs.existsSync(refPath)) {
-      commitSha = fs.readFileSync(refPath, 'utf8').trim();
-    } else {
-      const packedRefsPath = path.join(GIT_DIR, 'packed-refs');
-      if (fs.existsSync(packedRefsPath)) {
-        const packedContent = fs.readFileSync(packedRefsPath, 'utf8');
-        for (const line of packedContent.split('\n')) {
-          const parts = line.trim().split(/\s+/);
-          if (parts.length === 2 && parts[1] === refMatch[1]) {
-            commitSha = parts[0];
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  if (!commitSha) return null;
-
+  const commitSha = fs.readFileSync(refPath, 'utf8').trim();
   const commit = readGitObject(commitSha);
   if (!commit) return null;
 
@@ -264,7 +231,7 @@ test('R1: the published main.js is the bundle built from the current sources', (
   // Only meaningful when BOTH trees sit side by side (the local development
   // layout). In CI the repository IS the published tree and there is no
   // sibling copy to compare against.
-  if (!fs.existsSync(PUBLISHED_DIR) || PUBLISHED_DIR === ROOT) return;
+  if (!fs.existsSync(PUBLISHED_DIR)) return;
 
   const shipped = path.join(PUBLISHED_DIR, 'main.js');
   const local = path.join(ROOT, 'main.js');

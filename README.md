@@ -205,18 +205,19 @@ npm run build
 ```bash
 npm test
 ```
-> All 81 unit, integration, and cryptographic regression tests pass with 100% success rate.
+> All 157 unit, integration, and cryptographic regression tests pass with 100% success rate.
 
 ---
 
-## 📱 Android Biometric Bridge (`auth-bridge/`)
+## 📱 Mobile Biometric Bridge (iOS / Android) (`auth-bridge/`)
 
-Obsidian Mobile on Android runs inside a restricted WebView where `navigator.credentials.get()` / WebAuthn is unavailable.
+Obsidian Mobile on Android and iOS runs inside a restricted WebView where `navigator.credentials.get()` / WebAuthn is unavailable for custom app schemes.
 
 MySecret solves this via a companion **WebAuthn PWA Bridge**:
 1. You deploy the static files inside the `auth-bridge/` folder to a free **Cloudflare Pages** site (zero setup, 1 click).
-2. The plugin uses deep-linking / intent with ECDH (P-256) ephemeral key exchange and HMAC verification.
-3. The vault key never leaves the device.
+2. The plugin uses deep-linking (`obsidian://`) with ECDH (P-256) ephemeral key exchange and HMAC verification.
+3. Safari on iOS activates **Face ID / Touch ID** via Apple's Secure Enclave; Chrome on Android activates the **Fingerprint / Biometric sensor**.
+4. The vault key never leaves the device.
 
 See [auth-bridge/README.md](auth-bridge/README.md) for step-by-step setup instructions.
 
@@ -228,7 +229,7 @@ See [auth-bridge/README.md](auth-bridge/README.md) for step-by-step setup instru
 - 💻 **[Developer Manual](DEVELOPER_GUIDE.md)** ([Versión en Español](DEVELOPER_GUIDE.es.md)) — Deep-dive architecture and API reference.
 - 🛡️ **[Security Architecture](SECURITY.md)** ([Versión en Español](SECURITY.es.md)) — Cryptographic primitives and audited defenses.
 - 📊 **[Why MySecret / Comparison](COMPARISON.md)** ([Versión en Español](COMPARISON.es.md)) — Key advantages vs. traditional encryption tools.
-- 📱 **[Android Biometric Bridge](auth-bridge/README.md)** — Cloudflare Pages deployment guide.
+- 📱 **[Mobile Biometric Bridge (iOS / Android)](auth-bridge/README.md)** — Cloudflare Pages deployment guide.
 
 ---
 

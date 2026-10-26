@@ -133,14 +133,14 @@ export class MySecretSettingTab extends PluginSettingTab {
       text: t('settings.biometricsSectionDesc')
     });
 
-    const isAndroid = Platform.isAndroidApp;
+    const isMobile = Platform.isMobile || Platform.isAndroidApp || Platform.isIosApp;
     const vaultId = this.plugin.getVaultId();
     const isEnrolled = this.plugin.biometricManager.isBiometricsEnrolled(vaultId);
     const isEnabled = Boolean(this.plugin.settings.biometrics?.enabled && isEnrolled);
 
-    if (isAndroid) {
-      const androidInfo = containerEl.createDiv({ cls: 'setting-item-description mysecret-android-bridge-notice' });
-      androidInfo.setText(t('settings.androidBridgeNotice'));
+    if (isMobile) {
+      const mobileInfo = containerEl.createDiv({ cls: 'setting-item-description mysecret-android-bridge-notice' });
+      mobileInfo.setText(t('settings.androidBridgeNotice'));
 
       new Setting(containerEl)
         .setName(t('settings.androidBridgeUrlTitle'))
@@ -196,7 +196,7 @@ export class MySecretSettingTab extends PluginSettingTab {
       .addToggle(toggle => {
         toggle.setValue(isEnabled).onChange(async value => {
           if (value) {
-            if (isAndroid) {
+            if (isMobile) {
               const url = this.plugin.settings.biometrics?.bridgeUrl;
               if (!url) {
                 new Notice(t('settings.androidBridgeNotice'));
@@ -217,7 +217,7 @@ export class MySecretSettingTab extends PluginSettingTab {
               return;
             }
             try {
-              new Notice(isAndroid ? t('settings.enrollBiometricPrompt') : t('settings.testBiometricsWaiting'));
+              new Notice(isMobile ? t('settings.enrollBiometricPrompt') : t('settings.testBiometricsWaiting'));
               const success = await this.plugin.biometricManager.enrollBiometrics(rawKey, vaultId);
               if (success) {
                 if (!this.plugin.settings.biometrics) {

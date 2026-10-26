@@ -130,22 +130,24 @@ Every security defense is continuously validated through automated unit, cryptog
 
 | Component | Test Suite | Status |
 | :--- | :---: | :---: |
-| **Path Sanitization & Zip Slip Defense** | 6 tests | ✅ Passed |
+| **Path Sanitization & Zip Slip Defense** | 7 tests | ✅ Passed |
 | **Argon2id Cost Bounds & Anti-Downgrade** | 4 tests | ✅ Passed |
-| **HTTP Buffer Isolation & URL Validation** | 4 tests | ✅ Passed |
-| **At-Rest Cloud Credential Encryption** | 5 tests | ✅ Passed |
 | **Prototype Pollution Immunity** | 2 tests | ✅ Passed |
+| **HTTP Buffer Isolation & URL Security (SSRF / Scheme)** | 4 tests | ✅ Passed |
+| **At-Rest Cloud Credential Encryption** | 4 tests | ✅ Passed |
 | **Path Traversal Defense in Restore** | 2 tests | ✅ Passed |
-| **WebAuthn Biometric Session Security** | 16 tests | ✅ Passed |
 | **AES-256-GCM AEAD & NFC Path Normalization** | 8 tests | ✅ Passed |
 | **BIP-39 Mnemonic Generation & Validation** | 4 tests | ✅ Passed |
-| **Memory Buffer Zeroization** | 2 tests | ✅ Passed |
-| **Key Lifecycle & Master Password Change** | 4 tests | ✅ Passed |
-| **Internationalization (i18n) Integrity** | 6 tests | ✅ Passed |
-| **Adapter Interception & Streaming I/O** | 19 tests | ✅ Passed |
-| **Second-audit regression tests** (re-auth, restore, backup, re-binds, biometrics) | 30+ tests | ✅ Passed |
-| **Recovery tools compatibility** (HTML + Python decrypt a real vault) | 8 tests | ✅ Passed |
-| **Total Automated Tests** | **128 tests** | **100% Passing** |
+| **Memory Buffer Zeroization (RAM)** | 1 test | ✅ Passed |
+| **Key Lifecycle & Safe Master Password Change** | 3 tests | ✅ Passed |
+| **Obsidian Vault File Adapter Interception** | 25 tests | ✅ Passed |
+| **WebAuthn Biometric & Mobile Bridge (Face ID / Fingerprint)** | 30 tests | ✅ Passed |
+| **Internationalization (i18n) Integrity** | 7 tests | ✅ Passed |
+| **Cryptographic Hardening & Audit Regression (VUL-01..VUL-37)** | 41 tests | ✅ Passed |
+| **Offline Recovery Tools Compatibility (HTML + Python)** | 7 tests | ✅ Passed |
+| **Release Integrity & Cloudflare Pages Headers (R1..R3)** | 5 tests | ✅ Passed |
+| **System Path Filtering, Backups & Cloud Providers** | 3 tests | ✅ Passed |
+| **Total Automated Tests** | **157 tests** | **100% Passing** |
 
 ---
 

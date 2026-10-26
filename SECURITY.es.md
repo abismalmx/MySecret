@@ -130,22 +130,24 @@ La integridad de todas estas protecciones se valida continuamente mediante una s
 
 | Componente | Pruebas | Estado |
 | :--- | :---: | :---: |
-| **Sanitización de Rutas y Prevención Zip Slip** | 6 tests | ✅ Invicto |
+| **Sanitización de Rutas y Prevención Zip Slip** | 7 tests | ✅ Invicto |
 | **Control de Coste y Anti-Downgrade Argon2id** | 4 tests | ✅ Invicto |
-| **Aislamiento de Cargas y Protección HTTP** | 4 tests | ✅ Invicto |
-| **Cifrado en Reposo de Credenciales** | 5 tests | ✅ Invicto |
 | **Inmunidad contra Prototype Pollution** | 2 tests | ✅ Invicto |
+| **Aislamiento de Cargas y Protección HTTP (SSRF / Scheme)** | 4 tests | ✅ Invicto |
+| **Cifrado en Reposo de Credenciales Cloud** | 4 tests | ✅ Invicto |
 | **Prevención de Traversal en Restauración** | 2 tests | ✅ Invicto |
-| **Intercambio y Seguridad WebAuthn / Biometría** | 16 tests | ✅ Invicto |
-| **Cifrado AES-256-GCM y Normalización AAD** | 8 tests | ✅ Invicto |
+| **Cifrado Simétrico AES-256-GCM y Normalización AAD** | 8 tests | ✅ Invicto |
 | **Generación y Verificación Mnemónica BIP-39** | 4 tests | ✅ Invicto |
-| **Zeroización de Buffers en Memoria** | 2 tests | ✅ Invicto |
-| **Ciclo de Vida de Claves y Cambio de Contraseña** | 4 tests | ✅ Invicto |
-| **Internacionalización y Formato Multilingüe** | 6 tests | ✅ Invicto |
-| **Intercepción de Adaptador y Archivos** | 19 tests | ✅ Invicto |
-| **Regresión de la segunda auditoría** (reautenticación, restauración, respaldos, re-vinculaciones, biometría) | 30+ tests | ✅ Invicto |
-| **Compatibilidad de herramientas de recuperación** (HTML + Python descifran una bóveda real) | 8 tests | ✅ Invicto |
-| **Total de pruebas verificadas** | **128 tests** | **100% Exitoso** |
+| **Zeroización de Buffers en Memoria RAM** | 1 test | ✅ Invicto |
+| **Ciclo de Vida de Claves y Cambio Seguro de Contraseña** | 3 tests | ✅ Invicto |
+| **Intercepción de Adaptador de Archivos de Obsidian** | 25 tests | ✅ Invicto |
+| **Autenticación WebAuthn y Puente Biométrico Móvil (Face ID / Huella)** | 30 tests | ✅ Invicto |
+| **Internacionalización y Formato Multilingüe (i18n)** | 7 tests | ✅ Invicto |
+| **Endurecimiento Criptográfico y Regresión de Auditoría (Hardening)** | 41 tests | ✅ Invicto |
+| **Herramientas de Recuperación Offline (HTML + Python)** | 7 tests | ✅ Invicto |
+| **Integridad de Release y Cabeceras Cloudflare Pages (R1..R3)** | 5 tests | ✅ Invicto |
+| **Filtros de Ruta del Sistema, Respaldos y Proveedores Cloud** | 3 tests | ✅ Invicto |
+| **Total de pruebas verificadas** | **157 tests** | **100% Exitoso** |
 
 ---
 

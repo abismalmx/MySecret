@@ -266,8 +266,8 @@ export function zeroize(buffer: Uint8Array | ArrayBuffer | null | undefined): vo
 ### Windows Hello y DPAPI
 `WindowsHelloProvider` ejecuta scripts de PowerShell comunicados exclusivamente por `stdin` (`-Command -`). Valida la presencia del usuario mediante `Windows.Security.Credentials.UI.UserConsentVerifier` y cifra el token biométrico utilizando la API de Protección de Datos de Windows (DPAPI).
 
-### Protocolo v2 del Puente WebAuthn para Android
-En Android, MySecret sortea las restricciones del WebView coordinando un flujo criptográfico fuera de banda con un PWA en Cloudflare Pages:
+### Protocolo v2 del Puente WebAuthn para Dispositivos Móviles (Android / iOS)
+En dispositivos móviles (Android e iOS / iPhone / iPad), MySecret sortea las restricciones de los WebViews de los sistemas operativos coordinando un flujo criptográfico fuera de banda con un PWA en Cloudflare Pages:
 
 1. **Obsidian -> Navegador:** Obsidian abre el navegador móvil con una URL que contiene la clave pública efímera ECDH:
    `https://<tu-proyecto>.pages.dev/#session=<id>&action=verify&pubKey=<ecdh_pub>&salt=<salt>&vb=<vault_binding>`

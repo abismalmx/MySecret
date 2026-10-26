@@ -21,7 +21,7 @@ Bienvenido al **Manual de Usuario de MySecret**. Esta guía proporciona un recor
    - [Windows (Windows Hello)](#windows-windows-hello)
    - [macOS (Touch ID)](#macos-touch-id)
    - [Linux (fprintd)](#linux-fprintd)
-   - [Android (Puente en Cloudflare Pages)](#android-puente-en-cloudflare-pages)
+   - [Dispositivos Móviles: Android e iOS / iPhone / iPad (Puente en Cloudflare Pages)](#dispositivos-móviles-android-e-ios--iphone--ipad-puente-en-cloudflare-pages)
 6. [Migración y Procesamiento de la Bóveda](#6-migración-y-procesamiento-de-la-bóveda)
 7. [Copias de Seguridad y Respaldo en la Nube](#7-copias-de-seguridad-y-respaldo-en-la-nube)
    - [Instantáneas Locales](#instantáneas-locales)
@@ -164,8 +164,8 @@ Si abres tu bóveda con el explorador de archivos del sistema operativo o con ot
 - **Configuración:** Enrola tu huella con `fprintd-enroll` en tu distribución y activa la opción en MySecret.
 - **¿Se necesita URL de Cloudflare?** **NO.** Funciona de forma 100% local.
 
-### Android (Puente en Cloudflare Pages)
-En Android, Obsidian se ejecuta dentro de un WebView del sistema donde Google restringe el uso nativo de WebAuthn. MySecret resuelve esto de manera segura mediante una aplicación web complementaria en Cloudflare Pages:
+### Dispositivos Móviles: Android e iOS / iPhone / iPad (Puente en Cloudflare Pages)
+En dispositivos móviles (Android e iOS), Obsidian se ejecuta dentro de un WebView del sistema donde los sistemas operativos restringen el uso nativo de WebAuthn para esquemas de aplicación locales. MySecret resuelve esto de manera segura mediante una aplicación web complementaria en Cloudflare Pages:
 
 1. **Despliegue Único (100% Gratuito):**
    - Inicia sesión en [dash.cloudflare.com](https://dash.cloudflare.com/).
@@ -174,12 +174,12 @@ En Android, Obsidian se ejecuta dentro de un WebView del sistema donde Google re
    - Arrastra la carpeta `auth-bridge/` directamente al navegador y pulsa **Deploy site**.
    - Cloudflare te dará una URL HTTPS única (ejemplo: `https://mi-boveda-auth.pages.dev`).
 2. **Configuración en Obsidian Móvil:**
-   - En tu móvil Android, abre Obsidian y ve a **Ajustes** → **MySecret** → **Desbloqueo Biométrico en Android**.
+   - En tu teléfono o tableta (Android o iPhone/iPad), abre Obsidian y ve a **Ajustes** → **MySecret** → **Desbloqueo Biométrico Móvil**.
    - Pega tu URL de Cloudflare en el campo de texto.
    - Pulsa **Probar URL del puente** para verificar la conexión.
-   - Activa el interruptor y realiza tu primer enrolamiento con huella.
+   - Activa el interruptor y realiza tu primer enrolamiento con huella o Face ID.
 3. **Uso Diario:**
-   - En la pantalla de bloqueo, pulsa **Desbloqueo Biométrico**. El navegador abrirá el puente, validará tu huella y regresará inmediatamente a Obsidian con la clave de sesión acordada mediante ECDH P-256.
+   - En la pantalla de bloqueo, pulsa **Desbloqueo Biométrico**. El navegador abrirá el puente, validará tu huella o Face ID y regresará inmediatamente a Obsidian con la clave de sesión acordada mediante ECDH P-256.
 
 ---
 

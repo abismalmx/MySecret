@@ -1,8 +1,8 @@
-# Puente Biométrico MySecret para Cloudflare Pages
+# Puente Biométrico Móvil MySecret para Cloudflare Pages
 
 [English Version](README.en.md) • **Español**
 
-Esta carpeta contiene la aplicación web estática (PWA) para habilitar el **desbloqueo por huella dactilar y reconocimiento facial** en Obsidian para Android.
+Esta carpeta contiene la aplicación web estática (PWA) para habilitar el **desbloqueo por huella dactilar, Face ID y Touch ID** en Obsidian para **dispositivos móviles (Android e iOS / iPhone / iPad)**.
 
 ---
 
@@ -15,9 +15,9 @@ Esta carpeta contiene la aplicación web estática (PWA) para habilitar el **des
 5. Arrastra esta carpeta `auth-bridge/` directamente al navegador y pulsa **Deploy site**.
 6. Cloudflare te dará una URL HTTPS gratuita e instantánea, como:
    `https://mi-boveda-auth.pages.dev`
-7. Abre Obsidian en tu móvil Android, ve a **Ajustes > MySecret > Desbloqueo Biométrico en Android** y pega tu URL de Cloudflare.
+7. Abre Obsidian en tu móvil (Android o iPhone), ve a **Ajustes > MySecret > Desbloqueo Biométrico Móvil** y pega tu URL de Cloudflare.
 
-¡Listo! Ya podrás usar tu huella dactilar para desbloquear tu bóveda en Android.  
+¡Listo! Ya podrás usar tu huella dactilar o Face ID para desbloquear tu bóveda en tu teléfono o tableta.  
 Una vez abierta por primera vez, la web se almacena localmente (PWA offline) mediante su Service Worker y funcionará incluso sin conexión a internet.
 
 ---

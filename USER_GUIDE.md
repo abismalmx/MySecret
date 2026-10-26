@@ -21,7 +21,7 @@ Welcome to the **MySecret User Manual**. This guide provides an exhaustive, step
    - [Windows (Windows Hello)](#windows-windows-hello)
    - [macOS (Touch ID)](#macos-touch-id)
    - [Linux (fprintd)](#linux-fprintd)
-   - [Android (Cloudflare Pages Bridge)](#android-cloudflare-pages-bridge)
+   - [Mobile Devices: Android & iOS / iPhone / iPad (Cloudflare Pages Bridge)](#mobile-devices-android--ios--iphone--ipad-cloudflare-pages-bridge)
 6. [Vault Migration & Bulk Processing](#6-vault-migration--bulk-processing)
 7. [Backups & Cloud Storage](#7-backups--cloud-storage)
    - [Local Vault Snapshots](#local-vault-snapshots)
@@ -166,8 +166,8 @@ MySecret provides cross-platform biometric unlocking tailored to each operating 
 - **Setup:** Configure `fprintd-enroll` in your Linux distribution, then enable biometrics in MySecret settings.
 - **Is a Cloudflare URL needed?** **NO.** Fully local.
 
-### Android (Cloudflare Pages Bridge)
-On Android, the Obsidian app runs within an Android WebView where native WebAuthn access is restricted by Android security policies. MySecret bridges this gap via a lightweight companion Web app hosted on Cloudflare Pages:
+### Mobile Devices: Android & iOS / iPhone / iPad (Cloudflare Pages Bridge)
+On mobile devices (Android and iOS), the Obsidian app runs within a WebView where native WebAuthn access is restricted for custom application schemes. MySecret bridges this gap securely via a lightweight companion Web app hosted on Cloudflare Pages:
 
 1. **One-Time Deployment (100% Free):**
    - Log in to [dash.cloudflare.com](https://dash.cloudflare.com/).
@@ -176,13 +176,13 @@ On Android, the Obsidian app runs within an Android WebView where native WebAuth
    - Drag and drop the `auth-bridge/` folder from the plugin repository and click **Deploy site**.
    - Cloudflare will assign you a private HTTPS URL (e.g., `https://my-vault-auth.pages.dev`).
 2. **Configure in Obsidian Mobile:**
-   - In Obsidian for Android, go to **Settings** → **MySecret** → **Android Biometric Unlock**.
+   - In Obsidian on your phone or tablet (Android or iPhone/iPad), go to **Settings** → **MySecret** → **Mobile Biometric Unlock**.
    - Paste your Cloudflare Pages URL into the text box.
    - Click **Test Bridge URL** to verify the connection.
-   - Toggle **Enable Biometrics** and perform your first biometric enrollment.
+   - Toggle **Enable Biometrics** and perform your first biometric enrollment (Fingerprint or Face ID).
 3. **Daily Unlock:**
    - On the lock screen, tap **Biometric Unlock**.
-   - Your mobile browser securely opens the bridge, reads your fingerprint, and immediately returns to Obsidian with the session key negotiated via ECDH P-256.
+   - Your mobile browser securely opens the bridge, reads your fingerprint or Face ID, and immediately returns to Obsidian with the session key negotiated via ECDH P-256.
 
 ---
 

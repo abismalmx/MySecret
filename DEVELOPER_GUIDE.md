@@ -253,8 +253,8 @@ The `BiometricManager` coordinates platform-specific biometric implementations:
 ### Windows Hello & DPAPI Integration
 `WindowsHelloProvider` executes a dedicated PowerShell invocation piped via stdin (`-Command -`). It verifies user presence through `Windows.Security.Credentials.UI.UserConsentVerifier` and protects the wrapped biometric token using Windows Data Protection API (DPAPI).
 
-### Android WebAuthn Bridge Protocol v2
-Because Obsidian Mobile on Android runs within an Android WebView lacking WebAuthn APIs, MySecret executes an out-of-band cryptographic ceremony via a Cloudflare Pages PWA:
+### WebAuthn Bridge Protocol v2 for Mobile Devices (Android / iOS)
+Because Obsidian Mobile on Android and iOS runs within a restricted WebView lacking native WebAuthn APIs for local app schemes, MySecret executes an out-of-band cryptographic ceremony via a Cloudflare Pages PWA:
 
 1. **Obsidian -> Browser:** Obsidian launches the external browser with an intent URL:
    `https://<your-project>.pages.dev/#session=<id>&action=verify&pubKey=<ecdh_pub>&salt=<salt>&vb=<vault_binding>`

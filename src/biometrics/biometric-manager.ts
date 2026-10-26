@@ -27,8 +27,8 @@ export class BiometricManager {
       this.activeProvider = new WindowsHelloProvider();
     } else if (Platform.isLinux && !Platform.isAndroidApp) {
       this.activeProvider = new LinuxBiometricProvider();
-    } else if (Platform.isAndroidApp) {
-      // Android WebView lacks native WebAuthn -> Use external Cloudflare Pages bridge
+    } else if (Platform.isAndroidApp || Platform.isIosApp || Platform.isMobile) {
+      // Mobile WebView (Android / iOS) lacks native WebAuthn for app:// -> Use external Cloudflare Pages bridge
       this.activeProvider = new ExternalBridgeProvider(bridgeUrl);
     } else {
       // Mobile fallback or macOS / Web
@@ -39,7 +39,7 @@ export class BiometricManager {
   public setBridgeUrl(url: string): void {
     if (this.activeProvider instanceof ExternalBridgeProvider) {
       this.activeProvider.setBridgeUrl(url);
-    } else if (Platform.isAndroidApp) {
+    } else if (Platform.isAndroidApp || Platform.isIosApp || Platform.isMobile) {
       this.activeProvider = new ExternalBridgeProvider(url);
     }
   }
