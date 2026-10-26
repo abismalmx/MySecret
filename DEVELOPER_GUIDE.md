@@ -343,18 +343,41 @@ def decrypt_file(armored_text: str, relative_path: str, mnemonic: str) -> str:
 ```javascript
 const crypto = require('crypto');
 
-function decryptFileNode(ivB64, tagB64, cipherB64, relativePath, vaultKey32Bytes) {
+// 1. Unwrap genuine vaultKey using vault-envelope.json and BIP-39 mnemonic
+function unwrapVaultKeyWithMnemonic(envelope, mnemonic) {
+  const rec = envelope.recoveryEnvelope;
+  const salt = Buffer.from(rec.salt, 'hex');
+  const iv = Buffer.from(rec.iv, 'hex');
+  const tag = Buffer.from(rec.tag, 'hex');
+  const ciphertext = Buffer.from(rec.ciphertext, 'hex');
+
+  // Derive recoveryKey using PBKDF2-HMAC-SHA512
+  const cleanMnemonic = mnemonic.trim().toLowerCase().normalize('NFKD');
+  const recoveryKey = crypto.pbkdf2Sync(cleanMnemonic, salt, 2048, 32, 'sha512');
+
+  // Unwrap AES-256-GCM envelope with AAD="recovery-envelope"
+  const decipher = crypto.createDecipheriv('aes-256-gcm', recoveryKey, iv);
+  decipher.setAAD(Buffer.from('recovery-envelope', 'utf8'));
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+// 2. Decrypt note payload using unwrapped vaultKey and normalized AAD
+function decryptNotePayload(armoredText, relativePath, vaultKey32Bytes) {
+  const lines = armoredText.split('\n').map(l => l.trim()).filter(Boolean);
+  const ivB64 = lines.find(l => l.startsWith('IV:')).split(':', 2)[1].trim();
+  const tagB64 = lines.find(l => l.startsWith('Tag:')).split(':', 2)[1].trim();
+  const bodyB64 = lines.filter(l => !l.startsWith('-----') && !l.includes(':')).join('');
+
   const iv = Buffer.from(ivB64, 'base64');
   const tag = Buffer.from(tagB64, 'base64');
-  const ciphertext = Buffer.from(cipherB64, 'base64');
+  const ciphertext = Buffer.from(bodyB64, 'base64');
   const aad = Buffer.from(relativePath.normalize('NFC').replace(/\\/g, '/'), 'utf8');
 
   const decipher = crypto.createDecipheriv('aes-256-gcm', vaultKey32Bytes, iv);
   decipher.setAAD(aad);
   decipher.setAuthTag(tag);
-
-  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return decrypted.toString('utf8');
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 ```
 
@@ -369,4 +392,4 @@ function decryptFileNode(ivB64, tagB64, cipherB64, relativePath, vaultKey32Bytes
 1. **TypeScript Strictness:** Strict null checks and explicit typings are mandatory (`tsconfig.json`).
 2. **Defensive Coding:** Never assume input files or archive entries are safe. Always sanitize paths and validate bounds.
 3. **Zero Secrets in Git:** Never commit API keys, personal endpoints, or unencrypted test credentials.
-4. **Pull Requests:** Ensure all 81 automated tests pass and add regression unit tests for any new cryptographic or adapter features.
+4. **Pull Requests:** Ensure all 157 automated tests pass and add regression unit tests for any new cryptographic or adapter features.

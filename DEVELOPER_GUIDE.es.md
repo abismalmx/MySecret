@@ -377,18 +377,41 @@ def decrypt_note_with_recovery_phrase(armored_text: str, relative_path: str, env
 ```javascript
 const crypto = require('crypto');
 
-function decryptFileNode(ivB64, tagB64, cipherB64, relativePath, vaultKey32Bytes) {
+// 1. Desenvolver la vaultKey real a partir de vault-envelope.json y la frase BIP-39
+function unwrapVaultKeyWithMnemonic(envelope, mnemonic) {
+  const rec = envelope.recoveryEnvelope;
+  const salt = Buffer.from(rec.salt, 'hex');
+  const iv = Buffer.from(rec.iv, 'hex');
+  const tag = Buffer.from(rec.tag, 'hex');
+  const ciphertext = Buffer.from(rec.ciphertext, 'hex');
+
+  // Derivar clave de auxilio con PBKDF2-HMAC-SHA512
+  const cleanMnemonic = mnemonic.trim().toLowerCase().normalize('NFKD');
+  const recoveryKey = crypto.pbkdf2Sync(cleanMnemonic, salt, 2048, 32, 'sha512');
+
+  // Desenvolver con AES-256-GCM y AAD="recovery-envelope"
+  const decipher = crypto.createDecipheriv('aes-256-gcm', recoveryKey, iv);
+  decipher.setAAD(Buffer.from('recovery-envelope', 'utf8'));
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+// 2. Descifrar la nota usando la vaultKey desenvuelta y el AAD normalizado
+function decryptNotePayload(armoredText, relativePath, vaultKey32Bytes) {
+  const lines = armoredText.split('\n').map(l => l.trim()).filter(Boolean);
+  const ivB64 = lines.find(l => l.startsWith('IV:')).split(':', 2)[1].trim();
+  const tagB64 = lines.find(l => l.startsWith('Tag:')).split(':', 2)[1].trim();
+  const bodyB64 = lines.filter(l => !l.startsWith('-----') && !l.includes(':')).join('');
+
   const iv = Buffer.from(ivB64, 'base64');
   const tag = Buffer.from(tagB64, 'base64');
-  const ciphertext = Buffer.from(cipherB64, 'base64');
+  const ciphertext = Buffer.from(bodyB64, 'base64');
   const aad = Buffer.from(relativePath.normalize('NFC').replace(/\\/g, '/'), 'utf8');
 
   const decipher = crypto.createDecipheriv('aes-256-gcm', vaultKey32Bytes, iv);
   decipher.setAAD(aad);
   decipher.setAuthTag(tag);
-
-  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return decrypted.toString('utf8');
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 ```
 
