@@ -23,7 +23,7 @@ Bienvenido al **Manual de Programador y Arquitectura de MySecret**. Esta referen
 5. [Subsistema Biométrico Multiplataforma (`src/biometrics/`)](#5-subsistema-biométrico-multiplataforma)
    - [Matriz de Proveedores](#matriz-de-proveedores)
    - [Integración de Windows Hello y DPAPI](#integración-de-windows-hello-y-dpapi)
-   - [Integración en Linux con fprintd / SecretService](#integración-en-linux-con-fprintd--secretservice)
+   - [Integración en Linux con fprintd (Verificación Estricta por Huella)](#integración-en-linux-con-fprintd--secretservice)
    - [Protocolo v2 del Puente WebAuthn para Android](#protocolo-v2-del-puente-webauthn-para-android)
 6. [Motor de Respaldo y Sanitización de Seguridad (`src/backup/`)](#6-motor-de-respaldo-y-sanitización-de-seguridad)
    - [Mitigación contra Zip Slip y Path Traversal](#mitigación-contra-zip-slip-y-path-traversal)
@@ -170,6 +170,21 @@ export function normalizeAadPath(vaultRelativePath: string): Uint8Array {
 
 Al renombrar o copiar archivos mediante `rename()` o `copy()`, el interceptor descifra el archivo con el AAD de la ruta anterior y lo re-encripta atómicamente con el AAD de la nueva ruta.
 
+### Concurrencia y Bloqueo por Ruta (`withPathLock`)
+Para prevenir condiciones de carrera (Race Conditions) y pérdidas de actualizaciones en operaciones concurrentes (`process`, `append`, `appendBinary`), el interceptor implementa un mecanismo de mutex por ruta:
+
+```typescript
+private withPathLock<T>(path: string, task: () => Promise<T>): Promise<T>
+```
+Garantiza que múltiples lecturas-modificaciones-escrituras sobre la misma nota se ejecuten en secuencia determinista sin entrelazar datos.
+
+### Cola Persistente de Renombres (`pendingRebinds`)
+Si se renombra un archivo mientras la bóveda está bloqueada, el plugin no puede re-vincular el AAD inmediatamente al carecer de la clave en memoria. Para evitar dejar la nota permanentemente ilegible, la operación se registra en una cola transaccional (`pendingRebinds`) persistida en los ajustes. Al desbloquearse la bóveda (`unlockVaultSuccess`), la cola se procesa automáticamente de forma idempotente.
+
+### Aislamiento de Superficies: Obsidian Sync y Obsidian Publish
+- **Obsidian Sync:** Para impedir que notas descifradas en memoria se sincronicen en texto claro hacia la nube de Obsidian Sync, el hook de descifrado opera exclusivamente sobre la capa `Vault.readBinary()` (consumida por el indexador local), **nunca** sobre `DataAdapter.readBinary()` (consumida directamente por Sync). Sync solo transporta y almacena contenedores cifrados.
+- **Obsidian Publish (`PublishGuard`):** Para evitar la divulgación de notas en sitios públicos de Publish, un guardián intercepta dinámicamente las llamadas de subida de archivos y bloquea la publicación de notas gestionadas por MySecret, refrescando el envoltorio cada 15 segundos para protegerse de activaciones tardías del servicio.
+
 ---
 
 ## 4. Pipeline Criptográfico y Formatos de Contenedor
@@ -189,7 +204,10 @@ Al renombrar o copiar archivos mediante `rename()` o `copy()`, el interceptor de
 
 1. **Clave de Bóveda (`vaultKey`):** Clave de 256 bits generada aleatoriamente al inicializar la bóveda. Permanece constante y se usa para cifrar todos los archivos.
 2. **Clave Maestra (`masterKey`):** Derivada de la contraseña maestra del usuario mediante Argon2id. Se usa exclusivamente para envolver/desenvolver la `vaultKey`.
-3. **Cambio de Contraseña:** Cambiar la contraseña solo requiere derivar una nueva `masterKey` y volver a envolver la `vaultKey`. Los archivos en disco no requieren re-cifrado.
+3. **Cambio de Contraseña Seguro:** Cambiar la contraseña exige verificar primero la contraseña actual (`currentPassword`) mediante `KeyManager.verifyPassword()`. Se deriva una nueva sal y `masterKey` con Argon2id y se vuelve a envolver la `vaultKey`. Los archivos en disco no requieren re-cifrado.
+4. **Identificador Estable de Bóveda (`vaultId`):** El sobre incluye un `vaultId` persistente e inmutable fijado en la inicialización. Esto impide que un cambio de contraseña altere el identificador del dispositivo y rompa las inscripciones biométricas locales.
+5. **Ventana de Reautenticación (`requireReauth`):** Acciones críticas como revelar la frase de rescate, configurar biometría, exportar datos o cambiar la contraseña exigen confirmar la contraseña maestra (con una ventana de gracia temporal de 2 minutos).
+6. **Escritura Atómica del Sobre:** `vault-envelope.json` se escribe primero en un archivo temporal `.tmp`, se valida con `isValidEnvelopeShape()`, se respalda como `.bak`, y finalmente se renombra atómicamente, garantizando que un corte de energía no corrompa el sobre maestro.
 
 ### Formatos de Contenedor
 
@@ -262,6 +280,15 @@ En Android, MySecret sortea las restricciones del WebView coordinando un flujo c
 
 El módulo `BackupEngine` crea instantáneas completas en archivos ZIP utilizando `fflate`.
 
+### Retención Inteligente de Copias de Seguridad (`retention.ts`)
+El motor de respaldos incluye un subsistema de poda automática de versiones (`pruneBackups`) para WebDAV, Google Drive, OneDrive y carpetas locales:
+- Identifica únicamente los archivos correspondientes a la bóveda actual mediante análisis de prefijo y marcas de tiempo (`YYYY-MM-DD`).
+- En Google Drive y OneDrive, los respaldos antiguos no se borran permanentemente: se mueven a la Papelera de reciclaje para protección contra eliminaciones accidentales.
+- Si falla el listado remoto, ninguna copia se elimina por seguridad (fail-safe).
+
+### Respaldo Seguro al Bloquear (`on-lock`) y Reporte de Omisiones
+`lockVault()` transfiere la clave activa en memoria a la tarea de respaldo en segundo plano antes de limpiar la RAM (`zeroize`), garantizando que las notas pendientes queden cifradas en el ZIP. Cualquier archivo que no pueda empaquetarse se registra en `skippedFiles` de `BackupStats`, notificando al usuario de forma transparente.
+
 ### Mitigación contra Zip Slip
 Al restaurar, cada ruta dentro del ZIP se valida con `sanitizeVaultRelativePath()`:
 - Segmentos que contienen `..` son rechazados de inmediato.
@@ -281,7 +308,7 @@ El proyecto se compila mediante `esbuild.config.mjs`:
 ### Suite Automatizada con `obsidian-stub.mjs`
 Las pruebas se ejecutan directamente con el test runner nativo de Node.js (`node --test`). Como la API de Obsidian no está en Node.js, `tests/obsidian-stub.mjs` proporciona un simulador completo en memoria del adaptador de archivos, la plataforma y el ciclo de vida del plugin.
 
-Para ejecutar las 81 pruebas:
+Para ejecutar las 157 pruebas automatizadas:
 ```bash
 npm test
 ```
@@ -300,37 +327,49 @@ MySecret está deliberadamente diseñado para garantizar **cero dependencia de p
 - **Datos Asociados Autenticados (AAD):** Ruta relativa normalizada en UTF-8 (`vaultRelativePath.normalize('NFC').replace(/\\/g, '/')`).
 - **Derivación BIP-39:** PBKDF2 con HMAC-SHA512, sal `mnemonic` (o `mnemonic + passphrase`), 2048 iteraciones, longitud de salida 32 bytes.
 
-### 🐍 Receta en Python (usando `cryptography`)
+### 🐍 Receta en Python (usando `cryptography` y `vault-envelope.json`)
 ```python
+import json
 import base64
 import unicodedata
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 
-def decrypt_file(armored_text: str, relative_path: str, mnemonic: str) -> str:
-    # 1. Derivar clave de 32 bytes desde la frase BIP-39
-    clean_mnemonic = unicodedata.normalize("NFKD", mnemonic.strip().lower()).encode("utf-8")
-    salt = unicodedata.normalize("NFKD", "mnemonic").encode("utf-8")
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=32, salt=salt, iterations=2048)
-    key = kdf.derive(clean_mnemonic)
+def decrypt_note_with_recovery_phrase(armored_text: str, relative_path: str, envelope_json_str: str, mnemonic: str) -> str:
+    # 1. Cargar el sobre de configuración de la bóveda
+    envelope = json.loads(envelope_json_str)
+    recovery_env = envelope["recoveryEnvelope"]
+    rec_salt = bytes.fromhex(recovery_env["salt"])
+    rec_iv = bytes.fromhex(recovery_env["iv"])
+    rec_tag = bytes.fromhex(recovery_env["tag"])
+    rec_ct = bytes.fromhex(recovery_env["ciphertext"])
 
-    # 2. Extraer IV, Tag y Ciphertext del contenedor ASCII
+    # 2. Derivar la clave de auxilio (recoveryKey) con la sal única de la bóveda
+    clean_mnemonic = unicodedata.normalize("NFKD", mnemonic.strip().lower()).encode("utf-8")
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA512(), length=32, salt=rec_salt, iterations=2048)
+    recovery_key = kdf.derive(clean_mnemonic)
+
+    # 3. Desenvolver la clave real de la bóveda (vaultKey) con AAD="recovery-envelope"
+    aesgcm_rec = AESGCM(recovery_key)
+    vault_key = aesgcm_rec.decrypt(rec_iv, rec_ct + rec_tag, b"recovery-envelope")
+
+    # 4. Extraer IV, Tag y Ciphertext del contenedor ASCII de la nota
     lines = [line.strip() for line in armored_text.splitlines() if line.strip()]
     iv_b64 = [l.split(":", 1)[1].strip() for l in lines if l.startswith("IV:")][0]
     tag_b64 = [l.split(":", 1)[1].strip() for l in lines if l.startswith("Tag:")][0]
-    body_lines = [l for l in lines if not l.startswith("-----") and not ":" in l]
+    body_lines = [l for l in lines if not l.startswith("-----") and ":" not in l]
     
     iv = base64.b64decode(iv_b64)
     tag = base64.b64decode(tag_b64)
     ciphertext = base64.b64decode("".join(body_lines))
 
-    # 3. AAD = ruta relativa normalizada en NFC
+    # 5. AAD = ruta relativa normalizada en Unicode NFC
     aad = unicodedata.normalize("NFC", relative_path.replace("\\", "/")).encode("utf-8")
 
-    # 4. Descifrado AES-256-GCM (en cryptography, ciphertext y tag se concatenan)
-    aesgcm = AESGCM(key)
-    plaintext_bytes = aesgcm.decrypt(iv, ciphertext + tag, aad)
+    # 6. Descifrado autenticado de la nota
+    aesgcm_vault = AESGCM(vault_key)
+    plaintext_bytes = aesgcm_vault.decrypt(iv, ciphertext + tag, aad)
     return plaintext_bytes.decode("utf-8")
 ```
 
@@ -364,4 +403,4 @@ function decryptFileNode(ivB64, tagB64, cipherB64, relativePath, vaultKey32Bytes
 1. **Tipado Estricto:** Obligatorio el uso de TypeScript en modo estricto (`tsconfig.json`).
 2. **Programación Defensiva:** Validar y sanitizar siempre rutas y límites antes de cualquier operación de I/O.
 3. **Sin Secretos en Git:** Jamás confirmar credenciales, URLs privadas ni contraseñas en el repositorio.
-4. **Pull Requests:** Verificar que las 81 pruebas pasen y agregar pruebas de regresión ante cualquier cambio en el motor criptográfico o en el adaptador.
+4. **Pull Requests:** Verificar que las 157 pruebas automatizadas pasen y agregar pruebas de regresión ante cualquier cambio en el motor criptográfico o en el adaptador.

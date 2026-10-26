@@ -215,6 +215,8 @@ Puedes subir automáticamente copias de seguridad cifradas a tu proveedor de alm
 - **Google Drive:** Almacenamiento seguro en tu unidad de Google.
 - **Microsoft OneDrive:** Subida de instantáneas a tu almacenamiento de Microsoft.
 - **Seguridad:** Todas las credenciales de nube se almacenan fuertemente cifradas con la clave maestra de la bóveda antes de guardarse en el archivo de configuración.
+- **Retención Automática de Copias:** Puedes configurar cuántas copias de seguridad recientes deseas conservar (por ejemplo, las últimas 5 o 10). MySecret podará automáticamente los respaldos más antiguos de esta bóveda, enviándolos a la Papelera en Google Drive y OneDrive para evitar saturar tu almacenamiento sin riesgo de borrado accidental.
+- **Respaldo Seguro al Bloquear:** Si tienes activado el respaldo automático al bloquear, MySecret conserva de forma segura la clave en memoria hasta que el archivo ZIP termina de construirse, notificándote si algún archivo no pudo empaquetarse.
 
 ---
 
@@ -229,8 +231,13 @@ Puedes subir automáticamente copias de seguridad cifradas a tu proveedor de alm
 ### Cambiar tu Contraseña Maestra
 1. Desbloquea la bóveda de forma habitual.
 2. En la paleta de comandos o en Ajustes, selecciona **Cambiar contraseña maestra**.
-3. Introduce tu contraseña actual y la nueva contraseña (mínimo 12 caracteres).
-4. El contenedor de la bóveda se re-encripta con una nueva sal Argon2id de forma instantánea, sin necesidad de re-cifrar cada nota individualmente.
+3. Por seguridad, el plugin te solicitará **confirmar tu contraseña actual** (ventana de reautenticación de 2 minutos).
+4. Introduce tu nueva contraseña (mínimo 12 caracteres).
+5. El sobre maestro se re-encripta con una nueva sal Argon2id de forma instantánea, preservando tu identificador de bóveda para no romper la biometría.
+
+> [!WARNING]
+> **Aviso importante sobre el cambio de contraseña:**  
+> Cambiar la contraseña maestra vuelve a proteger la clave de la bóveda, pero **no re-cifra las notas con una clave nueva**. Si sospechas que tu contraseña anterior fue comprometida o filtrada, exporta tus notas en texto plano y crea una bóveda nueva.
 
 ---
 

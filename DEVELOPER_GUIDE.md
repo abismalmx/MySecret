@@ -97,7 +97,7 @@ Github/
 │   │   ├── device-storage.ts        # Machine-local envelope storage
 │   │   ├── external-bridge-provider.ts # Android ECDH P-256 WebAuthn bridge orchestrator
 │   │   ├── kdf.ts                   # HKDF and biometric envelope derivations
-│   │   ├── linux-provider.ts        # Linux fprintd / SecretService integration
+│   │   ├── linux-provider.ts        # Linux fprintd (Strict Biometric Verification) integration
 │   │   ├── rp-id.ts                 # Pinned WebAuthn Relying Party ID calculation
 │   │   ├── system-exec.ts           # Safe process runner without shell interpolation
 │   │   ├── types.ts                 # Biometric contracts and envelope interfaces
