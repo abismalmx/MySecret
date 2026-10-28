@@ -13,8 +13,19 @@
 **Tu bóveda sabe tus secretos. Asegúrate de que solo tú los conozcas.**  
 *Cifrado transparente de conocimiento cero en reposo para Obsidian, sin romper la búsqueda, el grafo ni la sincronización.*
 
-**[📖 Manual de Usuario](USER_GUIDE.es.md)** • **[💻 Guía de Desarrollo](DEVELOPER_GUIDE.es.md)** • **[🛡️ Arquitectura de Seguridad](SECURITY.es.md)** • **[⚖️ Comparativa](COMPARISON.es.md)**  
-*(**Español** • [English Version](README.md))*
+<p>
+  <a href="README.md">English</a> | <strong>Español</strong>
+</p>
+
+<p>
+  📖 <strong>Manual de Usuario:</strong> <a href="USER_GUIDE.es.md">Español</a> &bull; <a href="USER_GUIDE.md">English</a>
+  &nbsp;&bull;&nbsp;
+  💻 <strong>Guía de Desarrollo:</strong> <a href="DEVELOPER_GUIDE.es.md">Español</a> &bull; <a href="DEVELOPER_GUIDE.md">English</a>
+  <br>
+  🛡️ <strong>Arquitectura de Seguridad:</strong> <a href="SECURITY.es.md">Español</a> &bull; <a href="SECURITY.md">English</a>
+  &nbsp;&bull;&nbsp;
+  ⚖️ <strong>Comparativa:</strong> <a href="COMPARISON.es.md">Español</a> &bull; <a href="COMPARISON.md">English</a>
+</p>
 
 </div>
 

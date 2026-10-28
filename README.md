@@ -13,8 +13,19 @@
 **Your vault knows your secrets. Make sure only you do.**  
 *Transparent, at-rest zero-knowledge encryption for Obsidian vaults without breaking search, graph or sync.*
 
-**[📖 User Manual](USER_GUIDE.md)** • **[💻 Developer Guide](DEVELOPER_GUIDE.md)** • **[🛡️ Security Architecture](SECURITY.md)** • **[⚖️ Comparison](COMPARISON.md)**  
-*(🇬🇧 English • [Versión en Español](README.es.md))*
+<p>
+  <strong>English</strong> | <a href="README.es.md">Español</a>
+</p>
+
+<p>
+  📖 <strong>User Manual:</strong> <a href="USER_GUIDE.md">English</a> &bull; <a href="USER_GUIDE.es.md">Español</a>
+  &nbsp;&bull;&nbsp;
+  💻 <strong>Developer Guide:</strong> <a href="DEVELOPER_GUIDE.md">English</a> &bull; <a href="DEVELOPER_GUIDE.es.md">Español</a>
+  <br>
+  🛡️ <strong>Security Architecture:</strong> <a href="SECURITY.md">English</a> &bull; <a href="SECURITY.es.md">Español</a>
+  &nbsp;&bull;&nbsp;
+  ⚖️ <strong>Comparison:</strong> <a href="COMPARISON.md">English</a> &bull; <a href="COMPARISON.es.md">Español</a>
+</p>
 
 </div>
 
