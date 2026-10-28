@@ -5,11 +5,12 @@
 Welcome to the **MySecret Developer & Architecture Guide**: the complete engineering reference for the
 `obsidian-mysecret` plugin — a transparent, at-rest encryption layer for Obsidian vaults.
 
-This document is written for engineers who will **modify, review, audit or extend** the plugin. It is not a
-user manual (see [USER_GUIDE.md](USER_GUIDE.md)) and not a threat-model essay (see
-[SECURITY.md](SECURITY.md) and [SECURITY_AUDIT.md](SECURITY_AUDIT.md)). Its job is to make the *actual* code
-legible: where each responsibility lives, which invariants a change must not break, how to build and test
-deterministically, and how to decrypt a vault without Obsidian.
+This document is written for engineers who will **modify, review, audit or extend** the plugin.
+
+> 📖 **Looking for the step-by-step user manual?** See the **[User Manual (USER_GUIDE.md)](USER_GUIDE.md)** ([Versión en Español](USER_GUIDE.es.md)).  
+> 🛡️ **Looking for the threat model or formal audit?** See **[SECURITY.md](SECURITY.md)** and **[SECURITY_AUDIT.md](SECURITY_AUDIT.md)**.
+
+Its job is to make the *actual* code legible: where each responsibility lives, which invariants a change must not break, how to build and test deterministically, and how to decrypt a vault without Obsidian.
 
 > **Provenance of this document.** Every statement below was verified against the source tree at
 > **plugin version 1.0.6** (`package.json` / `manifest.json`). Code snippets are excerpts of the real

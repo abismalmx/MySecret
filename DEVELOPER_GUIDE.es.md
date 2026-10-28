@@ -5,11 +5,12 @@
 Bienvenido a la **Guía para Desarrolladores y Arquitectura de MySecret**: la referencia de ingeniería completa
 del plugin `obsidian-mysecret`, una capa de cifrado transparente en reposo para bóvedas de Obsidian.
 
-Este documento está pensado para ingenieros que van a **modificar, revisar, auditar o extender** el plugin. No
-es un manual de usuario (ver [USER_GUIDE.es.md](USER_GUIDE.es.md)) ni un ensayo de modelado de amenazas (ver
-[SECURITY.es.md](SECURITY.es.md) y [SECURITY_AUDIT.es.md](SECURITY_AUDIT.es.md)). Su trabajo es hacer legible el
-código *real*: dónde vive cada responsabilidad, qué invariantes no debe romper un cambio, cómo compilar y
-probar de forma determinista, y cómo descifrar una bóveda sin Obsidian.
+Este documento está pensado para ingenieros que van a **modificar, revisar, auditar o extender** el plugin.
+
+> 📖 **¿Buscas el manual de usuario paso a paso?** Consulta la **[Guía de Usuario en Español (USER_GUIDE.es.md)](USER_GUIDE.es.md)**.  
+> 🛡️ **¿Buscas el modelado de amenazas o auditoría?** Consulta **[SECURITY.es.md](SECURITY.es.md)** y **[SECURITY_AUDIT.es.md](SECURITY_AUDIT.es.md)**.
+
+El objetivo de esta guía es hacer legible el código *real*: dónde vive cada responsabilidad, qué invariantes no debe romper un cambio, cómo compilar y probar de forma determinista, y cómo descifrar una bóveda sin Obsidian.
 
 > **Procedencia de este documento.** Cada afirmación fue verificada contra el código fuente de la **versión
 > 1.0.6** del plugin (`package.json` / `manifest.json`). Los fragmentos de código son extractos de la
