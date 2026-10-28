@@ -5,10 +5,10 @@
 # MySecret — Transparent Vault Encryption for Obsidian
 
 [![Obsidian](https://img.shields.io/badge/Obsidian-v1.0.0+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
-[![Tests](https://img.shields.io/badge/Tests-60k%2B%20lines%20%7C%20Passing-success?logo=githubactions&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-157%20passing-success?logo=githubactions&logoColor=white)](tests/)
 [![Security](https://img.shields.io/badge/Security-Hardened%20%26%20Zero--Trust-brightgreen?logo=shield&logoColor=white)](SECURITY.md)
-[![Obsidian Sync](https://img.shields.io/badge/Obsidian%20Sync-100%25%20Compatible-blue?logo=icloud&logoColor=white)](#-why-mysecret-stands-in-a-league-of-its-own)
-[![License](https://img.shields.io/badge/License-Non--Commercial-lightgrey.svg)](LICENSE)
+[![Obsidian Sync](https://img.shields.io/badge/Obsidian%20Sync-100%25%20Compatible-blue?logo=icloud&logoColor=white)](#-the-10-breakthrough-advantages-of-mysecret)
+[![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-orange?style=flat-square)](LICENSE)
 
 **Your vault knows your secrets. Make sure only you do.**  
 *Transparent, at-rest zero-knowledge encryption for Obsidian vaults without breaking search, graph or sync.*
@@ -252,8 +252,8 @@ Puedes consultar la versión completa en español de este documento en [README.e
 
 ## 📄 License
 
-Copyright (c) 2026 Anthony Rios Licea (@abismalmx).
+Distributed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**.
 
-**Public and auditable source code.** MySecret's entire source code is published on GitHub — anyone can read it line by line, audit it independently, and verify that no backdoor exists. The privacy it provides is mathematically verifiable: you don't have to take our word for it.
-
-License: free for personal, academic, and non-commercial use. Commercial use requires prior written authorization from the author. See [LICENSE](LICENSE) for full terms.
+- **Free and open** for personal use, learning, non-profit organizations, and academic security research.
+- **Auditable source code:** The entire codebase is public on GitHub — mathematically verifiable with zero backdoors.
+- Commercial use requires prior written authorization. Contact the author at `abismalmx.splurge748@8shield.net`. See [LICENSE](LICENSE) for full legal terms.

@@ -5,10 +5,10 @@
 # MySecret — Cifrado Transparente de Bóveda para Obsidian
 
 [![Obsidian](https://img.shields.io/badge/Obsidian-v1.0.0+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
-[![Pruebas](https://img.shields.io/badge/Pruebas-60k%2B%20l%C3%ADneas%20%7C%20Pasando-success?logo=githubactions&logoColor=white)](tests/)
+[![Pruebas](https://img.shields.io/badge/Pruebas-157%20pasando-success?logo=githubactions&logoColor=white)](tests/)
 [![Seguridad](https://img.shields.io/badge/Seguridad-Blindada%20y%20Zero--Trust-brightgreen?logo=shield&logoColor=white)](SECURITY.es.md)
-[![Obsidian Sync](https://img.shields.io/badge/Obsidian%20Sync-100%25%20Compatible-blue?logo=icloud&logoColor=white)](#-por-qu%C3%A9-mysecret-juega-en-otra-liga)
-[![Licencia](https://img.shields.io/badge/Licencia-No--Comercial-lightgrey.svg)](LICENSE)
+[![Obsidian Sync](https://img.shields.io/badge/Obsidian%20Sync-100%25%20Compatible-blue?logo=icloud&logoColor=white)](#-las-10-grandes-ventajas-de-mysecret-explicadas-de-forma-simple)
+[![Licencia](https://img.shields.io/badge/Licencia-PolyForm%20Noncommercial-orange?style=flat-square)](LICENSE)
 
 **Tu bóveda sabe tus secretos. Asegúrate de que solo tú los conozcas.**  
 *Cifrado transparente de conocimiento cero en reposo para Obsidian, sin romper la búsqueda, el grafo ni la sincronización.*
@@ -240,8 +240,8 @@ Consulta [auth-bridge/README.md](auth-bridge/README.md) para la guía paso a pas
 
 ## 📄 Licencia
 
-Copyright (c) 2026 Anthony Rios Licea (@abismalmx).
+Distribuido bajo la licencia **[PolyForm Noncommercial 1.0.0](LICENSE)**.
 
-**Código fuente público y auditable.** El código de MySecret está publicado íntegramente en GitHub — cualquier persona puede leerlo, auditarlo de forma independiente y verificar que no existe ninguna puerta trasera. La privacidad que ofrece es matemáticamente verificable: no tienes que confiar en nuestra palabra.
-
-Licencia: gratuito para uso personal, educativo y no comercial. El uso comercial requiere autorización previa del autor. Consulta [LICENSE](LICENSE) para los términos completos.
+- **Gratuito y abierto** para uso personal, aprendizaje, organizaciones sin fines de lucro e investigación académica de seguridad.
+- **Código auditable:** El código completo es público en GitHub — privacidad matemáticamente verificable sin puertas traseras.
+- El uso comercial requiere autorización previa por escrito del autor (`abismalmx.splurge748@8shield.net`). Consulta [LICENSE](LICENSE) para conocer los términos legales completos.
