@@ -6820,7 +6820,87 @@ var en = {
     encryptAttachmentsLabel: "Encrypt attachments and media files (images, PDFs, audio)",
     finishButton: "Initialize Vault & Encrypt",
     initializing: "Deriving Argon2id keys & initializing...",
-    successMessage: "Vault initialized successfully! Your notes are now protected."
+    successMessage: "Vault initialized successfully! Your notes are now protected.",
+    stepPasswordMode: "Password & mode",
+    stepRecoveryPhrase: "Recovery phrase",
+    stepVerification: "Verification",
+    stepVaultProtected: "Vault protected",
+    stepFingerprint: "Fingerprint",
+    strengthNone: "No password",
+    strengthVeryWeak: "Very weak",
+    strengthWeak: "Weak",
+    strengthGood: "Good",
+    strengthExcellent: "Excellent",
+    strengthLabel: "Password strength",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    hintLength: "At least {min} characters",
+    hintMixedCase: "Mix upper and lower case",
+    hintNumbers: "Include numbers",
+    hintSymbols: "Include symbols",
+    hintNoSequences: "Avoid sequences and repetitions",
+    recoveryOptionsTitle: "Vault recovery options:",
+    recoveryPhraseOption: "Generate a 24-word recovery phrase (Recommended)",
+    recoveryPhraseOptionDesc: "You can regain access to your notes if you ever forget the master password.",
+    passwordOnlyOption: "Master password only (Maximum security / No recovery)",
+    passwordOnlyOptionDesc: "No recovery backdoor is stored on disk. If you forget your password, the loss is permanent.",
+    continueToRecovery: "Continue to Recovery Phrase \u2192",
+    finishPasswordOnly: "Finish Setup (Password Only) \u2192",
+    errorTooShort: "The password must be at least {min} characters long.",
+    errorTooWeak: "The password is too weak. Add a variety of characters to continue.",
+    mnemonicTitle: "Your Recovery Phrase",
+    mnemonicDesc: "These {count} words are the ONLY way to recover your notes if you forget the master password. Write them on paper or store them in a secure password manager.",
+    generatingEntropy: "Generating cryptographic entropy (Argon2id + BIP-39)\u2026",
+    vaultAlreadyExists: "A vault is already configured: the wizard cannot create another key on top of it.",
+    mnemonicNeverShownAgain: "This phrase will never be shown again. Make sure you copy it before continuing.",
+    copyPhrase: "Copy phrase",
+    copiedPhrase: "Copied",
+    phraseCopiedNotice: "Recovery phrase copied to the clipboard.",
+    clipboardError: "Could not access the clipboard. Write the words down manually.",
+    hideWords: "Hide words",
+    showWords: "Show words",
+    savedPhraseContinue: "I have saved my recovery phrase \u2192",
+    initError: "Failed to initialize the vault: {error}",
+    vaultProtectedTitle: "Vault Protected!",
+    vaultProtectedDesc: "MySecret has initialized transparent encryption. From now on, every note you save will be automatically encrypted with AES-256-GCM.",
+    challengeTitle: "Prove you saved your phrase",
+    challengeDesc: "Enter the two requested words to confirm your backup is correct.",
+    wordOfTotal: "Word {n} of {total}",
+    wordN: "Word {n}",
+    wordPlaceholder: "Enter the word\u2026",
+    verifyWords: "Verify words",
+    wordsMismatch: "The words do not match. Check your recovery phrase again.",
+    verificationFailed: "Verification failed",
+    startUsingObsidian: "Start using Obsidian",
+    verifyBeforeFinish: "Verify both words before finishing setup.",
+    backupVerified: "Backup verified successfully",
+    phraseVerifiedNotice: "Recovery phrase verified. You can now set up your fingerprint or continue.",
+    encryptExistingNow: "Encrypt existing notes now",
+    maxSecurityTitle: "Maximum Security Enabled",
+    maxSecurityDesc: "Protecting your vault with AES-256-GCM and Argon2id using only your master password.",
+    generatingKeys: "Generating keys and encrypting configuration\u2026",
+    passwordOnlySuccess: "Vault configured successfully in password-only mode",
+    importantLabel: "Important: ",
+    noRecoveryPhraseNote: "No recovery phrase was generated. Your master password is the only way to access your notes.",
+    continueToFingerprint: "Continue to Fingerprint \u2192",
+    bioTitle: "Quick Fingerprint Unlock",
+    bioDesc: "You can unlock your vault instantly using this device's biometric sensor instead of typing your password every time.",
+    bioChecking: "Checking this device's biometric hardware\u2026",
+    vaultReadyNotice: "Vault ready and protected.",
+    bioHardwareAvailable: "Available hardware: {label}",
+    bioEnvelopeDesc: "When enabled, a secure envelope bound exclusively to this device is stored. Each device you use keeps its own fingerprint configuration.",
+    bioEnableBtn: "Enable Fingerprint on this Device",
+    skipForNow: "Skip for now",
+    bioVaultNotLoaded: "The vault must be loaded in memory to enroll a fingerprint.",
+    bioScanning: "Scanning fingerprint\u2026",
+    bioPlaceFinger: "Place your finger on the sensor or confirm in the system dialog\u2026",
+    bioEnabled: "Fingerprint enabled successfully on this device",
+    startUsingObsidianNext: "Start using Obsidian \u2192",
+    bioEnabledNotice: "Fingerprint unlock enabled.",
+    retryActivation: "Retry Activation",
+    bioError: "Biometric verification error.",
+    bioNotConfiguredTitle: "Biometric hardware not configured on this device",
+    bioNotConfiguredDesc: "No direct biometric reader was detected, or the Cloudflare Pages bridge URL is not configured yet. Your vault will unlock with your master password (you can enable fingerprint later in Settings > MySecret)."
   },
   changePassword: {
     title: "Change Master Password",
@@ -7161,7 +7241,87 @@ var es = {
     encryptAttachmentsLabel: "Cifrar archivos adjuntos y multimedia (im\xE1genes, PDFs, audios)",
     finishButton: "Inicializar B\xF3veda y Cifrar",
     initializing: "Derivando claves Argon2id e inicializando...",
-    successMessage: "\xA1B\xF3veda inicializada con \xE9xito! Tus notas ahora est\xE1n protegidas."
+    successMessage: "\xA1B\xF3veda inicializada con \xE9xito! Tus notas ahora est\xE1n protegidas.",
+    stepPasswordMode: "Contrase\xF1a y modo",
+    stepRecoveryPhrase: "Frase de auxilio",
+    stepVerification: "Verificaci\xF3n",
+    stepVaultProtected: "B\xF3veda protegida",
+    stepFingerprint: "Huella digital",
+    strengthNone: "Sin contrase\xF1a",
+    strengthVeryWeak: "Muy d\xE9bil",
+    strengthWeak: "D\xE9bil",
+    strengthGood: "Buena",
+    strengthExcellent: "Excelente",
+    strengthLabel: "Fuerza de la contrase\xF1a",
+    showPassword: "Mostrar contrase\xF1a",
+    hidePassword: "Ocultar contrase\xF1a",
+    hintLength: "Al menos {min} caracteres",
+    hintMixedCase: "Mezcla may\xFAsculas y min\xFAsculas",
+    hintNumbers: "Incluye n\xFAmeros",
+    hintSymbols: "Incluye s\xEDmbolos",
+    hintNoSequences: "Evita secuencias y repeticiones",
+    recoveryOptionsTitle: "Opciones de recuperaci\xF3n de la b\xF3veda:",
+    recoveryPhraseOption: "Generar frase de recuperaci\xF3n de 24 palabras (Recomendado)",
+    recoveryPhraseOptionDesc: "Podr\xE1s recuperar el acceso a tus notas si alguna vez olvidas la contrase\xF1a maestra.",
+    passwordOnlyOption: "Solo contrase\xF1a maestra (M\xE1xima seguridad / Sin auxilio)",
+    passwordOnlyOptionDesc: "No se guardar\xE1 ninguna puerta de auxilio en disco. Si olvidas tu contrase\xF1a, la p\xE9rdida ser\xE1 permanente.",
+    continueToRecovery: "Continuar a Frase de Recuperaci\xF3n \u2192",
+    finishPasswordOnly: "Finalizar Configuraci\xF3n (Solo Contrase\xF1a) \u2192",
+    errorTooShort: "La contrase\xF1a debe tener al menos {min} caracteres.",
+    errorTooWeak: "La contrase\xF1a es demasiado d\xE9bil. A\xF1ade variedad de caracteres para continuar.",
+    mnemonicTitle: "Tu Frase de Rescate",
+    mnemonicDesc: "Estas {count} palabras son el \xDANICO modo de recuperar tus notas si olvidas la contrase\xF1a maestra. An\xF3talas en papel o gu\xE1rdalas en un gestor de claves seguro.",
+    generatingEntropy: "Generando entrop\xEDa criptogr\xE1fica (Argon2id + BIP-39)\u2026",
+    vaultAlreadyExists: "Ya existe una b\xF3veda configurada: el asistente no puede crear otra clave encima.",
+    mnemonicNeverShownAgain: "Esta frase nunca volver\xE1 a mostrarse. Aseg\xFArate de copiarla antes de continuar.",
+    copyPhrase: "Copiar frase",
+    copiedPhrase: "Copiada",
+    phraseCopiedNotice: "Frase de rescate copiada al portapapeles.",
+    clipboardError: "No se pudo acceder al portapapeles. Anota las palabras manualmente.",
+    hideWords: "Ocultar palabras",
+    showWords: "Mostrar palabras",
+    savedPhraseContinue: "He guardado mi frase de auxilio \u2192",
+    initError: "Error al inicializar la b\xF3veda: {error}",
+    vaultProtectedTitle: "\xA1B\xF3veda Protegida!",
+    vaultProtectedDesc: "MySecret ha inicializado el cifrado transparente. A partir de ahora, cada nota que guardes se cifrar\xE1 autom\xE1ticamente con AES-256-GCM.",
+    challengeTitle: "Demuestra que guardaste tu frase",
+    challengeDesc: "Introduce las dos palabras que te solicitamos para confirmar que tu respaldo es correcto.",
+    wordOfTotal: "Palabra {n} de {total}",
+    wordN: "Palabra {n}",
+    wordPlaceholder: "Introduce la palabra\u2026",
+    verifyWords: "Verificar palabras",
+    wordsMismatch: "Las palabras no coinciden. Vuelve a consultar tu frase de rescate.",
+    verificationFailed: "Verificaci\xF3n fallida",
+    startUsingObsidian: "Comenzar a usar Obsidian",
+    verifyBeforeFinish: "Verifica las dos palabras antes de finalizar la configuraci\xF3n.",
+    backupVerified: "Respaldo verificado correctamente",
+    phraseVerifiedNotice: "Frase de rescate verificada. Ya puedes configurar la huella o continuar.",
+    encryptExistingNow: "Cifrar notas existentes ahora",
+    maxSecurityTitle: "M\xE1xima Seguridad Activada",
+    maxSecurityDesc: "Protegiendo tu b\xF3veda con cifrado AES-256-GCM y Argon2id exclusivamente con tu contrase\xF1a maestra.",
+    generatingKeys: "Generando claves y cifrando configuraci\xF3n\u2026",
+    passwordOnlySuccess: "B\xF3veda configurada con \xE9xito en modo de solo contrase\xF1a",
+    importantLabel: "Importante: ",
+    noRecoveryPhraseNote: "No se gener\xF3 frase de auxilio. Tu contrase\xF1a maestra es el \xFAnico medio para acceder a tus notas.",
+    continueToFingerprint: "Continuar a Huella Digital \u2192",
+    bioTitle: "Desbloqueo R\xE1pido con Huella Digital",
+    bioDesc: "Puedes desbloquear tu b\xF3veda al instante usando el sensor biom\xE9trico de este dispositivo sin tener que teclear tu contrase\xF1a cada vez.",
+    bioChecking: "Comprobando hardware biom\xE9trico de este equipo\u2026",
+    vaultReadyNotice: "B\xF3veda lista y protegida.",
+    bioHardwareAvailable: "Hardware disponible: {label}",
+    bioEnvelopeDesc: "Al activarlo, se guardar\xE1 un sobre seguro vinculado exclusivamente a este equipo. Cada dispositivo que uses conserva su propia configuraci\xF3n de huella.",
+    bioEnableBtn: "Activar Huella en este Dispositivo",
+    skipForNow: "Omitir por ahora",
+    bioVaultNotLoaded: "La b\xF3veda debe estar cargada en RAM para enrolar la huella.",
+    bioScanning: "Escaneando huella\u2026",
+    bioPlaceFinger: "Coloca tu dedo en el sensor o confirma en el di\xE1logo del sistema\u2026",
+    bioEnabled: "Huella digital activada correctamente en este equipo",
+    startUsingObsidianNext: "Comenzar a usar Obsidian \u2192",
+    bioEnabledNotice: "Desbloqueo con huella habilitado.",
+    retryActivation: "Reintentar Activaci\xF3n",
+    bioError: "Error en la verificaci\xF3n biom\xE9trica.",
+    bioNotConfiguredTitle: "Hardware Biom\xE9trico no configurado en este equipo",
+    bioNotConfiguredDesc: "No se detect\xF3 un lector biom\xE9trico directo o la URL del puente de Cloudflare Pages a\xFAn no est\xE1 configurada. Tu b\xF3veda se desbloquear\xE1 con tu contrase\xF1a maestra (puedes activar la huella m\xE1s tarde en Ajustes > MySecret)."
   },
   changePassword: {
     title: "Cambiar contrase\xF1a maestra",
@@ -7502,7 +7662,87 @@ var ru = {
     encryptAttachmentsLabel: "\u0428\u0438\u0444\u0440\u043E\u0432\u0430\u0442\u044C \u0432\u043B\u043E\u0436\u0435\u043D\u0438\u044F \u0438 \u043C\u0435\u0434\u0438\u0430\u0444\u0430\u0439\u043B\u044B (\u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F, PDF, \u0430\u0443\u0434\u0438\u043E)",
     finishButton: "\u0418\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0438 \u0437\u0430\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u0442\u044C",
     initializing: "\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043A\u043B\u044E\u0447\u0435\u0439 Argon2id \u0438 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u044F...",
-    successMessage: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043E! \u0412\u0430\u0448\u0438 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u0442\u0435\u043F\u0435\u0440\u044C \u043F\u043E\u0434 \u043D\u0430\u0434\u0451\u0436\u043D\u043E\u0439 \u0437\u0430\u0449\u0438\u0442\u043E\u0439."
+    successMessage: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043E! \u0412\u0430\u0448\u0438 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u0442\u0435\u043F\u0435\u0440\u044C \u043F\u043E\u0434 \u043D\u0430\u0434\u0451\u0436\u043D\u043E\u0439 \u0437\u0430\u0449\u0438\u0442\u043E\u0439.",
+    stepPasswordMode: "\u041F\u0430\u0440\u043E\u043B\u044C \u0438 \u0440\u0435\u0436\u0438\u043C",
+    stepRecoveryPhrase: "\u0424\u0440\u0430\u0437\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F",
+    stepVerification: "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430",
+    stepVaultProtected: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0437\u0430\u0449\u0438\u0449\u0435\u043D\u043E",
+    stepFingerprint: "\u041E\u0442\u043F\u0435\u0447\u0430\u0442\u043E\u043A \u043F\u0430\u043B\u044C\u0446\u0430",
+    strengthNone: "\u041D\u0435\u0442 \u043F\u0430\u0440\u043E\u043B\u044F",
+    strengthVeryWeak: "\u041E\u0447\u0435\u043D\u044C \u0441\u043B\u0430\u0431\u044B\u0439",
+    strengthWeak: "\u0421\u043B\u0430\u0431\u044B\u0439",
+    strengthGood: "\u0425\u043E\u0440\u043E\u0448\u0438\u0439",
+    strengthExcellent: "\u041E\u0442\u043B\u0438\u0447\u043D\u044B\u0439",
+    strengthLabel: "\u041D\u0430\u0434\u0451\u0436\u043D\u043E\u0441\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044F",
+    showPassword: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
+    hidePassword: "\u0421\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
+    hintLength: "\u041D\u0435 \u043C\u0435\u043D\u0435\u0435 {min} \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432",
+    hintMixedCase: "\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u0437\u0430\u0433\u043B\u0430\u0432\u043D\u044B\u0435 \u0438 \u0441\u0442\u0440\u043E\u0447\u043D\u044B\u0435 \u0431\u0443\u043A\u0432\u044B",
+    hintNumbers: "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0446\u0438\u0444\u0440\u044B",
+    hintSymbols: "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0441\u0438\u043C\u0432\u043E\u043B\u044B",
+    hintNoSequences: "\u0418\u0437\u0431\u0435\u0433\u0430\u0439\u0442\u0435 \u043F\u043E\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u0435\u0439 \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u043E\u0432",
+    recoveryOptionsTitle: "\u0412\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430:",
+    recoveryPhraseOption: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0444\u0440\u0430\u0437\u0443 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0438\u0437 24 \u0441\u043B\u043E\u0432 (\u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442\u0441\u044F)",
+    recoveryPhraseOptionDesc: "\u0412\u044B \u0441\u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u0437\u0430\u043C\u0435\u0442\u043A\u0430\u043C, \u0435\u0441\u043B\u0438 \u0437\u0430\u0431\u0443\u0434\u0435\u0442\u0435 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C.",
+    passwordOnlyOption: "\u0422\u043E\u043B\u044C\u043A\u043E \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C (\u043C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u0430\u044F \u0437\u0430\u0449\u0438\u0442\u0430 / \u0431\u0435\u0437 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F)",
+    passwordOnlyOptionDesc: "\u041D\u0430 \u0434\u0438\u0441\u043A\u0435 \u043D\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442\u0441\u044F \u0440\u0435\u0437\u0435\u0440\u0432\u043D\u044B\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0434\u043E\u0441\u0442\u0443\u043F\u0430. \u0415\u0441\u043B\u0438 \u0432\u044B \u0437\u0430\u0431\u0443\u0434\u0435\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C, \u0434\u0430\u043D\u043D\u044B\u0435 \u0431\u0443\u0434\u0443\u0442 \u043F\u043E\u0442\u0435\u0440\u044F\u043D\u044B \u043D\u0430\u0432\u0441\u0435\u0433\u0434\u0430.",
+    continueToRecovery: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u0444\u0440\u0430\u0437\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u2192",
+    finishPasswordOnly: "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443 (\u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0430\u0440\u043E\u043B\u044C) \u2192",
+    errorTooShort: "\u041F\u0430\u0440\u043E\u043B\u044C \u0434\u043E\u043B\u0436\u0435\u043D \u0441\u043E\u0434\u0435\u0440\u0436\u0430\u0442\u044C \u043D\u0435 \u043C\u0435\u043D\u0435\u0435 {min} \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432.",
+    errorTooWeak: "\u041F\u0430\u0440\u043E\u043B\u044C \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0441\u043B\u0430\u0431\u044B\u0439. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0440\u0430\u0437\u043D\u043E\u043E\u0431\u0440\u0430\u0437\u043D\u044B\u0435 \u0441\u0438\u043C\u0432\u043E\u043B\u044B, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C.",
+    mnemonicTitle: "\u0412\u0430\u0448\u0430 \u0444\u0440\u0430\u0437\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F",
+    mnemonicDesc: "\u042D\u0442\u0438 {count} \u0441\u043B\u043E\u0432 \u2014 \u0415\u0414\u0418\u041D\u0421\u0422\u0412\u0415\u041D\u041D\u042B\u0419 \u0441\u043F\u043E\u0441\u043E\u0431 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0437\u0430\u043C\u0435\u0442\u043A\u0438, \u0435\u0441\u043B\u0438 \u0432\u044B \u0437\u0430\u0431\u0443\u0434\u0435\u0442\u0435 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C. \u0417\u0430\u043F\u0438\u0448\u0438\u0442\u0435 \u0438\u0445 \u043D\u0430 \u0431\u0443\u043C\u0430\u0433\u0435 \u0438\u043B\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0432 \u043D\u0430\u0434\u0451\u0436\u043D\u043E\u043C \u043C\u0435\u043D\u0435\u0434\u0436\u0435\u0440\u0435 \u043F\u0430\u0440\u043E\u043B\u0435\u0439.",
+    generatingEntropy: "\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043A\u0440\u0438\u043F\u0442\u043E\u0433\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u043E\u0439 \u044D\u043D\u0442\u0440\u043E\u043F\u0438\u0438 (Argon2id + BIP-39)\u2026",
+    vaultAlreadyExists: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0443\u0436\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u043E: \u043C\u0430\u0441\u0442\u0435\u0440 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u043E\u0432\u0435\u0440\u0445 \u043D\u0435\u0433\u043E \u043D\u043E\u0432\u044B\u0439 \u043A\u043B\u044E\u0447.",
+    mnemonicNeverShownAgain: "\u042D\u0442\u0430 \u0444\u0440\u0430\u0437\u0430 \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0438\u043A\u043E\u0433\u0434\u0430 \u043D\u0435 \u0431\u0443\u0434\u0435\u0442 \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u0430. \u041E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E \u0441\u043A\u043E\u043F\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0451, \u043F\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043C \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C.",
+    copyPhrase: "\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0444\u0440\u0430\u0437\u0443",
+    copiedPhrase: "\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u043E",
+    phraseCopiedNotice: "\u0424\u0440\u0430\u0437\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0430 \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430.",
+    clipboardError: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u0431\u0443\u0444\u0435\u0440\u0443 \u043E\u0431\u043C\u0435\u043D\u0430. \u0417\u0430\u043F\u0438\u0448\u0438\u0442\u0435 \u0441\u043B\u043E\u0432\u0430 \u0432\u0440\u0443\u0447\u043D\u0443\u044E.",
+    hideWords: "\u0421\u043A\u0440\u044B\u0442\u044C \u0441\u043B\u043E\u0432\u0430",
+    showWords: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0441\u043B\u043E\u0432\u0430",
+    savedPhraseContinue: "\u042F \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u043B \u0444\u0440\u0430\u0437\u0443 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u2192",
+    initError: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435: {error}",
+    vaultProtectedTitle: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0437\u0430\u0449\u0438\u0449\u0435\u043D\u043E!",
+    vaultProtectedDesc: "MySecret \u0432\u043A\u043B\u044E\u0447\u0438\u043B \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0435 \u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u0438\u0435. \u0422\u0435\u043F\u0435\u0440\u044C \u043A\u0430\u0436\u0434\u0430\u044F \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u043C\u0430\u044F \u0437\u0430\u043C\u0435\u0442\u043A\u0430 \u0431\u0443\u0434\u0435\u0442 \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u0448\u0438\u0444\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u044F AES-256-GCM.",
+    challengeTitle: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435, \u0447\u0442\u043E \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0443",
+    challengeDesc: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0434\u0432\u0430 \u0437\u0430\u043F\u0440\u043E\u0448\u0435\u043D\u043D\u044B\u0445 \u0441\u043B\u043E\u0432\u0430, \u0447\u0442\u043E\u0431\u044B \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C \u043F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E\u0441\u0442\u044C \u0440\u0435\u0437\u0435\u0440\u0432\u043D\u043E\u0439 \u043A\u043E\u043F\u0438\u0438.",
+    wordOfTotal: "\u0421\u043B\u043E\u0432\u043E {n} \u0438\u0437 {total}",
+    wordN: "\u0421\u043B\u043E\u0432\u043E {n}",
+    wordPlaceholder: "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0441\u043B\u043E\u0432\u043E\u2026",
+    verifyWords: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u043B\u043E\u0432\u0430",
+    wordsMismatch: "\u0421\u043B\u043E\u0432\u0430 \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u044E\u0442. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0444\u0440\u0430\u0437\u0443 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0435\u0449\u0451 \u0440\u0430\u0437.",
+    verificationFailed: "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043D\u0435 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430",
+    startUsingObsidian: "\u041D\u0430\u0447\u0430\u0442\u044C \u0440\u0430\u0431\u043E\u0442\u0443 \u0441 Obsidian",
+    verifyBeforeFinish: "\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043E\u0431\u0430 \u0441\u043B\u043E\u0432\u0430, \u043F\u0440\u0435\u0436\u0434\u0435 \u0447\u0435\u043C \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443.",
+    backupVerified: "\u0420\u0435\u0437\u0435\u0440\u0432\u043D\u0430\u044F \u043A\u043E\u043F\u0438\u044F \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u0430",
+    phraseVerifiedNotice: "\u0424\u0440\u0430\u0437\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0430. \u0422\u0435\u043F\u0435\u0440\u044C \u043C\u043E\u0436\u043D\u043E \u043D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043E\u043A \u0438\u043B\u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C.",
+    encryptExistingNow: "\u0417\u0430\u0448\u0438\u0444\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0435 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u0441\u0435\u0439\u0447\u0430\u0441",
+    maxSecurityTitle: "\u041C\u0430\u043A\u0441\u0438\u043C\u0430\u043B\u044C\u043D\u0430\u044F \u0437\u0430\u0449\u0438\u0442\u0430 \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u0430",
+    maxSecurityDesc: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442\u0441\u044F AES-256-GCM \u0438 Argon2id \u0442\u043E\u043B\u044C\u043A\u043E \u0441 \u043F\u043E\u043C\u043E\u0449\u044C\u044E \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044F.",
+    generatingKeys: "\u0413\u0435\u043D\u0435\u0440\u0430\u0446\u0438\u044F \u043A\u043B\u044E\u0447\u0435\u0439 \u0438 \u0448\u0438\u0444\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438\u2026",
+    passwordOnlySuccess: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u043E \u0432 \u0440\u0435\u0436\u0438\u043C\u0435 \xAB\u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0430\u0440\u043E\u043B\u044C\xBB",
+    importantLabel: "\u0412\u0430\u0436\u043D\u043E: ",
+    noRecoveryPhraseNote: "\u0424\u0440\u0430\u0437\u0430 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u0441\u043E\u0437\u0434\u0430\u043D\u0430. \u041C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044C \u2014 \u0435\u0434\u0438\u043D\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A \u0437\u0430\u043C\u0435\u0442\u043A\u0430\u043C.",
+    continueToFingerprint: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0443 \u043F\u0430\u043B\u044C\u0446\u0430 \u2192",
+    bioTitle: "\u0411\u044B\u0441\u0442\u0440\u0430\u044F \u0440\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0430 \u043F\u043E \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0443",
+    bioDesc: "\u0412\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u043C\u0433\u043D\u043E\u0432\u0435\u043D\u043D\u043E \u0440\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0431\u0438\u043E\u043C\u0435\u0442\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u043C \u0434\u0430\u0442\u0447\u0438\u043A\u043E\u043C \u044D\u0442\u043E\u0433\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430, \u043D\u0435 \u0432\u0432\u043E\u0434\u044F \u043F\u0430\u0440\u043E\u043B\u044C \u043A\u0430\u0436\u0434\u044B\u0439 \u0440\u0430\u0437.",
+    bioChecking: "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0431\u0438\u043E\u043C\u0435\u0442\u0440\u0438\u0447\u0435\u0441\u043A\u043E\u0433\u043E \u043E\u0431\u043E\u0440\u0443\u0434\u043E\u0432\u0430\u043D\u0438\u044F \u044D\u0442\u043E\u0433\u043E \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430\u2026",
+    vaultReadyNotice: "\u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0433\u043E\u0442\u043E\u0432\u043E \u0438 \u0437\u0430\u0449\u0438\u0449\u0435\u043D\u043E.",
+    bioHardwareAvailable: "\u0414\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0435 \u043E\u0431\u043E\u0440\u0443\u0434\u043E\u0432\u0430\u043D\u0438\u0435: {label}",
+    bioEnvelopeDesc: "\u041F\u0440\u0438 \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442\u0441\u044F \u0437\u0430\u0449\u0438\u0449\u0451\u043D\u043D\u044B\u0439 \u043A\u043E\u043D\u0432\u0435\u0440\u0442, \u043F\u0440\u0438\u0432\u044F\u0437\u0430\u043D\u043D\u044B\u0439 \u0442\u043E\u043B\u044C\u043A\u043E \u043A \u044D\u0442\u043E\u043C\u0443 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0443. \u041A\u0430\u0436\u0434\u043E\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E \u0445\u0440\u0430\u043D\u0438\u0442 \u0441\u043E\u0431\u0441\u0442\u0432\u0435\u043D\u043D\u0443\u044E \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443 \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0430.",
+    bioEnableBtn: "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043E\u043A \u043D\u0430 \u044D\u0442\u043E\u043C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0435",
+    skipForNow: "\u041F\u0440\u043E\u043F\u0443\u0441\u0442\u0438\u0442\u044C",
+    bioVaultNotLoaded: "\u0414\u043B\u044F \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438 \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0430 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0434\u043E\u043B\u0436\u043D\u043E \u0431\u044B\u0442\u044C \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043E \u0432 \u043F\u0430\u043C\u044F\u0442\u044C.",
+    bioScanning: "\u0421\u043A\u0430\u043D\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0430\u2026",
+    bioPlaceFinger: "\u041F\u0440\u0438\u043B\u043E\u0436\u0438\u0442\u0435 \u043F\u0430\u043B\u0435\u0446 \u043A \u0434\u0430\u0442\u0447\u0438\u043A\u0443 \u0438\u043B\u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0432 \u0441\u0438\u0441\u0442\u0435\u043C\u043D\u043E\u043C \u0434\u0438\u0430\u043B\u043E\u0433\u0435\u2026",
+    bioEnabled: "\u041E\u0442\u043F\u0435\u0447\u0430\u0442\u043E\u043A \u043F\u0430\u043B\u044C\u0446\u0430 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0432\u043A\u043B\u044E\u0447\u0451\u043D \u043D\u0430 \u044D\u0442\u043E\u043C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0435",
+    startUsingObsidianNext: "\u041D\u0430\u0447\u0430\u0442\u044C \u0440\u0430\u0431\u043E\u0442\u0443 \u0441 Obsidian \u2192",
+    bioEnabledNotice: "\u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u043A\u0430 \u043F\u043E \u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043A\u0443 \u0432\u043A\u043B\u044E\u0447\u0435\u043D\u0430.",
+    retryActivation: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u0430\u043A\u0442\u0438\u0432\u0430\u0446\u0438\u044E",
+    bioError: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0431\u0438\u043E\u043C\u0435\u0442\u0440\u0438\u0447\u0435\u0441\u043A\u043E\u0439 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438.",
+    bioNotConfiguredTitle: "\u0411\u0438\u043E\u043C\u0435\u0442\u0440\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u043E\u0431\u043E\u0440\u0443\u0434\u043E\u0432\u0430\u043D\u0438\u0435 \u043D\u0430 \u044D\u0442\u043E\u043C \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0435 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u043E",
+    bioNotConfiguredDesc: "\u041D\u0435 \u043E\u0431\u043D\u0430\u0440\u0443\u0436\u0435\u043D \u0431\u0438\u043E\u043C\u0435\u0442\u0440\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0441\u0447\u0438\u0442\u044B\u0432\u0430\u0442\u0435\u043B\u044C, \u0438\u043B\u0438 URL \u043C\u043E\u0441\u0442\u0430 Cloudflare Pages \u0435\u0449\u0451 \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D. \u0425\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0435 \u0431\u0443\u0434\u0435\u0442 \u0440\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u044F \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u0435\u043C (\u043E\u0442\u043F\u0435\u0447\u0430\u0442\u043E\u043A \u043C\u043E\u0436\u043D\u043E \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u043F\u043E\u0437\u0436\u0435 \u0432 \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 > MySecret)."
   },
   changePassword: {
     title: "\u0421\u043C\u0435\u043D\u0430 \u043C\u0430\u0441\u0442\u0435\u0440-\u043F\u0430\u0440\u043E\u043B\u044F",
@@ -7843,7 +8083,87 @@ var zh2 = {
     encryptAttachmentsLabel: "\u52A0\u5BC6\u9644\u4EF6\u548C\u591A\u5A92\u4F53\u6587\u4EF6 (\u56FE\u7247\u3001PDF\u3001\u97F3\u9891)",
     finishButton: "\u521D\u59CB\u5316\u4ED3\u5E93\u5E76\u52A0\u5BC6",
     initializing: "\u6B63\u5728\u6D3E\u751F Argon2id \u5BC6\u94A5\u5E76\u521D\u59CB\u5316...",
-    successMessage: "\u4ED3\u5E93\u521D\u59CB\u5316\u6210\u529F\uFF01\u60A8\u7684\u7B14\u8BB0\u73B0\u5DF2\u53D7\u5230\u52A0\u5BC6\u4FDD\u62A4\u3002"
+    successMessage: "\u4ED3\u5E93\u521D\u59CB\u5316\u6210\u529F\uFF01\u60A8\u7684\u7B14\u8BB0\u73B0\u5DF2\u53D7\u5230\u52A0\u5BC6\u4FDD\u62A4\u3002",
+    stepPasswordMode: "\u5BC6\u7801\u4E0E\u6A21\u5F0F",
+    stepRecoveryPhrase: "\u6062\u590D\u77ED\u8BED",
+    stepVerification: "\u9A8C\u8BC1",
+    stepVaultProtected: "\u4ED3\u5E93\u5DF2\u4FDD\u62A4",
+    stepFingerprint: "\u6307\u7EB9",
+    strengthNone: "\u65E0\u5BC6\u7801",
+    strengthVeryWeak: "\u975E\u5E38\u5F31",
+    strengthWeak: "\u5F31",
+    strengthGood: "\u826F\u597D",
+    strengthExcellent: "\u6781\u4F73",
+    strengthLabel: "\u5BC6\u7801\u5F3A\u5EA6",
+    showPassword: "\u663E\u793A\u5BC6\u7801",
+    hidePassword: "\u9690\u85CF\u5BC6\u7801",
+    hintLength: "\u81F3\u5C11 {min} \u4E2A\u5B57\u7B26",
+    hintMixedCase: "\u6DF7\u5408\u5927\u5C0F\u5199\u5B57\u6BCD",
+    hintNumbers: "\u5305\u542B\u6570\u5B57",
+    hintSymbols: "\u5305\u542B\u7B26\u53F7",
+    hintNoSequences: "\u907F\u514D\u8FDE\u7EED\u548C\u91CD\u590D\u5B57\u7B26",
+    recoveryOptionsTitle: "\u4ED3\u5E93\u6062\u590D\u9009\u9879\uFF1A",
+    recoveryPhraseOption: "\u751F\u6210 24 \u4E2A\u5355\u8BCD\u7684\u6062\u590D\u77ED\u8BED\uFF08\u63A8\u8350\uFF09",
+    recoveryPhraseOptionDesc: "\u5982\u679C\u5FD8\u8BB0\u4E3B\u5BC6\u7801\uFF0C\u60A8\u4ECD\u53EF\u6062\u590D\u5BF9\u7B14\u8BB0\u7684\u8BBF\u95EE\u3002",
+    passwordOnlyOption: "\u4EC5\u4E3B\u5BC6\u7801\uFF08\u6700\u9AD8\u5B89\u5168\u6027 / \u65E0\u6CD5\u6062\u590D\uFF09",
+    passwordOnlyOptionDesc: "\u78C1\u76D8\u4E0A\u4E0D\u4F1A\u4FDD\u5B58\u4EFB\u4F55\u6062\u590D\u9014\u5F84\u3002\u5982\u679C\u5FD8\u8BB0\u5BC6\u7801\uFF0C\u6570\u636E\u5C06\u6C38\u4E45\u4E22\u5931\u3002",
+    continueToRecovery: "\u7EE7\u7EED\u8BBE\u7F6E\u6062\u590D\u77ED\u8BED \u2192",
+    finishPasswordOnly: "\u5B8C\u6210\u8BBE\u7F6E\uFF08\u4EC5\u5BC6\u7801\uFF09\u2192",
+    errorTooShort: "\u5BC6\u7801\u957F\u5EA6\u81F3\u5C11\u4E3A {min} \u4E2A\u5B57\u7B26\u3002",
+    errorTooWeak: "\u5BC6\u7801\u592A\u5F31\u3002\u8BF7\u4F7F\u7528\u66F4\u591A\u79CD\u7C7B\u7684\u5B57\u7B26\u540E\u7EE7\u7EED\u3002",
+    mnemonicTitle: "\u60A8\u7684\u6062\u590D\u77ED\u8BED",
+    mnemonicDesc: "\u5982\u679C\u5FD8\u8BB0\u4E3B\u5BC6\u7801\uFF0C\u8FD9 {count} \u4E2A\u5355\u8BCD\u662F\u6062\u590D\u7B14\u8BB0\u7684\u552F\u4E00\u65B9\u5F0F\u3002\u8BF7\u5C06\u5176\u5199\u5728\u7EB8\u4E0A\u6216\u4FDD\u5B58\u5728\u5B89\u5168\u7684\u5BC6\u7801\u7BA1\u7406\u5668\u4E2D\u3002",
+    generatingEntropy: "\u6B63\u5728\u751F\u6210\u52A0\u5BC6\u71B5\uFF08Argon2id + BIP-39\uFF09\u2026",
+    vaultAlreadyExists: "\u4ED3\u5E93\u5DF2\u914D\u7F6E\uFF1A\u5411\u5BFC\u65E0\u6CD5\u5728\u5176\u4E0A\u521B\u5EFA\u65B0\u7684\u5BC6\u94A5\u3002",
+    mnemonicNeverShownAgain: "\u6B64\u77ED\u8BED\u5C06\u4E0D\u518D\u663E\u793A\u3002\u8BF7\u5728\u7EE7\u7EED\u4E4B\u524D\u52A1\u5FC5\u590D\u5236\u4FDD\u5B58\u3002",
+    copyPhrase: "\u590D\u5236\u77ED\u8BED",
+    copiedPhrase: "\u5DF2\u590D\u5236",
+    phraseCopiedNotice: "\u6062\u590D\u77ED\u8BED\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F\u3002",
+    clipboardError: "\u65E0\u6CD5\u8BBF\u95EE\u526A\u8D34\u677F\u3002\u8BF7\u624B\u52A8\u8BB0\u4E0B\u8FD9\u4E9B\u5355\u8BCD\u3002",
+    hideWords: "\u9690\u85CF\u5355\u8BCD",
+    showWords: "\u663E\u793A\u5355\u8BCD",
+    savedPhraseContinue: "\u6211\u5DF2\u4FDD\u5B58\u6062\u590D\u77ED\u8BED \u2192",
+    initError: "\u4ED3\u5E93\u521D\u59CB\u5316\u5931\u8D25\uFF1A{error}",
+    vaultProtectedTitle: "\u4ED3\u5E93\u5DF2\u53D7\u4FDD\u62A4\uFF01",
+    vaultProtectedDesc: "MySecret \u5DF2\u542F\u7528\u900F\u660E\u52A0\u5BC6\u3002\u4ECE\u73B0\u5728\u8D77\uFF0C\u60A8\u4FDD\u5B58\u7684\u6BCF\u6761\u7B14\u8BB0\u90FD\u5C06\u81EA\u52A8\u4F7F\u7528 AES-256-GCM \u52A0\u5BC6\u3002",
+    challengeTitle: "\u8BC1\u660E\u60A8\u5DF2\u4FDD\u5B58\u77ED\u8BED",
+    challengeDesc: "\u8BF7\u8F93\u5165\u8981\u6C42\u7684\u4E24\u4E2A\u5355\u8BCD\uFF0C\u4EE5\u786E\u8BA4\u60A8\u7684\u5907\u4EFD\u6B63\u786E\u65E0\u8BEF\u3002",
+    wordOfTotal: "\u7B2C {n} \u4E2A\u5355\u8BCD\uFF08\u5171 {total} \u4E2A\uFF09",
+    wordN: "\u7B2C {n} \u4E2A\u5355\u8BCD",
+    wordPlaceholder: "\u8F93\u5165\u5355\u8BCD\u2026",
+    verifyWords: "\u9A8C\u8BC1\u5355\u8BCD",
+    wordsMismatch: "\u5355\u8BCD\u4E0D\u5339\u914D\u3002\u8BF7\u91CD\u65B0\u6838\u5BF9\u60A8\u7684\u6062\u590D\u77ED\u8BED\u3002",
+    verificationFailed: "\u9A8C\u8BC1\u5931\u8D25",
+    startUsingObsidian: "\u5F00\u59CB\u4F7F\u7528 Obsidian",
+    verifyBeforeFinish: "\u5B8C\u6210\u8BBE\u7F6E\u524D\u8BF7\u5148\u9A8C\u8BC1\u4E24\u4E2A\u5355\u8BCD\u3002",
+    backupVerified: "\u5907\u4EFD\u9A8C\u8BC1\u6210\u529F",
+    phraseVerifiedNotice: "\u6062\u590D\u77ED\u8BED\u5DF2\u9A8C\u8BC1\u3002\u60A8\u73B0\u5728\u53EF\u4EE5\u8BBE\u7F6E\u6307\u7EB9\u6216\u7EE7\u7EED\u3002",
+    encryptExistingNow: "\u7ACB\u5373\u52A0\u5BC6\u73B0\u6709\u7B14\u8BB0",
+    maxSecurityTitle: "\u5DF2\u542F\u7528\u6700\u9AD8\u5B89\u5168\u6027",
+    maxSecurityDesc: "\u4EC5\u4F7F\u7528\u4E3B\u5BC6\u7801\uFF0C\u901A\u8FC7 AES-256-GCM \u548C Argon2id \u4FDD\u62A4\u60A8\u7684\u4ED3\u5E93\u3002",
+    generatingKeys: "\u6B63\u5728\u751F\u6210\u5BC6\u94A5\u5E76\u52A0\u5BC6\u914D\u7F6E\u2026",
+    passwordOnlySuccess: "\u4ED3\u5E93\u5DF2\u6210\u529F\u914D\u7F6E\u4E3A\u4EC5\u5BC6\u7801\u6A21\u5F0F",
+    importantLabel: "\u91CD\u8981\uFF1A",
+    noRecoveryPhraseNote: "\u672A\u751F\u6210\u6062\u590D\u77ED\u8BED\u3002\u4E3B\u5BC6\u7801\u662F\u8BBF\u95EE\u7B14\u8BB0\u7684\u552F\u4E00\u65B9\u5F0F\u3002",
+    continueToFingerprint: "\u7EE7\u7EED\u8BBE\u7F6E\u6307\u7EB9 \u2192",
+    bioTitle: "\u6307\u7EB9\u5FEB\u901F\u89E3\u9501",
+    bioDesc: "\u60A8\u53EF\u4EE5\u4F7F\u7528\u672C\u8BBE\u5907\u7684\u751F\u7269\u8BC6\u522B\u4F20\u611F\u5668\u5373\u65F6\u89E3\u9501\u4ED3\u5E93\uFF0C\u65E0\u9700\u6BCF\u6B21\u8F93\u5165\u5BC6\u7801\u3002",
+    bioChecking: "\u6B63\u5728\u68C0\u67E5\u672C\u8BBE\u5907\u7684\u751F\u7269\u8BC6\u522B\u786C\u4EF6\u2026",
+    vaultReadyNotice: "\u4ED3\u5E93\u5DF2\u5C31\u7EEA\u5E76\u53D7\u4FDD\u62A4\u3002",
+    bioHardwareAvailable: "\u53EF\u7528\u786C\u4EF6\uFF1A{label}",
+    bioEnvelopeDesc: "\u542F\u7528\u540E\uFF0C\u5C06\u5B58\u50A8\u4E00\u4E2A\u4EC5\u7ED1\u5B9A\u5230\u672C\u8BBE\u5907\u7684\u5B89\u5168\u4FE1\u5C01\u3002\u60A8\u4F7F\u7528\u7684\u6BCF\u53F0\u8BBE\u5907\u90FD\u4F1A\u4FDD\u7559\u5404\u81EA\u7684\u6307\u7EB9\u914D\u7F6E\u3002",
+    bioEnableBtn: "\u5728\u6B64\u8BBE\u5907\u4E0A\u542F\u7528\u6307\u7EB9",
+    skipForNow: "\u6682\u65F6\u8DF3\u8FC7",
+    bioVaultNotLoaded: "\u6CE8\u518C\u6307\u7EB9\u524D\uFF0C\u4ED3\u5E93\u5FC5\u987B\u5DF2\u52A0\u8F7D\u5230\u5185\u5B58\u4E2D\u3002",
+    bioScanning: "\u6B63\u5728\u626B\u63CF\u6307\u7EB9\u2026",
+    bioPlaceFinger: "\u8BF7\u5C06\u624B\u6307\u653E\u5728\u4F20\u611F\u5668\u4E0A\uFF0C\u6216\u5728\u7CFB\u7EDF\u5BF9\u8BDD\u6846\u4E2D\u786E\u8BA4\u2026",
+    bioEnabled: "\u5DF2\u5728\u6B64\u8BBE\u5907\u4E0A\u6210\u529F\u542F\u7528\u6307\u7EB9",
+    startUsingObsidianNext: "\u5F00\u59CB\u4F7F\u7528 Obsidian \u2192",
+    bioEnabledNotice: "\u6307\u7EB9\u89E3\u9501\u5DF2\u542F\u7528\u3002",
+    retryActivation: "\u91CD\u8BD5\u542F\u7528",
+    bioError: "\u751F\u7269\u8BC6\u522B\u9A8C\u8BC1\u51FA\u9519\u3002",
+    bioNotConfiguredTitle: "\u6B64\u8BBE\u5907\u672A\u914D\u7F6E\u751F\u7269\u8BC6\u522B\u786C\u4EF6",
+    bioNotConfiguredDesc: "\u672A\u68C0\u6D4B\u5230\u76F4\u63A5\u7684\u751F\u7269\u8BC6\u522B\u8BFB\u53D6\u5668\uFF0C\u6216\u5C1A\u672A\u914D\u7F6E Cloudflare Pages \u6865\u63A5 URL\u3002\u60A8\u7684\u4ED3\u5E93\u5C06\u4F7F\u7528\u4E3B\u5BC6\u7801\u89E3\u9501\uFF08\u7A0D\u540E\u53EF\u5728 \u8BBE\u7F6E > MySecret \u4E2D\u542F\u7528\u6307\u7EB9\uFF09\u3002"
   },
   changePassword: {
     title: "\u4FEE\u6539\u4E3B\u5BC6\u7801",
@@ -10547,7 +10867,7 @@ var import_obsidian10 = require("obsidian");
 var MIN_PASSWORD_LENGTH = MIN_MASTER_PASSWORD_LENGTH;
 function estimatePasswordEntropy(password) {
   if (!password.length) {
-    return { bits: 0, tier: "empty", label: "Sin contrase\xF1a" };
+    return { bits: 0, tier: "empty", label: t("setupWizard.strengthNone") };
   }
   let poolSize = 0;
   if (/[a-z]/.test(password)) poolSize += 26;
@@ -10580,16 +10900,16 @@ function estimatePasswordEntropy(password) {
   let label;
   if (bits2 < 40) {
     tier = "weak";
-    label = "Muy d\xE9bil";
+    label = t("setupWizard.strengthVeryWeak");
   } else if (bits2 < 60) {
     tier = "fair";
-    label = "D\xE9bil";
+    label = t("setupWizard.strengthWeak");
   } else if (bits2 < 80) {
     tier = "good";
-    label = "Buena";
+    label = t("setupWizard.strengthGood");
   } else {
     tier = "strong";
-    label = "Excelente";
+    label = t("setupWizard.strengthExcellent");
   }
   return { bits: bits2, tier, label };
 }
@@ -10620,14 +10940,14 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
   renderStepper(container) {
     const stepper = container.createDiv({ cls: "mysecret-stepper" });
     const steps = this.enableRecoveryPhrase ? [
-      { index: 1, label: "Contrase\xF1a y modo" },
-      { index: 2, label: "Frase de auxilio" },
-      { index: 3, label: "Verificaci\xF3n" },
-      { index: 4, label: "Huella digital" }
+      { index: 1, label: t("setupWizard.stepPasswordMode") },
+      { index: 2, label: t("setupWizard.stepRecoveryPhrase") },
+      { index: 3, label: t("setupWizard.stepVerification") },
+      { index: 4, label: t("setupWizard.stepFingerprint") }
     ] : [
-      { index: 1, label: "Contrase\xF1a y modo" },
-      { index: 2, label: "B\xF3veda protegida" },
-      { index: 3, label: "Huella digital" }
+      { index: 1, label: t("setupWizard.stepPasswordMode") },
+      { index: 2, label: t("setupWizard.stepVaultProtected") },
+      { index: 3, label: t("setupWizard.stepFingerprint") }
     ];
     steps.forEach((step, i) => {
       const item = stepper.createDiv({ cls: "mysecret-step" });
@@ -10707,9 +11027,9 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       cls: "mysecret-visibility-toggle",
       attr: {
         type: "button",
-        "aria-label": "Mostrar contrase\xF1a",
+        "aria-label": t("setupWizard.showPassword"),
         "aria-pressed": "false",
-        title: "Mostrar contrase\xF1a"
+        title: t("setupWizard.showPassword")
       }
     });
     (0, import_obsidian10.setIcon)(p1Toggle, "eye");
@@ -10719,15 +11039,15 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       p1Toggle.empty();
       (0, import_obsidian10.setIcon)(p1Toggle, isHidden ? "eye-off" : "eye");
       p1Toggle.setAttr("aria-pressed", String(isHidden));
-      p1Toggle.setAttr("aria-label", isHidden ? "Ocultar contrase\xF1a" : "Mostrar contrase\xF1a");
+      p1Toggle.setAttr("aria-label", isHidden ? t("setupWizard.hidePassword") : t("setupWizard.showPassword"));
       p1.focus();
     });
     const meter = form.createDiv({ cls: "mysecret-entropy-meter" });
     const meterHead = meter.createDiv({ cls: "mysecret-entropy-head" });
-    meterHead.createSpan({ cls: "mysecret-entropy-label", text: "Fuerza de la contrase\xF1a" });
+    meterHead.createSpan({ cls: "mysecret-entropy-label", text: t("setupWizard.strengthLabel") });
     const meterValue = meterHead.createSpan({
       cls: "mysecret-entropy-value",
-      text: "Sin contrase\xF1a"
+      text: t("setupWizard.strengthNone")
     });
     const bars = meter.createDiv({ cls: "mysecret-entropy-bars" });
     const barEls = [];
@@ -10737,11 +11057,11 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const hints = meter.createDiv({ cls: "mysecret-entropy-hints" });
     const hintEls = [];
     const hintTexts = [
-      "Al menos 12 caracteres",
-      "Mezcla may\xFAsculas y min\xFAsculas",
-      "Incluye n\xFAmeros",
-      "Incluye s\xEDmbolos",
-      "Evita secuencias y repeticiones"
+      t("setupWizard.hintLength", { min: MIN_PASSWORD_LENGTH }),
+      t("setupWizard.hintMixedCase"),
+      t("setupWizard.hintNumbers"),
+      t("setupWizard.hintSymbols"),
+      t("setupWizard.hintNoSequences")
     ];
     for (const text of hintTexts) {
       const hint = hints.createDiv({ cls: "mysecret-entropy-hint" });
@@ -10750,15 +11070,15 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       hintEls.push(hint);
     }
     const p2Group = form.createDiv({ cls: "mysecret-input-group" });
-    p2Group.createEl("label", { cls: "mysecret-input-label", text: "Confirma la contrase\xF1a maestra" });
+    p2Group.createEl("label", { cls: "mysecret-input-label", text: t("setupWizard.confirmPasswordLabel") });
     const p2 = p2Group.createEl("input", {
       type: "password",
       cls: "mysecret-password-input",
-      placeholder: "Repite la contrase\xF1a maestra\u2026",
+      placeholder: t("setupWizard.confirmPasswordPlaceholder"),
       attr: {
         spellcheck: "false",
         autocomplete: "new-password",
-        "aria-label": "Confirma la contrase\xF1a maestra",
+        "aria-label": t("setupWizard.confirmPasswordLabel"),
         "data-mysecret-testid": "wizard-confirm-input"
       }
     });
@@ -10766,7 +11086,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       const value = p1.value;
       const result = estimatePasswordEntropy(value);
       meter.setAttribute("data-tier", result.tier);
-      meterValue.setText(value.length ? `${result.label} \xB7 ${result.bits} bits` : "Sin contrase\xF1a");
+      meterValue.setText(value.length ? `${result.label} \xB7 ${result.bits} bits` : t("setupWizard.strengthNone"));
       const activeBars = result.tier === "empty" ? 0 : result.tier === "weak" ? 1 : result.tier === "fair" ? 2 : result.tier === "good" ? 4 : 5;
       barEls.forEach((bar, i) => {
         bar.toggleClass("is-active", i < activeBars);
@@ -10783,25 +11103,25 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const recoveryChoiceWrap = form.createDiv({ cls: "mysecret-recovery-choice-wrap" });
     recoveryChoiceWrap.createEl("div", {
       cls: "mysecret-recovery-choice-title",
-      text: "Opciones de recuperaci\xF3n de la b\xF3veda:"
+      text: t("setupWizard.recoveryOptionsTitle")
     });
     const choiceStandard = recoveryChoiceWrap.createDiv({
       cls: `mysecret-choice-card ${this.enableRecoveryPhrase ? "is-selected" : ""}`
     });
     choiceStandard.createEl("div", { cls: "mysecret-choice-radio", text: this.enableRecoveryPhrase ? "\u25CF" : "\u25CB" });
     const choiceStandardInfo = choiceStandard.createDiv({ cls: "mysecret-choice-info" });
-    choiceStandardInfo.createEl("strong", { text: "Generar frase de recuperaci\xF3n de 24 palabras (Recomendado)" });
+    choiceStandardInfo.createEl("strong", { text: t("setupWizard.recoveryPhraseOption") });
     choiceStandardInfo.createEl("p", {
-      text: "Podr\xE1s recuperar el acceso a tus notas si alguna vez olvidas la contrase\xF1a maestra."
+      text: t("setupWizard.recoveryPhraseOptionDesc")
     });
     const choiceParanoid = recoveryChoiceWrap.createDiv({
       cls: `mysecret-choice-card ${!this.enableRecoveryPhrase ? "is-selected" : ""}`
     });
     choiceParanoid.createEl("div", { cls: "mysecret-choice-radio", text: !this.enableRecoveryPhrase ? "\u25CF" : "\u25CB" });
     const choiceParanoidInfo = choiceParanoid.createDiv({ cls: "mysecret-choice-info" });
-    choiceParanoidInfo.createEl("strong", { text: "Solo contrase\xF1a maestra (M\xE1xima seguridad / Sin auxilio)" });
+    choiceParanoidInfo.createEl("strong", { text: t("setupWizard.passwordOnlyOption") });
     choiceParanoidInfo.createEl("p", {
-      text: "No se guardar\xE1 ninguna puerta de auxilio en disco. Si olvidas tu contrase\xF1a, la p\xE9rdida ser\xE1 permanente."
+      text: t("setupWizard.passwordOnlyOptionDesc")
     });
     choiceStandard.addEventListener("click", () => {
       this.enableRecoveryPhrase = true;
@@ -10809,7 +11129,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       choiceParanoid.removeClass("is-selected");
       choiceStandard.querySelector(".mysecret-choice-radio").setText("\u25CF");
       choiceParanoid.querySelector(".mysecret-choice-radio").setText("\u25CB");
-      nextBtn.setText("Continuar a Frase de Recuperaci\xF3n \u2192");
+      nextBtn.setText(t("setupWizard.continueToRecovery"));
       const stepperEl = container.querySelector(".mysecret-stepper");
       if (stepperEl) {
         stepperEl.remove();
@@ -10828,7 +11148,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       choiceStandard.removeClass("is-selected");
       choiceParanoid.querySelector(".mysecret-choice-radio").setText("\u25CF");
       choiceStandard.querySelector(".mysecret-choice-radio").setText("\u25CB");
-      nextBtn.setText("Finalizar Configuraci\xF3n (Solo Contrase\xF1a) \u2192");
+      nextBtn.setText(t("setupWizard.finishPasswordOnly"));
       const stepperEl = container.querySelector(".mysecret-stepper");
       if (stepperEl) {
         stepperEl.remove();
@@ -10844,25 +11164,25 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const actions = container.createDiv({ cls: "mysecret-actions-group" });
     const nextBtn = actions.createEl("button", {
       cls: "mod-cta mysecret-wizard-btn",
-      text: this.enableRecoveryPhrase ? "Continuar a Frase de Recuperaci\xF3n \u2192" : "Finalizar Configuraci\xF3n (Solo Contrase\xF1a) \u2192",
+      text: this.enableRecoveryPhrase ? t("setupWizard.continueToRecovery") : t("setupWizard.finishPasswordOnly"),
       attr: { "data-mysecret-testid": "wizard-continue-button" }
     });
     nextBtn.addEventListener("click", () => {
       const pass = p1.value;
       const confirm = p2.value;
       if (!pass || pass.length < MIN_PASSWORD_LENGTH) {
-        errorEl.setText(`La contrase\xF1a debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+        errorEl.setText(t("setupWizard.errorTooShort", { min: MIN_PASSWORD_LENGTH }));
         errorEl.show();
         return;
       }
       if (pass !== confirm) {
-        errorEl.setText("Las contrase\xF1as no coinciden.");
+        errorEl.setText(t("notices.passwordsDoNotMatch"));
         errorEl.show();
         return;
       }
       const result = estimatePasswordEntropy(pass);
       if (result.tier === "weak") {
-        errorEl.setText("La contrase\xF1a es demasiado d\xE9bil. A\xF1ade variedad de caracteres para continuar.");
+        errorEl.setText(t("setupWizard.errorTooWeak"));
         errorEl.show();
         return;
       }
@@ -10877,19 +11197,19 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
    * STEP 2: Show the 24 BIP-39 recovery words as styled cards
    */
   renderStep2Mnemonic(container) {
-    container.createEl("h2", { cls: "mysecret-wizard-title", text: "\u{1F511} Tu Frase de Rescate" });
+    container.createEl("h2", { cls: "mysecret-wizard-title", text: `\u{1F511} ${t("setupWizard.mnemonicTitle")}` });
     container.createEl("p", {
       cls: "mysecret-wizard-desc",
-      text: `Estas ${BIP39_WORD_COUNT} palabras son el \xDANICO modo de recuperar tus notas si olvidas la contrase\xF1a maestra. An\xF3talas en papel o gu\xE1rdalas en un gestor de claves seguro.`
+      text: t("setupWizard.mnemonicDesc", { count: BIP39_WORD_COUNT })
     });
     const errorEl = container.createDiv({ cls: "mysecret-error-banner" });
     errorEl.hide();
     const loadingEl = container.createDiv({ cls: "mysecret-loading" });
     loadingEl.createSpan({ cls: "mysecret-spinner" });
-    loadingEl.createSpan({ text: "Generando entrop\xEDa criptogr\xE1fica (Argon2id + BIP-39)\u2026" });
+    loadingEl.createSpan({ text: t("setupWizard.generatingEntropy") });
     if (this.plugin.keyManager.isInitialized) {
       loadingEl.remove();
-      errorEl.setText("Ya existe una b\xF3veda configurada: el asistente no puede crear otra clave encima.");
+      errorEl.setText(t("setupWizard.vaultAlreadyExists"));
       errorEl.show();
       return;
     }
@@ -10902,16 +11222,16 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       loadingEl.remove();
       const warning = container.createDiv({ cls: "mysecret-wizard-warning" });
       warning.createSpan({ text: "\u26A0\uFE0F " });
-      warning.createSpan({ text: "Esta frase nunca volver\xE1 a mostrarse. Aseg\xFArate de copiarla antes de continuar." });
+      warning.createSpan({ text: t("setupWizard.mnemonicNeverShownAgain") });
       const toolbar = container.createDiv({ cls: "mysecret-mnemonic-toolbar" });
       const copyBtn = toolbar.createEl("button", {
         cls: "mysecret-copy-btn",
-        text: "\u{1F4CB} Copiar frase",
+        text: `\u{1F4CB} ${t("setupWizard.copyPhrase")}`,
         attr: { "data-mysecret-testid": "wizard-copy-button" }
       });
       const concealBtn = toolbar.createEl("button", {
         cls: "mysecret-copy-btn",
-        text: "\u{1F648} Ocultar palabras",
+        text: `\u{1F648} ${t("setupWizard.hideWords")}`,
         attr: { "data-mysecret-testid": "wizard-conceal-button" }
       });
       const words = safeMnemonic ? safeMnemonic.split(" ").filter((w) => w.length > 0) : [];
@@ -10925,8 +11245,8 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       copyBtn.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(safeMnemonic);
-          copyBtn.setText("\u2705 Copiada");
-          new import_obsidian10.Notice("Frase de rescate copiada al portapapeles.");
+          copyBtn.setText(`\u2705 ${t("setupWizard.copiedPhrase")}`);
+          new import_obsidian10.Notice(t("setupWizard.phraseCopiedNotice"));
           if (clearTimer !== null) window.clearTimeout(clearTimer);
           clearTimer = window.setTimeout(async () => {
             try {
@@ -10934,13 +11254,13 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
               if (current === safeMnemonic) {
                 await navigator.clipboard.writeText("");
               }
-              copyBtn.setText("\u{1F4CB} Copiar frase");
+              copyBtn.setText(`\u{1F4CB} ${t("setupWizard.copyPhrase")}`);
             } catch {
-              copyBtn.setText("\u{1F4CB} Copiar frase");
+              copyBtn.setText(`\u{1F4CB} ${t("setupWizard.copyPhrase")}`);
             }
           }, 3e4);
         } catch {
-          errorEl.setText("No se pudo acceder al portapapeles. Anota las palabras manualmente.");
+          errorEl.setText(t("setupWizard.clipboardError"));
           errorEl.show();
         }
       });
@@ -10948,12 +11268,12 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       concealBtn.addEventListener("click", () => {
         concealed = !concealed;
         grid.toggleClass("is-concealed", concealed);
-        concealBtn.setText(concealed ? "\u{1F441}\uFE0F Mostrar palabras" : "\u{1F648} Ocultar palabras");
+        concealBtn.setText(concealed ? `\u{1F441}\uFE0F ${t("setupWizard.showWords")}` : `\u{1F648} ${t("setupWizard.hideWords")}`);
       });
       const actions = container.createDiv({ cls: "mysecret-actions-group" });
       const nextBtn = actions.createEl("button", {
         cls: "mod-cta mysecret-wizard-btn",
-        text: "He guardado mi frase de auxilio \u2192",
+        text: t("setupWizard.savedPhraseContinue"),
         attr: { "data-mysecret-testid": "wizard-mnemonic-continue" }
       });
       nextBtn.addEventListener("click", () => {
@@ -10963,7 +11283,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     }).catch((err2) => {
       if (this.isClosed) return;
       loadingEl.remove();
-      errorEl.setText("Error al inicializar la b\xF3veda: " + (err2?.message || "error desconocido"));
+      errorEl.setText(t("setupWizard.initError", { error: err2?.message || t("common.unknownError") }));
       errorEl.show();
     });
   }
@@ -10971,10 +11291,10 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
    * STEP 3: Confirm the backup with a 2-word random challenge
    */
   renderStep3Confirm(container) {
-    container.createEl("h2", { cls: "mysecret-wizard-title", text: "\u{1F389} \xA1B\xF3veda Protegida!" });
+    container.createEl("h2", { cls: "mysecret-wizard-title", text: `\u{1F389} ${t("setupWizard.vaultProtectedTitle")}` });
     container.createEl("p", {
       cls: "mysecret-wizard-desc",
-      text: "MySecret ha inicializado el cifrado transparente. A partir de ahora, cada nota que guardes se cifrar\xE1 autom\xE1ticamente con AES-256-GCM."
+      text: t("setupWizard.vaultProtectedDesc")
     });
     const errorEl = container.createDiv({ cls: "mysecret-error-banner" });
     errorEl.hide();
@@ -10985,27 +11305,27 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const challenge = container.createDiv({ cls: "mysecret-challenge" });
     challenge.createEl("h3", {
       cls: "mysecret-challenge-title",
-      text: "Demuestra que guardaste tu frase"
+      text: t("setupWizard.challengeTitle")
     });
     challenge.createEl("p", {
       cls: "mysecret-challenge-desc",
-      text: "Introduce las dos palabras que te solicitamos para confirmar que tu respaldo es correcto."
+      text: t("setupWizard.challengeDesc")
     });
     const inputs = [];
     this.challengeIndices.forEach((wordIndex, i) => {
       const group = challenge.createDiv({ cls: "mysecret-input-group" });
       group.createEl("label", {
         cls: "mysecret-input-label",
-        text: `Palabra ${this.challengeIndices[i] + 1} de ${BIP39_WORD_COUNT}`
+        text: t("setupWizard.wordOfTotal", { n: this.challengeIndices[i] + 1, total: BIP39_WORD_COUNT })
       });
       const input = group.createEl("input", {
         type: "text",
         cls: "mysecret-password-input",
-        placeholder: "Introduce la palabra\u2026",
+        placeholder: t("setupWizard.wordPlaceholder"),
         attr: {
           spellcheck: "false",
           autocomplete: "off",
-          "aria-label": `Palabra ${wordIndex + 1}`,
+          "aria-label": t("setupWizard.wordN", { n: wordIndex + 1 }),
           "data-mysecret-testid": `wizard-challenge-input-${i}`
         }
       });
@@ -11042,27 +11362,27 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const actions = container.createDiv({ cls: "mysecret-actions-group" });
     const verifyBtn = actions.createEl("button", {
       cls: "mod-cta mysecret-wizard-btn",
-      text: "Verificar palabras",
+      text: t("setupWizard.verifyWords"),
       attr: { "data-mysecret-testid": "wizard-verify-button" }
     });
     verifyBtn.addEventListener("click", () => {
       if (validateChallenge()) {
         this.handleChallengePassed();
       } else {
-        errorEl.setText("Las palabras no coinciden. Vuelve a consultar tu frase de rescate.");
+        errorEl.setText(t("setupWizard.wordsMismatch"));
         errorEl.show();
-        feedback.setText("Verificaci\xF3n fallida");
+        feedback.setText(t("setupWizard.verificationFailed"));
         feedback.addClass("is-error");
       }
     });
     const finishBtn = actions.createEl("button", {
       cls: "mysecret-wizard-btn",
-      text: "Comenzar a usar Obsidian",
+      text: t("setupWizard.startUsingObsidian"),
       attr: { "data-mysecret-testid": "wizard-finish-button" }
     });
     finishBtn.addEventListener("click", () => {
       if (!this.challengeAnswered) {
-        errorEl.setText("Verifica las dos palabras antes de finalizar la configuraci\xF3n.");
+        errorEl.setText(t("setupWizard.verifyBeforeFinish"));
         errorEl.show();
         return;
       }
@@ -11080,19 +11400,19 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     }
     const feedback = this.modalEl.querySelector(".mysecret-challenge-feedback");
     if (feedback) {
-      feedback.setText("\u2713 Respaldo verificado correctamente");
+      feedback.setText(`\u2713 ${t("setupWizard.backupVerified")}`);
       feedback.removeClass("is-error");
       feedback.addClass("is-success");
     }
     if (this.modalEl.querySelector('[data-mysecret-testid="wizard-encrypt-all-button"]')) {
       return;
     }
-    new import_obsidian10.Notice("\u2705 Frase de rescate verificada. Ya puedes configurar la huella o continuar.");
+    new import_obsidian10.Notice(`\u2705 ${t("setupWizard.phraseVerifiedNotice")}`);
     const actions = this.modalEl.querySelector(".mysecret-actions-group");
     if (!actions) return;
     const encryptAllBtn = actions.createEl("button", {
       cls: "mod-cta mysecret-wizard-btn",
-      text: "\u{1F512} Cifrar notas existentes ahora",
+      text: `\u{1F512} ${t("setupWizard.encryptExistingNow")}`,
       attr: { "data-mysecret-testid": "wizard-encrypt-all-button" }
     });
     encryptAllBtn.addEventListener("click", () => {
@@ -11105,19 +11425,19 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
    * DIRECT FINISH: For users who opt out of recovery phrase (Password-Only / Maximum Paranoia)
    */
   renderDirectFinish(container) {
-    container.createEl("h2", { cls: "mysecret-wizard-title", text: "\u{1F6E1}\uFE0F M\xE1xima Seguridad Activada" });
+    container.createEl("h2", { cls: "mysecret-wizard-title", text: `\u{1F6E1}\uFE0F ${t("setupWizard.maxSecurityTitle")}` });
     container.createEl("p", {
       cls: "mysecret-wizard-desc",
-      text: "Protegiendo tu b\xF3veda con cifrado AES-256-GCM y Argon2id exclusivamente con tu contrase\xF1a maestra."
+      text: t("setupWizard.maxSecurityDesc")
     });
     const loadingEl = container.createDiv({ cls: "mysecret-loading" });
     loadingEl.createSpan({ cls: "mysecret-spinner" });
-    loadingEl.createSpan({ text: "Generando claves y cifrando configuraci\xF3n\u2026" });
+    loadingEl.createSpan({ text: t("setupWizard.generatingKeys") });
     if (this.plugin.keyManager.isInitialized) {
       loadingEl.remove();
       container.createDiv({
         cls: "mysecret-error-banner",
-        text: "Ya existe una b\xF3veda configurada: el asistente no puede crear otra clave encima."
+        text: t("setupWizard.vaultAlreadyExists")
       });
       return;
     }
@@ -11127,16 +11447,16 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       if (this.isClosed) return;
       loadingEl.remove();
       const successCard = container.createDiv({ cls: "mysecret-challenge-feedback is-success" });
-      successCard.setText("\u2713 B\xF3veda configurada con \xE9xito en modo de solo contrase\xF1a");
+      successCard.setText(`\u2713 ${t("setupWizard.passwordOnlySuccess")}`);
       const noteBox = container.createDiv({ cls: "mysecret-migration-warning" });
-      noteBox.createEl("strong", { text: "Importante: " });
+      noteBox.createEl("strong", { text: t("setupWizard.importantLabel") });
       noteBox.createSpan({
-        text: "No se gener\xF3 frase de auxilio. Tu contrase\xF1a maestra es el \xFAnico medio para acceder a tus notas."
+        text: t("setupWizard.noRecoveryPhraseNote")
       });
       const actions = container.createDiv({ cls: "mysecret-actions-group" });
       const startBtn = actions.createEl("button", {
         cls: "mysecret-wizard-btn",
-        text: "Continuar a Huella Digital \u2192"
+        text: t("setupWizard.continueToFingerprint")
       });
       startBtn.addEventListener("click", () => {
         this.currentStep = 3;
@@ -11144,7 +11464,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       });
       const encryptAllBtn = actions.createEl("button", {
         cls: "mod-cta mysecret-wizard-btn",
-        text: "\u{1F512} Cifrar notas existentes ahora"
+        text: `\u{1F512} ${t("setupWizard.encryptExistingNow")}`
       });
       encryptAllBtn.addEventListener("click", () => {
         this.pendingBulkEncrypt = true;
@@ -11152,21 +11472,21 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
         this.renderStep();
       });
     }).catch((err2) => {
-      loadingEl.setText(`Error al inicializar la b\xF3veda: ${err2?.message || String(err2)}`);
+      loadingEl.setText(t("setupWizard.initError", { error: err2?.message || String(err2) }));
     });
   }
   /**
    * STEP 4: Biometric Enrollment Prompt
    */
   async renderBiometricEnrollmentStep(container) {
-    container.createEl("h2", { cls: "mysecret-wizard-title", text: "\u{1F446} Desbloqueo R\xE1pido con Huella Digital" });
+    container.createEl("h2", { cls: "mysecret-wizard-title", text: `\u{1F446} ${t("setupWizard.bioTitle")}` });
     container.createEl("p", {
       cls: "mysecret-wizard-desc",
-      text: "Puedes desbloquear tu b\xF3veda al instante usando el sensor biom\xE9trico de este dispositivo sin tener que teclear tu contrase\xF1a cada vez."
+      text: t("setupWizard.bioDesc")
     });
     const statusEl = container.createDiv({ cls: "mysecret-loading" });
     statusEl.createSpan({ cls: "mysecret-spinner" });
-    statusEl.createSpan({ text: "Comprobando hardware biom\xE9trico de este equipo\u2026" });
+    statusEl.createSpan({ text: t("setupWizard.bioChecking") });
     const vaultId = this.plugin.getVaultId();
     const capabilities = await this.plugin.biometricManager.checkBiometricAvailability(vaultId);
     if (this.isClosed) return;
@@ -11174,7 +11494,7 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const finishSetup = () => {
       this.close();
       this.plugin.unlockVaultSuccess();
-      new import_obsidian10.Notice("B\xF3veda lista y protegida. \u{1F512}");
+      new import_obsidian10.Notice(`${t("setupWizard.vaultReadyNotice")} \u{1F512}`);
       if (this.pendingBulkEncrypt) {
         this.plugin.openMigrationModal("encrypt");
       }
@@ -11182,34 +11502,34 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
     const card = container.createDiv({ cls: "mysecret-choice-card is-selected" });
     if (capabilities.supported) {
       const info = card.createDiv({ cls: "mysecret-choice-info" });
-      info.createEl("strong", { text: `Hardware disponible: ${capabilities.label}` });
+      info.createEl("strong", { text: t("setupWizard.bioHardwareAvailable", { label: capabilities.label }) });
       info.createEl("p", {
-        text: "Al activarlo, se guardar\xE1 un sobre seguro vinculado exclusivamente a este equipo. Cada dispositivo que uses conserva su propia configuraci\xF3n de huella."
+        text: t("setupWizard.bioEnvelopeDesc")
       });
       const feedback = container.createDiv({ cls: "mysecret-challenge-feedback" });
       feedback.hide();
       const actions = container.createDiv({ cls: "mysecret-actions-group" });
       const enrollBtn = actions.createEl("button", {
         cls: "mod-cta mysecret-wizard-btn",
-        text: "Activar Huella en este Dispositivo",
+        text: t("setupWizard.bioEnableBtn"),
         attr: { "data-mysecret-testid": "wizard-enroll-bio-button" }
       });
       const skipBtn = actions.createEl("button", {
         cls: "mysecret-wizard-btn",
-        text: "Omitir por ahora",
+        text: t("setupWizard.skipForNow"),
         attr: { "data-mysecret-testid": "wizard-skip-bio-button" }
       });
       enrollBtn.addEventListener("click", async () => {
         const rawVaultKey = this.plugin.keyManager.getRawVaultKey();
         if (!rawVaultKey) {
-          feedback.setText("La b\xF3veda debe estar cargada en RAM para enrolar la huella.");
+          feedback.setText(t("setupWizard.bioVaultNotLoaded"));
           feedback.addClass("is-error");
           feedback.show();
           return;
         }
         enrollBtn.disabled = true;
-        enrollBtn.setText("Escaneando huella\u2026");
-        feedback.setText("Coloca tu dedo en el sensor o confirma en el di\xE1logo del sistema\u2026");
+        enrollBtn.setText(t("setupWizard.bioScanning"));
+        feedback.setText(t("setupWizard.bioPlaceFinger"));
         feedback.removeClass("is-error");
         feedback.show();
         try {
@@ -11221,18 +11541,18 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
               autoPrompt: true
             };
             await this.plugin.saveSettings();
-            feedback.setText("\u2713 Huella digital activada correctamente en este equipo");
+            feedback.setText(`\u2713 ${t("setupWizard.bioEnabled")}`);
             feedback.removeClass("is-error");
             feedback.addClass("is-success");
             enrollBtn.remove();
-            skipBtn.setText("Comenzar a usar Obsidian \u2192");
+            skipBtn.setText(t("setupWizard.startUsingObsidianNext"));
             skipBtn.addClass("mod-cta");
-            new import_obsidian10.Notice("\u{1F446} Desbloqueo con huella habilitado.");
+            new import_obsidian10.Notice(`\u{1F446} ${t("setupWizard.bioEnabledNotice")}`);
           }
         } catch (err2) {
           enrollBtn.disabled = false;
-          enrollBtn.setText("Reintentar Activaci\xF3n");
-          feedback.setText(err2?.message || "Error en la verificaci\xF3n biom\xE9trica.");
+          enrollBtn.setText(t("setupWizard.retryActivation"));
+          feedback.setText(err2?.message || t("setupWizard.bioError"));
           feedback.addClass("is-error");
         } finally {
           zeroize(rawVaultKey);
@@ -11241,14 +11561,14 @@ var SetupWizardModal = class extends import_obsidian10.Modal {
       skipBtn.addEventListener("click", finishSetup);
     } else {
       const info = card.createDiv({ cls: "mysecret-choice-info" });
-      info.createEl("strong", { text: "Hardware Biom\xE9trico no configurado en este equipo" });
+      info.createEl("strong", { text: t("setupWizard.bioNotConfiguredTitle") });
       info.createEl("p", {
-        text: "No se detect\xF3 un lector biom\xE9trico directo o la URL del puente de Cloudflare Pages a\xFAn no est\xE1 configurada. Tu b\xF3veda se desbloquear\xE1 con tu contrase\xF1a maestra (puedes activar la huella m\xE1s tarde en Ajustes > MySecret)."
+        text: t("setupWizard.bioNotConfiguredDesc")
       });
       const actions = container.createDiv({ cls: "mysecret-actions-group" });
       const finishBtn = actions.createEl("button", {
         cls: "mod-cta mysecret-wizard-btn",
-        text: "Comenzar a usar Obsidian",
+        text: t("setupWizard.startUsingObsidian"),
         attr: { "data-mysecret-testid": "wizard-finish-button" }
       });
       finishBtn.addEventListener("click", finishSetup);
