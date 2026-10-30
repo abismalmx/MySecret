@@ -41,7 +41,7 @@ interface EntropyResult {
  */
 export function estimatePasswordEntropy(password: string): EntropyResult {
   if (!password.length) {
-    return { bits: 0, tier: 'empty', label: 'Sin contraseña' };
+    return { bits: 0, tier: 'empty', label: t('setupWizard.strengthNone') };
   }
 
   // Character pool size
@@ -83,16 +83,16 @@ export function estimatePasswordEntropy(password: string): EntropyResult {
   let label: string;
   if (bits < 40) {
     tier = 'weak';
-    label = 'Muy débil';
+    label = t('setupWizard.strengthVeryWeak');
   } else if (bits < 60) {
     tier = 'fair';
-    label = 'Débil';
+    label = t('setupWizard.strengthWeak');
   } else if (bits < 80) {
     tier = 'good';
-    label = 'Buena';
+    label = t('setupWizard.strengthGood');
   } else {
     tier = 'strong';
-    label = 'Excelente';
+    label = t('setupWizard.strengthExcellent');
   }
 
   return { bits, tier, label };
@@ -134,15 +134,15 @@ export class SetupWizardModal extends Modal {
 
     const steps = this.enableRecoveryPhrase
       ? [
-          { index: 1, label: 'Contraseña y modo' },
-          { index: 2, label: 'Frase de auxilio' },
-          { index: 3, label: 'Verificación' },
-          { index: 4, label: 'Huella digital' }
+          { index: 1, label: t('setupWizard.stepPasswordMode') },
+          { index: 2, label: t('setupWizard.stepRecoveryPhrase') },
+          { index: 3, label: t('setupWizard.stepVerification') },
+          { index: 4, label: t('setupWizard.stepFingerprint') }
         ]
       : [
-          { index: 1, label: 'Contraseña y modo' },
-          { index: 2, label: 'Bóveda protegida' },
-          { index: 3, label: 'Huella digital' }
+          { index: 1, label: t('setupWizard.stepPasswordMode') },
+          { index: 2, label: t('setupWizard.stepVaultProtected') },
+          { index: 3, label: t('setupWizard.stepFingerprint') }
         ];
 
     steps.forEach((step, i) => {
@@ -239,9 +239,9 @@ export class SetupWizardModal extends Modal {
       cls: 'mysecret-visibility-toggle',
       attr: {
         type: 'button',
-        'aria-label': 'Mostrar contraseña',
+        'aria-label': t('setupWizard.showPassword'),
         'aria-pressed': 'false',
-        title: 'Mostrar contraseña'
+        title: t('setupWizard.showPassword')
       }
     });
     setIcon(p1Toggle, 'eye');
@@ -251,7 +251,7 @@ export class SetupWizardModal extends Modal {
       p1Toggle.empty();
       setIcon(p1Toggle, isHidden ? 'eye-off' : 'eye');
       p1Toggle.setAttr('aria-pressed', String(isHidden));
-      p1Toggle.setAttr('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+      p1Toggle.setAttr('aria-label', isHidden ? t('setupWizard.hidePassword') : t('setupWizard.showPassword'));
       p1.focus();
     });
 
@@ -259,11 +259,11 @@ export class SetupWizardModal extends Modal {
     const meter = form.createDiv({ cls: 'mysecret-entropy-meter' });
 
     const meterHead = meter.createDiv({ cls: 'mysecret-entropy-head' });
-    meterHead.createSpan({ cls: 'mysecret-entropy-label', text: 'Fuerza de la contraseña' });
+    meterHead.createSpan({ cls: 'mysecret-entropy-label', text: t('setupWizard.strengthLabel') });
 
     const meterValue = meterHead.createSpan({
       cls: 'mysecret-entropy-value',
-      text: 'Sin contraseña'
+      text: t('setupWizard.strengthNone')
     });
 
     const bars = meter.createDiv({ cls: 'mysecret-entropy-bars' });
@@ -275,11 +275,11 @@ export class SetupWizardModal extends Modal {
     const hints = meter.createDiv({ cls: 'mysecret-entropy-hints' });
     const hintEls: HTMLElement[] = [];
     const hintTexts = [
-      'Al menos 12 caracteres',
-      'Mezcla mayúsculas y minúsculas',
-      'Incluye números',
-      'Incluye símbolos',
-      'Evita secuencias y repeticiones'
+      t('setupWizard.hintLength', { min: MIN_PASSWORD_LENGTH }),
+      t('setupWizard.hintMixedCase'),
+      t('setupWizard.hintNumbers'),
+      t('setupWizard.hintSymbols'),
+      t('setupWizard.hintNoSequences')
     ];
     for (const text of hintTexts) {
       const hint = hints.createDiv({ cls: 'mysecret-entropy-hint' });
@@ -290,16 +290,16 @@ export class SetupWizardModal extends Modal {
 
     // --- Confirmation field ---
     const p2Group = form.createDiv({ cls: 'mysecret-input-group' });
-    p2Group.createEl('label', { cls: 'mysecret-input-label', text: 'Confirma la contraseña maestra' });
+    p2Group.createEl('label', { cls: 'mysecret-input-label', text: t('setupWizard.confirmPasswordLabel') });
 
     const p2 = p2Group.createEl('input', {
       type: 'password',
       cls: 'mysecret-password-input',
-      placeholder: 'Repite la contraseña maestra…',
+      placeholder: t('setupWizard.confirmPasswordPlaceholder'),
       attr: {
         spellcheck: 'false',
         autocomplete: 'new-password',
-        'aria-label': 'Confirma la contraseña maestra',
+        'aria-label': t('setupWizard.confirmPasswordLabel'),
         'data-mysecret-testid': 'wizard-confirm-input'
       }
     });
@@ -310,7 +310,7 @@ export class SetupWizardModal extends Modal {
       const result = estimatePasswordEntropy(value);
 
       meter.setAttribute('data-tier', result.tier);
-      meterValue.setText(value.length ? `${result.label} · ${result.bits} bits` : 'Sin contraseña');
+      meterValue.setText(value.length ? `${result.label} · ${result.bits} bits` : t('setupWizard.strengthNone'));
 
       const activeBars =
         result.tier === 'empty' ? 0 :
@@ -339,7 +339,7 @@ export class SetupWizardModal extends Modal {
     const recoveryChoiceWrap = form.createDiv({ cls: 'mysecret-recovery-choice-wrap' });
     recoveryChoiceWrap.createEl('div', {
       cls: 'mysecret-recovery-choice-title',
-      text: 'Opciones de recuperación de la bóveda:'
+      text: t('setupWizard.recoveryOptionsTitle')
     });
 
     const choiceStandard = recoveryChoiceWrap.createDiv({
@@ -347,9 +347,9 @@ export class SetupWizardModal extends Modal {
     });
     choiceStandard.createEl('div', { cls: 'mysecret-choice-radio', text: this.enableRecoveryPhrase ? '●' : '○' });
     const choiceStandardInfo = choiceStandard.createDiv({ cls: 'mysecret-choice-info' });
-    choiceStandardInfo.createEl('strong', { text: 'Generar frase de recuperación de 24 palabras (Recomendado)' });
+    choiceStandardInfo.createEl('strong', { text: t('setupWizard.recoveryPhraseOption') });
     choiceStandardInfo.createEl('p', {
-      text: 'Podrás recuperar el acceso a tus notas si alguna vez olvidas la contraseña maestra.'
+      text: t('setupWizard.recoveryPhraseOptionDesc')
     });
 
     const choiceParanoid = recoveryChoiceWrap.createDiv({
@@ -357,9 +357,9 @@ export class SetupWizardModal extends Modal {
     });
     choiceParanoid.createEl('div', { cls: 'mysecret-choice-radio', text: !this.enableRecoveryPhrase ? '●' : '○' });
     const choiceParanoidInfo = choiceParanoid.createDiv({ cls: 'mysecret-choice-info' });
-    choiceParanoidInfo.createEl('strong', { text: 'Solo contraseña maestra (Máxima seguridad / Sin auxilio)' });
+    choiceParanoidInfo.createEl('strong', { text: t('setupWizard.passwordOnlyOption') });
     choiceParanoidInfo.createEl('p', {
-      text: 'No se guardará ninguna puerta de auxilio en disco. Si olvidas tu contraseña, la pérdida será permanente.'
+      text: t('setupWizard.passwordOnlyOptionDesc')
     });
 
     choiceStandard.addEventListener('click', () => {
@@ -368,7 +368,7 @@ export class SetupWizardModal extends Modal {
       choiceParanoid.removeClass('is-selected');
       choiceStandard.querySelector('.mysecret-choice-radio')!.setText('●');
       choiceParanoid.querySelector('.mysecret-choice-radio')!.setText('○');
-      nextBtn.setText('Continuar a Frase de Recuperación →');
+      nextBtn.setText(t('setupWizard.continueToRecovery'));
       const stepperEl = container.querySelector('.mysecret-stepper');
       if (stepperEl) {
         stepperEl.remove();
@@ -388,7 +388,7 @@ export class SetupWizardModal extends Modal {
       choiceStandard.removeClass('is-selected');
       choiceParanoid.querySelector('.mysecret-choice-radio')!.setText('●');
       choiceStandard.querySelector('.mysecret-choice-radio')!.setText('○');
-      nextBtn.setText('Finalizar Configuración (Solo Contraseña) →');
+      nextBtn.setText(t('setupWizard.finishPasswordOnly'));
       const stepperEl = container.querySelector('.mysecret-stepper');
       if (stepperEl) {
         stepperEl.remove();
@@ -407,7 +407,7 @@ export class SetupWizardModal extends Modal {
 
     const nextBtn = actions.createEl('button', {
       cls: 'mod-cta mysecret-wizard-btn',
-      text: this.enableRecoveryPhrase ? 'Continuar a Frase de Recuperación →' : 'Finalizar Configuración (Solo Contraseña) →',
+      text: this.enableRecoveryPhrase ? t('setupWizard.continueToRecovery') : t('setupWizard.finishPasswordOnly'),
       attr: { 'data-mysecret-testid': 'wizard-continue-button' }
     });
 
@@ -416,19 +416,19 @@ export class SetupWizardModal extends Modal {
       const confirm = p2.value;
 
       if (!pass || pass.length < MIN_PASSWORD_LENGTH) {
-        errorEl.setText(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+        errorEl.setText(t('setupWizard.errorTooShort', { min: MIN_PASSWORD_LENGTH }));
         errorEl.show();
         return;
       }
       if (pass !== confirm) {
-        errorEl.setText('Las contraseñas no coinciden.');
+        errorEl.setText(t('notices.passwordsDoNotMatch'));
         errorEl.show();
         return;
       }
 
       const result = estimatePasswordEntropy(pass);
       if (result.tier === 'weak') {
-        errorEl.setText('La contraseña es demasiado débil. Añade variedad de caracteres para continuar.');
+        errorEl.setText(t('setupWizard.errorTooWeak'));
         errorEl.show();
         return;
       }
@@ -446,10 +446,10 @@ export class SetupWizardModal extends Modal {
    * STEP 2: Show the 24 BIP-39 recovery words as styled cards
    */
   private renderStep2Mnemonic(container: HTMLElement): void {
-    container.createEl('h2', { cls: 'mysecret-wizard-title', text: '🔑 Tu Frase de Rescate' });
+    container.createEl('h2', { cls: 'mysecret-wizard-title', text: `🔑 ${t('setupWizard.mnemonicTitle')}` });
     container.createEl('p', {
       cls: 'mysecret-wizard-desc',
-      text: `Estas ${BIP39_WORD_COUNT} palabras son el ÚNICO modo de recuperar tus notas si olvidas la contraseña maestra. Anótalas en papel o guárdalas en un gestor de claves seguro.`
+      text: t('setupWizard.mnemonicDesc', { count: BIP39_WORD_COUNT })
     });
 
     const errorEl = container.createDiv({ cls: 'mysecret-error-banner' });
@@ -458,14 +458,14 @@ export class SetupWizardModal extends Modal {
     // Generate the vault keys and the mnemonic
     const loadingEl = container.createDiv({ cls: 'mysecret-loading' });
     loadingEl.createSpan({ cls: 'mysecret-spinner' });
-    loadingEl.createSpan({ text: 'Generando entropía criptográfica (Argon2id + BIP-39)…' });
+    loadingEl.createSpan({ text: t('setupWizard.generatingEntropy') });
 
     // SECURITY / DATA INTEGRITY: the wizard must never overwrite an existing
     // vault. A second `initializeVault()` generates a NEW random vault key;
     // anything encrypted with the previous one becomes unreadable forever.
     if (this.plugin.keyManager.isInitialized) {
       loadingEl.remove();
-      errorEl.setText('Ya existe una bóveda configurada: el asistente no puede crear otra clave encima.');
+      errorEl.setText(t('setupWizard.vaultAlreadyExists'));
       errorEl.show();
       return;
     }
@@ -486,20 +486,20 @@ export class SetupWizardModal extends Modal {
       // --- Warning banner ---
       const warning = container.createDiv({ cls: 'mysecret-wizard-warning' });
       warning.createSpan({ text: '⚠️ ' });
-      warning.createSpan({ text: 'Esta frase nunca volverá a mostrarse. Asegúrate de copiarla antes de continuar.' });
+      warning.createSpan({ text: t('setupWizard.mnemonicNeverShownAgain') });
 
       // --- Toolbar ---
       const toolbar = container.createDiv({ cls: 'mysecret-mnemonic-toolbar' });
 
       const copyBtn = toolbar.createEl('button', {
         cls: 'mysecret-copy-btn',
-        text: '📋 Copiar frase',
+        text: `📋 ${t('setupWizard.copyPhrase')}`,
         attr: { 'data-mysecret-testid': 'wizard-copy-button' }
       });
 
       const concealBtn = toolbar.createEl('button', {
         cls: 'mysecret-copy-btn',
-        text: '🙈 Ocultar palabras',
+        text: `🙈 ${t('setupWizard.hideWords')}`,
         attr: { 'data-mysecret-testid': 'wizard-conceal-button' }
       });
 
@@ -519,8 +519,8 @@ export class SetupWizardModal extends Modal {
       copyBtn.addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(safeMnemonic);
-          copyBtn.setText('✅ Copiada');
-          new Notice('Frase de rescate copiada al portapapeles.');
+          copyBtn.setText(`✅ ${t('setupWizard.copiedPhrase')}`);
+          new Notice(t('setupWizard.phraseCopiedNotice'));
 
           // Auto-clear the clipboard so the secret does not linger
           if (clearTimer !== null) window.clearTimeout(clearTimer);
@@ -530,14 +530,14 @@ export class SetupWizardModal extends Modal {
               if (current === safeMnemonic) {
                 await navigator.clipboard.writeText('');
               }
-              copyBtn.setText('📋 Copiar frase');
+              copyBtn.setText(`📋 ${t('setupWizard.copyPhrase')}`);
             } catch {
               // Clipboard read may be denied: the copy still succeeded
-              copyBtn.setText('📋 Copiar frase');
+              copyBtn.setText(`📋 ${t('setupWizard.copyPhrase')}`);
             }
           }, 30000);
         } catch {
-          errorEl.setText('No se pudo acceder al portapapeles. Anota las palabras manualmente.');
+          errorEl.setText(t('setupWizard.clipboardError'));
           errorEl.show();
         }
       });
@@ -547,7 +547,7 @@ export class SetupWizardModal extends Modal {
       concealBtn.addEventListener('click', () => {
         concealed = !concealed;
         grid.toggleClass('is-concealed', concealed);
-        concealBtn.setText(concealed ? '👁️ Mostrar palabras' : '🙈 Ocultar palabras');
+        concealBtn.setText(concealed ? `👁️ ${t('setupWizard.showWords')}` : `🙈 ${t('setupWizard.hideWords')}`);
       });
 
       // --- Navigation ---
@@ -555,7 +555,7 @@ export class SetupWizardModal extends Modal {
 
       const nextBtn = actions.createEl('button', {
         cls: 'mod-cta mysecret-wizard-btn',
-        text: 'He guardado mi frase de auxilio →',
+        text: t('setupWizard.savedPhraseContinue'),
         attr: { 'data-mysecret-testid': 'wizard-mnemonic-continue' }
       });
 
@@ -567,7 +567,7 @@ export class SetupWizardModal extends Modal {
       if (this.isClosed) return;
 
       loadingEl.remove();
-      errorEl.setText('Error al inicializar la bóveda: ' + (err?.message || 'error desconocido'));
+      errorEl.setText(t('setupWizard.initError', { error: err?.message || t('common.unknownError') }));
       errorEl.show();
     });
   }
@@ -576,10 +576,10 @@ export class SetupWizardModal extends Modal {
    * STEP 3: Confirm the backup with a 2-word random challenge
    */
   private renderStep3Confirm(container: HTMLElement): void {
-    container.createEl('h2', { cls: 'mysecret-wizard-title', text: '🎉 ¡Bóveda Protegida!' });
+    container.createEl('h2', { cls: 'mysecret-wizard-title', text: `🎉 ${t('setupWizard.vaultProtectedTitle')}` });
     container.createEl('p', {
       cls: 'mysecret-wizard-desc',
-      text: 'MySecret ha inicializado el cifrado transparente. A partir de ahora, cada nota que guardes se cifrará automáticamente con AES-256-GCM.'
+      text: t('setupWizard.vaultProtectedDesc')
     });
 
     const errorEl = container.createDiv({ cls: 'mysecret-error-banner' });
@@ -595,11 +595,11 @@ export class SetupWizardModal extends Modal {
     const challenge = container.createDiv({ cls: 'mysecret-challenge' });
     challenge.createEl('h3', {
       cls: 'mysecret-challenge-title',
-      text: 'Demuestra que guardaste tu frase'
+      text: t('setupWizard.challengeTitle')
     });
     challenge.createEl('p', {
       cls: 'mysecret-challenge-desc',
-      text: 'Introduce las dos palabras que te solicitamos para confirmar que tu respaldo es correcto.'
+      text: t('setupWizard.challengeDesc')
     });
 
     const inputs: HTMLInputElement[] = [];
@@ -608,17 +608,17 @@ export class SetupWizardModal extends Modal {
       const group = challenge.createDiv({ cls: 'mysecret-input-group' });
       group.createEl('label', {
         cls: 'mysecret-input-label',
-        text: `Palabra ${this.challengeIndices[i] + 1} de ${BIP39_WORD_COUNT}`
+        text: t('setupWizard.wordOfTotal', { n: this.challengeIndices[i] + 1, total: BIP39_WORD_COUNT })
       });
 
       const input = group.createEl('input', {
         type: 'text',
         cls: 'mysecret-password-input',
-        placeholder: 'Introduce la palabra…',
+        placeholder: t('setupWizard.wordPlaceholder'),
         attr: {
           spellcheck: 'false',
           autocomplete: 'off',
-          'aria-label': `Palabra ${wordIndex + 1}`,
+          'aria-label': t('setupWizard.wordN', { n: wordIndex + 1 }),
           'data-mysecret-testid': `wizard-challenge-input-${i}`
         }
       });
@@ -664,7 +664,7 @@ export class SetupWizardModal extends Modal {
 
     const verifyBtn = actions.createEl('button', {
       cls: 'mod-cta mysecret-wizard-btn',
-      text: 'Verificar palabras',
+      text: t('setupWizard.verifyWords'),
       attr: { 'data-mysecret-testid': 'wizard-verify-button' }
     });
 
@@ -672,22 +672,22 @@ export class SetupWizardModal extends Modal {
       if (validateChallenge()) {
         this.handleChallengePassed();
       } else {
-        errorEl.setText('Las palabras no coinciden. Vuelve a consultar tu frase de rescate.');
+        errorEl.setText(t('setupWizard.wordsMismatch'));
         errorEl.show();
-        feedback.setText('Verificación fallida');
+        feedback.setText(t('setupWizard.verificationFailed'));
         feedback.addClass('is-error');
       }
     });
 
     const finishBtn = actions.createEl('button', {
       cls: 'mysecret-wizard-btn',
-      text: 'Comenzar a usar Obsidian',
+      text: t('setupWizard.startUsingObsidian'),
       attr: { 'data-mysecret-testid': 'wizard-finish-button' }
     });
 
     finishBtn.addEventListener('click', () => {
       if (!this.challengeAnswered) {
-        errorEl.setText('Verifica las dos palabras antes de finalizar la configuración.');
+        errorEl.setText(t('setupWizard.verifyBeforeFinish'));
         errorEl.show();
         return;
       }
@@ -707,7 +707,7 @@ export class SetupWizardModal extends Modal {
 
     const feedback = this.modalEl.querySelector('.mysecret-challenge-feedback');
     if (feedback) {
-      feedback.setText('✓ Respaldo verificado correctamente');
+      feedback.setText(`✓ ${t('setupWizard.backupVerified')}`);
       feedback.removeClass('is-error');
       feedback.addClass('is-success');
     }
@@ -717,7 +717,7 @@ export class SetupWizardModal extends Modal {
       return;
     }
 
-    new Notice('✅ Frase de rescate verificada. Ya puedes configurar la huella o continuar.');
+    new Notice(`✅ ${t('setupWizard.phraseVerifiedNotice')}`);
 
     // Offer the bulk encryption of pre-existing notes
     const actions = this.modalEl.querySelector('.mysecret-actions-group');
@@ -725,7 +725,7 @@ export class SetupWizardModal extends Modal {
 
     const encryptAllBtn = actions.createEl('button', {
       cls: 'mod-cta mysecret-wizard-btn',
-      text: '🔒 Cifrar notas existentes ahora',
+      text: `🔒 ${t('setupWizard.encryptExistingNow')}`,
       attr: { 'data-mysecret-testid': 'wizard-encrypt-all-button' }
     });
 
@@ -740,21 +740,21 @@ export class SetupWizardModal extends Modal {
    * DIRECT FINISH: For users who opt out of recovery phrase (Password-Only / Maximum Paranoia)
    */
   private renderDirectFinish(container: HTMLElement): void {
-    container.createEl('h2', { cls: 'mysecret-wizard-title', text: '🛡️ Máxima Seguridad Activada' });
+    container.createEl('h2', { cls: 'mysecret-wizard-title', text: `🛡️ ${t('setupWizard.maxSecurityTitle')}` });
     container.createEl('p', {
       cls: 'mysecret-wizard-desc',
-      text: 'Protegiendo tu bóveda con cifrado AES-256-GCM y Argon2id exclusivamente con tu contraseña maestra.'
+      text: t('setupWizard.maxSecurityDesc')
     });
 
     const loadingEl = container.createDiv({ cls: 'mysecret-loading' });
     loadingEl.createSpan({ cls: 'mysecret-spinner' });
-    loadingEl.createSpan({ text: 'Generando claves y cifrando configuración…' });
+    loadingEl.createSpan({ text: t('setupWizard.generatingKeys') });
 
     if (this.plugin.keyManager.isInitialized) {
       loadingEl.remove();
       container.createDiv({
         cls: 'mysecret-error-banner',
-        text: 'Ya existe una bóveda configurada: el asistente no puede crear otra clave encima.'
+        text: t('setupWizard.vaultAlreadyExists')
       });
       return;
     }
@@ -769,19 +769,19 @@ export class SetupWizardModal extends Modal {
         loadingEl.remove();
 
         const successCard = container.createDiv({ cls: 'mysecret-challenge-feedback is-success' });
-        successCard.setText('✓ Bóveda configurada con éxito en modo de solo contraseña');
+        successCard.setText(`✓ ${t('setupWizard.passwordOnlySuccess')}`);
 
         const noteBox = container.createDiv({ cls: 'mysecret-migration-warning' });
-        noteBox.createEl('strong', { text: 'Importante: ' });
+        noteBox.createEl('strong', { text: t('setupWizard.importantLabel') });
         noteBox.createSpan({
-          text: 'No se generó frase de auxilio. Tu contraseña maestra es el único medio para acceder a tus notas.'
+          text: t('setupWizard.noRecoveryPhraseNote')
         });
 
         const actions = container.createDiv({ cls: 'mysecret-actions-group' });
 
         const startBtn = actions.createEl('button', {
           cls: 'mysecret-wizard-btn',
-          text: 'Continuar a Huella Digital →'
+          text: t('setupWizard.continueToFingerprint')
         });
         startBtn.addEventListener('click', () => {
           this.currentStep = 3;
@@ -790,7 +790,7 @@ export class SetupWizardModal extends Modal {
 
         const encryptAllBtn = actions.createEl('button', {
           cls: 'mod-cta mysecret-wizard-btn',
-          text: '🔒 Cifrar notas existentes ahora'
+          text: `🔒 ${t('setupWizard.encryptExistingNow')}`
         });
         encryptAllBtn.addEventListener('click', () => {
           this.pendingBulkEncrypt = true;
@@ -799,7 +799,7 @@ export class SetupWizardModal extends Modal {
         });
       })
       .catch(err => {
-        loadingEl.setText(`Error al inicializar la bóveda: ${err?.message || String(err)}`);
+        loadingEl.setText(t('setupWizard.initError', { error: err?.message || String(err) }));
       });
   }
 
@@ -807,15 +807,15 @@ export class SetupWizardModal extends Modal {
    * STEP 4: Biometric Enrollment Prompt
    */
   private async renderBiometricEnrollmentStep(container: HTMLElement): Promise<void> {
-    container.createEl('h2', { cls: 'mysecret-wizard-title', text: '👆 Desbloqueo Rápido con Huella Digital' });
+    container.createEl('h2', { cls: 'mysecret-wizard-title', text: `👆 ${t('setupWizard.bioTitle')}` });
     container.createEl('p', {
       cls: 'mysecret-wizard-desc',
-      text: 'Puedes desbloquear tu bóveda al instante usando el sensor biométrico de este dispositivo sin tener que teclear tu contraseña cada vez.'
+      text: t('setupWizard.bioDesc')
     });
 
     const statusEl = container.createDiv({ cls: 'mysecret-loading' });
     statusEl.createSpan({ cls: 'mysecret-spinner' });
-    statusEl.createSpan({ text: 'Comprobando hardware biométrico de este equipo…' });
+    statusEl.createSpan({ text: t('setupWizard.bioChecking') });
 
     const vaultId = this.plugin.getVaultId();
     const capabilities = await this.plugin.biometricManager.checkBiometricAvailability(vaultId);
@@ -826,7 +826,7 @@ export class SetupWizardModal extends Modal {
     const finishSetup = (): void => {
       this.close();
       this.plugin.unlockVaultSuccess();
-      new Notice('Bóveda lista y protegida. 🔒');
+      new Notice(`${t('setupWizard.vaultReadyNotice')} 🔒`);
       if (this.pendingBulkEncrypt) {
         this.plugin.openMigrationModal('encrypt');
       }
@@ -836,9 +836,9 @@ export class SetupWizardModal extends Modal {
 
     if (capabilities.supported) {
       const info = card.createDiv({ cls: 'mysecret-choice-info' });
-      info.createEl('strong', { text: `Hardware disponible: ${capabilities.label}` });
+      info.createEl('strong', { text: t('setupWizard.bioHardwareAvailable', { label: capabilities.label }) });
       info.createEl('p', {
-        text: 'Al activarlo, se guardará un sobre seguro vinculado exclusivamente a este equipo. Cada dispositivo que uses conserva su propia configuración de huella.'
+        text: t('setupWizard.bioEnvelopeDesc')
       });
 
       const feedback = container.createDiv({ cls: 'mysecret-challenge-feedback' });
@@ -848,28 +848,28 @@ export class SetupWizardModal extends Modal {
 
       const enrollBtn = actions.createEl('button', {
         cls: 'mod-cta mysecret-wizard-btn',
-        text: 'Activar Huella en este Dispositivo',
+        text: t('setupWizard.bioEnableBtn'),
         attr: { 'data-mysecret-testid': 'wizard-enroll-bio-button' }
       });
 
       const skipBtn = actions.createEl('button', {
         cls: 'mysecret-wizard-btn',
-        text: 'Omitir por ahora',
+        text: t('setupWizard.skipForNow'),
         attr: { 'data-mysecret-testid': 'wizard-skip-bio-button' }
       });
 
       enrollBtn.addEventListener('click', async () => {
         const rawVaultKey = this.plugin.keyManager.getRawVaultKey();
         if (!rawVaultKey) {
-          feedback.setText('La bóveda debe estar cargada en RAM para enrolar la huella.');
+          feedback.setText(t('setupWizard.bioVaultNotLoaded'));
           feedback.addClass('is-error');
           feedback.show();
           return;
         }
 
         enrollBtn.disabled = true;
-        enrollBtn.setText('Escaneando huella…');
-        feedback.setText('Coloca tu dedo en el sensor o confirma en el diálogo del sistema…');
+        enrollBtn.setText(t('setupWizard.bioScanning'));
+        feedback.setText(t('setupWizard.bioPlaceFinger'));
         feedback.removeClass('is-error');
         feedback.show();
 
@@ -884,18 +884,18 @@ export class SetupWizardModal extends Modal {
             };
             await this.plugin.saveSettings();
 
-            feedback.setText('✓ Huella digital activada correctamente en este equipo');
+            feedback.setText(`✓ ${t('setupWizard.bioEnabled')}`);
             feedback.removeClass('is-error');
             feedback.addClass('is-success');
             enrollBtn.remove();
-            skipBtn.setText('Comenzar a usar Obsidian →');
+            skipBtn.setText(t('setupWizard.startUsingObsidianNext'));
             skipBtn.addClass('mod-cta');
-            new Notice('👆 Desbloqueo con huella habilitado.');
+            new Notice(`👆 ${t('setupWizard.bioEnabledNotice')}`);
           }
         } catch (err: any) {
           enrollBtn.disabled = false;
-          enrollBtn.setText('Reintentar Activación');
-          feedback.setText(err?.message || 'Error en la verificación biométrica.');
+          enrollBtn.setText(t('setupWizard.retryActivation'));
+          feedback.setText(err?.message || t('setupWizard.bioError'));
           feedback.addClass('is-error');
         } finally {
           // SECURITY: the copy of the vault key must never linger in the heap.
@@ -906,15 +906,15 @@ export class SetupWizardModal extends Modal {
       skipBtn.addEventListener('click', finishSetup);
     } else {
       const info = card.createDiv({ cls: 'mysecret-choice-info' });
-      info.createEl('strong', { text: 'Hardware Biométrico no configurado en este equipo' });
+      info.createEl('strong', { text: t('setupWizard.bioNotConfiguredTitle') });
       info.createEl('p', {
-        text: 'No se detectó un lector biométrico directo o la URL del puente de Cloudflare Pages aún no está configurada. Tu bóveda se desbloqueará con tu contraseña maestra (puedes activar la huella más tarde en Ajustes > MySecret).'
+        text: t('setupWizard.bioNotConfiguredDesc')
       });
 
       const actions = container.createDiv({ cls: 'mysecret-actions-group' });
       const finishBtn = actions.createEl('button', {
         cls: 'mod-cta mysecret-wizard-btn',
-        text: 'Comenzar a usar Obsidian',
+        text: t('setupWizard.startUsingObsidian'),
         attr: { 'data-mysecret-testid': 'wizard-finish-button' }
       });
 
