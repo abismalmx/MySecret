@@ -19,7 +19,7 @@ import assert from 'node:assert';
 import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -48,145 +48,25 @@ function publishedGitAvailable() {
 }
 
 /**
- * Reads a file out of the published tree's git OBJECT DATABASE.
- *
- * The published tree is a real git repository, but the CI image may not ship
- * the `git` binary, so the objects are decoded directly:
- *
- *   - a loose object is zlib-compressed and prefixed with "<type> <size>\0"
- *   - a packed object is looked up in `objects/pack/*.idx`
+ * Reads a file as COMMITTED at HEAD of the published tree (not the working
+ * copy), using the git binary. `git show HEAD:<path>` handles every repository
+ * layout the CI can produce: loose objects, packfiles with deltas, shallow
+ * clones and the detached HEAD that actions/checkout leaves on a tag push.
  *
  * @param relPath path inside the published tree, relative to its root
  * @returns the file content, or null when it is not committed at HEAD
  */
 function publishedCommittedContent(relPath) {
   if (!publishedGitAvailable()) return null;
-
-  const head = fs.readFileSync(path.join(GIT_DIR, 'HEAD'), 'utf8').trim();
-  const refMatch = head.match(/^ref:\s*(.+)$/);
-  if (!refMatch) return null;
-
-  const refPath = path.join(GIT_DIR, refMatch[1]);
-  if (!fs.existsSync(refPath)) return null;
-
-  const commitSha = fs.readFileSync(refPath, 'utf8').trim();
-  const commit = readGitObject(commitSha);
-  if (!commit) return null;
-
-  // The commit object lists the tree sha on its "tree <sha>" line.
-  const treeMatch = commit.toString('utf8').match(/^tree ([0-9a-f]{40})$/m);
-  if (!treeMatch) return null;
-
-  const tree = readGitObject(treeMatch[1]);
-  if (!tree) return null;
-
-  const entry = findTreeEntry(tree, relPath);
-  if (!entry) return null;
-
-  const blob = readGitObject(entry.sha);
-  return blob ? blob.toString('utf8') : null;
-}
-
-/** Reads and inflates a loose git object, or one from a pack file. */
-function readGitObject(sha) {
-  const loose = path.join(GIT_DIR, 'objects', sha.slice(0, 2), sha.slice(2));
-  if (fs.existsSync(loose)) {
-    return inflate(fs.readFileSync(loose));
+  try {
+    return execFileSync('git', ['-C', PUBLISHED_DIR, 'show', `HEAD:${relPath}`], {
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+  } catch {
+    return null;
   }
-  return readPackedObject(sha);
-}
-
-/** Inflates a zlib-compressed git object and strips the "<type> <size>\0" header. */
-function inflate(buffer) {
-  const inflated = zlib.inflateSync(buffer);
-  const nul = inflated.indexOf(0);
-  return inflated.slice(nul + 1);
-}
-
-/** Looks a sha up in the pack files and returns its inflated content. */
-function readPackedObject(sha) {
-  const packDir = path.join(GIT_DIR, 'objects', 'pack');
-  if (!fs.existsSync(packDir)) return null;
-
-  for (const idxName of fs.readdirSync(packDir).filter(f => f.endsWith('.idx'))) {
-    const idx = fs.readFileSync(path.join(packDir, idxName));
-    const packPath = path.join(packDir, idxName.replace(/\.idx$/, '.pack'));
-    if (!fs.existsSync(packPath)) continue;
-
-    // v2 index: 8-byte header, then 256 fan-out entries of 4 bytes each.
-    const fanoutStart = 8;
-    const count = idx.readUInt32BE(fanoutStart + 255 * 4);
-    const shaStart = fanoutStart + 256 * 4;
-
-    const target = Buffer.from(sha, 'hex');
-    for (let i = 0; i < count; i++) {
-      const offset = shaStart + i * 20;
-      if (idx.compare(target, 0, 20, offset, offset + 20) !== 0) continue;
-
-      const pack = fs.readFileSync(packPath);
-      let p = Number(idx.readBigUInt64BE(shaStart + count * 20 + i * 4 +
-        (idx.readUInt8(shaStart + count * 20 + i * 4) & 0x7f) * 4));
-
-      // Skip the object header (type nibble + size varint).
-      p += 1;
-      let shift = 0;
-      let size = 0;
-      let byte;
-      do {
-        byte = pack[p++];
-        size |= (byte & 0x7f) << shift;
-        shift += 7;
-      } while (byte & 0x80);
-
-      return zlib.inflateRawSync(pack.slice(p, p + size));
-    }
-  }
-  return null;
-}
-
-/**
- * Walks a git tree object looking for `relPath`.
- *
- * @returns { sha: string, mode: string } of the blob, or null
- */
-function findTreeEntry(treeBuffer, relPath) {
-  const parts = relPath.split('/');
-  let current = treeBuffer;
-  let found = null;
-
-  for (let depth = 0; depth < parts.length; depth++) {
-    const name = parts[depth];
-    let offset = 0;
-    let descended = false;
-
-    while (offset < current.length) {
-      const space = current.indexOf(0x20, offset);
-      if (space === -1) break;
-      const nul = current.indexOf(0x00, space);
-      if (nul === -1) break;
-
-      const mode = current.slice(offset, space).toString('utf8');
-      const entryName = current.slice(space + 1, nul).toString('utf8');
-      const sha = current.slice(nul + 1, nul + 21).toString('hex');
-      offset = nul + 21;
-
-      if (entryName !== name) continue;
-
-      if (depth === parts.length - 1) {
-        found = { sha, mode };
-      } else {
-        const subtree = readGitObject(sha);
-        if (!subtree) return null;
-        current = subtree;
-        descended = true;
-      }
-      break;
-    }
-
-    if (!found && !descended) return null;
-  }
-
-  return found;
 }
 
 // ---------------------------------------------------------------------------
