@@ -13,7 +13,7 @@ Este documento está pensado para ingenieros que van a **modificar, revisar, aud
 El objetivo de esta guía es hacer legible el código *real*: dónde vive cada responsabilidad, qué invariantes no debe romper un cambio, cómo compilar y probar de forma determinista, y cómo descifrar una bóveda sin Obsidian.
 
 > **Procedencia de este documento.** Cada afirmación fue verificada contra el código fuente de la **versión
-> 1.0.6** del plugin (`package.json` / `manifest.json`). Los fragmentos de código son extractos de la
+> 1.0.7** del plugin (`package.json` / `manifest.json`). Los fragmentos de código son extractos de la
 > implementación real, no ilustraciones. Cuando el código y la documentación anterior discrepan, **manda el
 > código** y la diferencia se señala explícitamente en la sección *"Correcciones frente a revisiones
 > anteriores"*.
@@ -1493,7 +1493,7 @@ El script es determinista e idempotente: ejecútalo tras cada cambio que deba ll
 Todas las acciones de terceros están **fijadas a SHA de commit**, y el workflow de release se niega a publicar si
 la suite completa de pruebas no pasa.
 
-> El prefijo `v` importa: la convención de Obsidian es una tag desnuda `1.0.6`. Una tag `v1.0.6` no disparará
+> El prefijo `v` importa: la convención de Obsidian es una tag desnuda `1.0.7`. Una tag `v1.0.7` no disparará
 > ninguna release.
 
 ### 15.4 El archivo `_headers` del puente no es opcional

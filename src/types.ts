@@ -119,6 +119,8 @@ export interface PluginSettings {
   encryptAttachments: boolean;
   isInitialized: boolean;
   language?: 'auto' | 'en' | 'es' | 'ru' | 'zh';
+  /** Set once the one-time post-update notice was shown (or is not needed). */
+  updateNoticeShown?: boolean;
   backup: CloudBackupSettings;
   /**
    * Renames/copies whose AAD re-binding could not be completed (vault locked,

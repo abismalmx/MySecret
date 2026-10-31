@@ -1,6 +1,6 @@
 {
   "name": "obsidian-mysecret",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Transparent on-the-fly default encryption for Obsidian with AES-256-GCM and Argon2id",
   "main": "main.js",
   "scripts": {

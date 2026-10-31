@@ -1876,3 +1876,32 @@ body.is-mysecret-locked .workspace-tab-header-container {
   margin-bottom: 1rem;
   border: 1px solid rgba(99, 102, 241, 0.25);
 }
+
+.mysecret-update-notice-credit {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  text-align: left;
+}
+.mysecret-update-notice-credit p {
+  margin: 0 0 6px 0;
+}
+
+.mysecret-update-notice-credit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.mysecret-update-notice-credit-row p {
+  margin: 0;
+}
+.mysecret-update-notice-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}

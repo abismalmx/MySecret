@@ -13,7 +13,7 @@ This document is written for engineers who will **modify, review, audit or exten
 Its job is to make the *actual* code legible: where each responsibility lives, which invariants a change must not break, how to build and test deterministically, and how to decrypt a vault without Obsidian.
 
 > **Provenance of this document.** Every statement below was verified against the source tree at
-> **plugin version 1.0.6** (`package.json` / `manifest.json`). Code snippets are excerpts of the real
+> **plugin version 1.0.7** (`package.json` / `manifest.json`). Code snippets are excerpts of the real
 > implementation, not illustrations. Where the code and older documentation disagree, **the code wins** and
 > the difference is called out explicitly in the section *"Corrections against previous revisions"*.
 
@@ -1476,7 +1476,7 @@ The script is deterministic and idempotent: run it after every change that must 
 All third-party actions are **pinned to commit SHAs**, and the release workflow refuses to publish unless the
 whole test suite passes.
 
-> The `v` prefix matters: Obsidian's convention is a bare `1.0.6` tag. A `v1.0.6` tag will not trigger a
+> The `v` prefix matters: Obsidian's convention is a bare `1.0.7` tag. A `v1.0.7` tag will not trigger a
 > release.
 
 ### 15.4 The bridge `_headers` file is not optional

@@ -18,6 +18,7 @@ import { LockScreenModal } from './ui/lock-screen';
 import { SetupWizardModal } from './ui/setup-wizard';
 import { MigrationModal } from './ui/migration-modal';
 import { ExportModal } from './ui/export-modal';
+import { UpdateNoticeModal } from './ui/update-notice-modal';
 import { CloudBackupModal } from './ui/cloud-backup-modal';
 import { RestoreModal } from './ui/restore-modal';
 import { ChangePasswordModal } from './ui/change-password-modal';
@@ -368,6 +369,26 @@ export default class MySecretPlugin extends Plugin {
     } else {
       this.settings.biometrics = Object.assign({}, DEFAULT_SETTINGS.biometrics);
     }
+    // One-time post-update notice: only vaults that already existed before
+    // this release need it. A fresh install never saw the faulty wizard text.
+    if (this.settings.updateNoticeShown === undefined && !(loaded && loaded.isInitialized)) {
+      this.settings.updateNoticeShown = true;
+    }
+  }
+
+  /**
+   * Shows the one-time update notice after the first successful unlock.
+   * The flag is persisted BEFORE the modal opens so it can never reappear,
+   * even if Obsidian is closed while it is visible.
+   */
+  private maybeShowUpdateNotice(): void {
+    if (this.settings.updateNoticeShown) return;
+    this.settings.updateNoticeShown = true;
+    void this.saveSettings().then(() => {
+      window.setTimeout(() => {
+        if (!this.keyManager.isLocked) new UpdateNoticeModal(this.app, this).open();
+      }, 1500);
+    });
   }
 
   /**
@@ -924,6 +945,7 @@ export default class MySecretPlugin extends Plugin {
     this.updateRibbonIcon();
     this.resetInactivityTimer();
     new Notice(`🔓 ${t('notices.vaultUnlocked')}`);
+    this.maybeShowUpdateNotice();
     if (this.currentLockModal) {
       const modal = this.currentLockModal;
       this.currentLockModal = null;
