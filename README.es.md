@@ -47,17 +47,6 @@ Las claves criptográficas existen únicamente en la memoria RAM de tu dispositi
 
 ---
 
-## 🎬 Demostración en Video y Guía Interactiva
-
-Explora la arquitectura técnica y las guías interactivas impulsadas por Google NotebookLM:
-
-| 🇬🇧 Recursos en Inglés | 🇪🇸 Recursos en Español |
-| :---: | :---: |
-| 🧠 [**Ver Video en NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/ef0d6ffc-dc85-48e2-b52d-11fdbaf5e533) | 🧠 [**Ver Video en NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/e06b57d7-18c5-4e3a-8e99-a25dc10c2804) |
-| 📘 [**Guía Interactiva y Consultas**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b) | 📘 [**Guía Interactiva y Consultas**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c) |
-
----
-
 ## 📊 Por qué MySecret: Comparativa y Ventajas Clave
 
 Tus notas de Obsidian son archivos de texto plano en tu disco duro. Cualquiera que abra la carpeta puede leerlas. Tu servicio de nube tiene acceso. Si alguien roba tu portátil, las tiene todas. Esto no es alarmismo — es simplemente cómo funciona un sistema de archivos normal.

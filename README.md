@@ -47,17 +47,6 @@ Cryptographic keys exist only in your device's RAM while the vault is unlocked. 
 
 ---
 
-## 🎬 Video Overview & Interactive Guide
-
-Explore the architectural walkthrough and interactive guides powered by Google NotebookLM:
-
-| 🇬🇧 English Resources | 🇪🇸 Recursos en Español |
-| :---: | :---: |
-| 🧠 [**Watch Video on NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/ef0d6ffc-dc85-48e2-b52d-11fdbaf5e533) | 🧠 [**Ver Video en NotebookLM**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/e06b57d7-18c5-4e3a-8e99-a25dc10c2804) |
-| 📘 [**Interactive Guide & Q&A**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/30901254-af54-4f59-96ac-2c865a5d6e7b) | 📘 [**Guía Interactiva y Consultas**](https://notebook.google.com/notebook/d5794d82-48a8-4e4b-b4b8-69b288423f72/artifact/be9105e9-f902-4a92-89ac-e67e6ef72d2c) |
-
----
-
 ## 📊 Why MySecret: Comparison & Key Advantages
 
 Your Obsidian notes are plain text files sitting on your hard drive. Anyone who opens your vault folder can read them. Your cloud service has access. If someone steals your laptop, they have everything. This is not alarmism — it is simply how a normal file system works.
