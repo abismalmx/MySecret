@@ -31,11 +31,9 @@
 
 ---
 
-### 📽️ Slide Presentation / Presentación
-
-> 📊 **Explore the Architecture & Feature Slides:**
-> - 🇬🇧 **[English Presentation (Default)](media/MySecret_Presentation_en.pdf)**
-> - 🇪🇸 **[Presentación en Español](media/MySecret_Presentation_es.pdf)**
+<div align="center">
+  <img src="media/MySecret-launch-film-en.gif" alt="MySecret Launch Film — Transparent Vault Encryption for Obsidian" width="100%" />
+</div>
 
 ---
 

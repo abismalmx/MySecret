@@ -31,11 +31,9 @@
 
 ---
 
-### 📽️ Presentación Diapositivas / Slide Deck
-
-> 📊 **Explora la Presentación de Arquitectura y Características:**
-> - 🇬🇧 **[Presentación en Inglés (Por defecto)](media/MySecret_Presentation_en.pdf)**
-> - 🇪🇸 **[Presentación en Español](media/MySecret_Presentation_es.pdf)**
+<div align="center">
+  <img src="media/MySecret-launch-film-es.gif" alt="Presentación de MySecret — Cifrado Transparente para Bóvedas de Obsidian" width="100%" />
+</div>
 
 ---
 
