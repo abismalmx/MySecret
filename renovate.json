@@ -63,18 +63,20 @@
     },
     {
       "matchPackageNames": [
+        "@types/node"
+      ],
+      "allowedVersions": "<23"
+    },
+    {
+      "matchPackageNames": [
         "typescript"
       ],
       "matchUpdateTypes": [
         "major"
       ],
-      "enabled": false
-    },
-    {
-      "matchPackageNames": [
-        "@types/node"
-      ],
-      "allowedVersions": "<23"
+      "labels": [
+        "major-upgrade"
+      ]
     }
   ]
 }
