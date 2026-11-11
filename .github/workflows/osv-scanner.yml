@@ -33,6 +33,7 @@ jobs:
       fail-on-vuln: true
       upload-sarif: false
     permissions:
+      actions: read
       contents: read
       security-events: write
 
@@ -47,5 +48,6 @@ jobs:
       fail-on-vuln: true
       upload-sarif: false
     permissions:
+      actions: read
       contents: read
       security-events: write
