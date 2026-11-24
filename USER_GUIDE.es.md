@@ -761,7 +761,7 @@ Ve a **Ajustes → MySecret → Copias de Seguridad en la Nube** y elige proveed
 3. Ya con tus notas en texto plano, **desactiva o desinstala** el plugin.
 4. Borra (opcionalmente) la carpeta `.obsidian/plugins/mysecret/`.
 
-> ⚠️ **Si desinstalas el plugin con la bóveda cifrada, tus notas siguen cifradas.** No se pierden, pero Obsidian (y cualquier otro programa) las verá como texto basura. La solución: volver a instalar MySecret, desbloquear con tu contraseña y ejecutar **Descifrar Toda la Bóveda**.
+> ⚠️ **Si desinstalas el plugin con la bóveda cifrada, tus notas siguen cifradas — y Obsidian borra `.obsidian/plugins/mysecret/` (incluido `vault-envelope.json`).** Sin una copia de respaldo de `vault-envelope.json` (o la copia espejo automática en `.obsidian/mysecret-envelope.json`), **no podrás descifrar tus notas al reinstalar**. Ejecuta siempre **Descifrar Toda la Bóveda** antes de desinstalar, o asegúrate de tener una copia de tu sobre primero.
 
 ### 11.3 Tabla resumen de migraciones
 
@@ -902,7 +902,7 @@ Para los que quieren ver el proceso paso a paso:
 
 #### P: ¿Qué ocurre si desinstalo el plugin?
 
-**R:** Si desinstalas el plugin mientras tus archivos están cifrados, **permanecen cifrados en el disco**. Para dejarlos en texto plano, ejecuta **Descifrar Toda la Bóveda** antes de eliminar el plugin. Si ya lo eliminaste, vuelve a instalar MySecret, introduce tu contraseña maestra y ejecuta Descifrar Toda la Bóveda.
+**R:** Si desinstalas el plugin mientras tus archivos están cifrados, **permanecen cifrados en el disco**, y Obsidian elimina `.obsidian/plugins/mysecret/` (donde vive `vault-envelope.json`). **Sin una copia de respaldo de `vault-envelope.json` (o la copia espejo automática en `.obsidian/mysecret-envelope.json`), reinstalar el plugin NO permitirá descifrar tus notas anteriores**, ya que se generaría una nueva llave aleatoria. Ejecuta siempre **Descifrar Toda la Bóveda** antes de desinstalar, o guarda una copia de `vault-envelope.json`.
 
 #### P: ¿El plugin funciona sin conexión a internet?
 

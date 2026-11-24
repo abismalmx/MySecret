@@ -91,6 +91,7 @@ export const BIP39_ENTROPY_BITS = 256; // 256 bits for 24 words
 // Vault Envelope Storage Path
 export const VAULT_ENVELOPE_FILENAME = 'vault-envelope.json';
 export const VAULT_ENVELOPE_PATH = `.obsidian/plugins/${PLUGIN_ID}/${VAULT_ENVELOPE_FILENAME}`;
+export const VAULT_ENVELOPE_MIRROR_PATH = `.obsidian/${PLUGIN_ID}-envelope.json`;
 
 // Default Exclusions (never encrypt system or git files)
 export const SYSTEM_EXCLUDED_PREFIXES = [

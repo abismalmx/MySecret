@@ -5,7 +5,7 @@
 
 import { Plugin, Notice, TFile, TFolder } from 'obsidian';
 import { PluginSettings, VaultEnvelopeConfig, CloudBackupSettings } from './types';
-import { PLUGIN_ID, VAULT_ENVELOPE_PATH, VAULT_ENVELOPE_FILENAME } from './constants';
+import { PLUGIN_ID, VAULT_ENVELOPE_PATH, VAULT_ENVELOPE_FILENAME, VAULT_ENVELOPE_MIRROR_PATH } from './constants';
 import { PathFilter } from './adapter/path-filter';
 import { KeyManager, isValidEnvelopeShape } from './crypto/key-manager';
 import { AdapterInterceptor } from './adapter/adapter-interceptor';
@@ -617,6 +617,9 @@ export default class MySecretPlugin extends Plugin {
         candidatePaths.unshift(manifestEnvPath);
       }
     }
+    if (!candidatePaths.includes(VAULT_ENVELOPE_MIRROR_PATH)) {
+      candidatePaths.push(VAULT_ENVELOPE_MIRROR_PATH);
+    }
 
     let sawCandidate = false;
     // For every location the main file is tried first, then the backup that
@@ -638,6 +641,36 @@ export default class MySecretPlugin extends Plugin {
         if (envPath.endsWith('.bak')) {
           new Notice('⚠️ MySecret: vault-envelope.json estaba dañado; se usó la copia anterior (.bak).');
         }
+
+        const primaryDir = this.manifest?.dir || `.obsidian/plugins/${PLUGIN_ID}`;
+        const primaryPath = `${primaryDir}/${VAULT_ENVELOPE_FILENAME}`;
+        const loadedFromMirror =
+          envPath === VAULT_ENVELOPE_MIRROR_PATH || envPath === `${VAULT_ENVELOPE_MIRROR_PATH}.bak`;
+        const json = JSON.stringify(parsed, null, 2);
+
+        // Self-heal: if recovered from the mirror after a plugin uninstall,
+        // restore the primary envelope in the plugin directory.
+        if (loadedFromMirror) {
+          try {
+            if (!(await rawAdapter.exists(primaryDir))) {
+              await rawAdapter.mkdir(primaryDir);
+            }
+            await this.writeEnvelopeFile(primaryPath, json);
+          } catch (healErr) {
+            console.warn('[MySecret] Could not restore primary envelope from mirror:', healErr);
+          }
+        } else if (!(await rawAdapter.exists(VAULT_ENVELOPE_MIRROR_PATH))) {
+          // Migrate existing vaults: ensure the uninstall-safe mirror exists.
+          try {
+            if (!(await rawAdapter.exists('.obsidian'))) {
+              await rawAdapter.mkdir('.obsidian');
+            }
+            await this.writeEnvelopeFile(VAULT_ENVELOPE_MIRROR_PATH, json);
+          } catch (mirrorErr) {
+            console.warn('[MySecret] Could not create mirror envelope:', mirrorErr);
+          }
+        }
+
         await this.saveSettings();
         return true;
       } catch (err) {
@@ -717,6 +750,17 @@ export default class MySecretPlugin extends Plugin {
       } catch {
         // Fallback sync is best effort
       }
+    }
+
+    // Keep an uninstall-safe mirror outside .obsidian/plugins/mysecret/
+    // so accidental plugin uninstallation does not wipe the only copy of the key.
+    try {
+      if (!(await rawAdapter.exists('.obsidian'))) {
+        await rawAdapter.mkdir('.obsidian');
+      }
+      await this.writeEnvelopeFile(VAULT_ENVELOPE_MIRROR_PATH, json);
+    } catch (err) {
+      console.warn('[MySecret] Could not sync mirror envelope:', err);
     }
 
     this.keyManager.setEnvelope(envelopeToSave);

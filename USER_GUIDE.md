@@ -755,7 +755,7 @@ Go to **Settings → MySecret → Cloud Backups** and pick a provider:
 3. Now that your notes are plain text, **disable or uninstall** the plugin.
 4. Optionally delete the `.obsidian/plugins/mysecret/` folder.
 
-> ⚠️ **If you uninstall the plugin while the vault is encrypted, your notes stay encrypted.** They are not lost, but Obsidian (and any other program) will see them as gibberish. The fix: reinstall MySecret, unlock with your password, and run **Decrypt Entire Vault**.
+> ⚠️ **If you uninstall the plugin while the vault is encrypted, your notes stay encrypted — and Obsidian deletes `.obsidian/plugins/mysecret/` (including `vault-envelope.json`).** Without a backup of `vault-envelope.json` (or the automatic mirror copy at `.obsidian/mysecret-envelope.json`), **you will not be able to decrypt your notes after reinstalling**. Always run **Decrypt Entire Vault** before uninstalling, or make sure you have a backup of your envelope first.
 
 ### 11.3 Migration summary table
 
@@ -903,7 +903,7 @@ For those who want to see the process step by step:
 
 #### Q: What happens if I uninstall the plugin?
 
-**R:** If you uninstall the plugin while your files are encrypted, they **stay encrypted on disk**. To return them to plain text, run **Decrypt Entire Vault** before removing the plugin. If you already removed it, reinstall MySecret, enter your master password, and run Decrypt Entire Vault.
+**R:** If you uninstall the plugin while your files are encrypted, they **stay encrypted on disk**, and Obsidian deletes `.obsidian/plugins/mysecret/` (which contains `vault-envelope.json`). **Without a backup copy of `vault-envelope.json` (or the automatic mirror at `.obsidian/mysecret-envelope.json`), reinstalling the plugin will NOT let you decrypt your existing notes** because a new random vault key would be generated. Always run **Decrypt Entire Vault** before uninstalling, or keep a backup of `vault-envelope.json`.
 
 #### Q: Does the plugin work without an internet connection?
 
